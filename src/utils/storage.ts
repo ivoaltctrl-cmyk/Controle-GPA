@@ -1,22 +1,65 @@
 import * as XLSX from 'xlsx';
-import { Contract, Employee, DemandLog, SystemStats, PendingDoc } from '../types/index.ts';
+import { Contract, Employee, DemandLog, SystemStats, PendingDoc, BrandConfig } from '../types/index.ts';
 import { INITIAL_CONTRACTS, INITIAL_EMPLOYEES, INITIAL_DEMAND_LOGS } from '../data/mockData.ts';
+import { DEFAULT_BRAND_CONFIG, applyBrandThemeToCss } from './themePresets.ts';
 
 const EMPLOYEES_KEY = 'sst_pendencias_employees_v1';
 const CONTRACTS_KEY = 'sst_pendencias_contracts_v1';
 const DEMAND_LOGS_KEY = 'sst_pendencias_demand_logs_v1';
+const BRAND_CONFIG_KEY = 'sst_pendencias_brand_config_v1';
+const IS_PRODUCTION_KEY = 'sst_pendencias_is_production_v1';
+
+export function isProductionMode(): boolean {
+  try {
+    return localStorage.getItem(IS_PRODUCTION_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function getStoredBrandConfig(): BrandConfig {
+  try {
+    const raw = localStorage.getItem(BRAND_CONFIG_KEY);
+    if (!raw) {
+      localStorage.setItem(BRAND_CONFIG_KEY, JSON.stringify(DEFAULT_BRAND_CONFIG));
+      applyBrandThemeToCss(DEFAULT_BRAND_CONFIG);
+      return DEFAULT_BRAND_CONFIG;
+    }
+    const parsed = JSON.parse(raw);
+    applyBrandThemeToCss(parsed);
+    return parsed;
+  } catch (e) {
+    console.error('Erro ao ler configuração de marca:', e);
+    applyBrandThemeToCss(DEFAULT_BRAND_CONFIG);
+    return DEFAULT_BRAND_CONFIG;
+  }
+}
+
+export function saveStoredBrandConfig(config: BrandConfig) {
+  try {
+    localStorage.setItem(BRAND_CONFIG_KEY, JSON.stringify(config));
+    applyBrandThemeToCss(config);
+  } catch (e) {
+    console.error('Erro ao salvar configuração de marca:', e);
+  }
+}
 
 export function getStoredEmployees(): Employee[] {
   try {
+    const isProd = isProductionMode();
     const raw = localStorage.getItem(EMPLOYEES_KEY);
-    if (!raw) {
+    if (raw === null) {
+      if (isProd) {
+        localStorage.setItem(EMPLOYEES_KEY, JSON.stringify([]));
+        return [];
+      }
       localStorage.setItem(EMPLOYEES_KEY, JSON.stringify(INITIAL_EMPLOYEES));
       return INITIAL_EMPLOYEES;
     }
     return JSON.parse(raw);
   } catch (e) {
     console.error('Erro ao ler funcionários do localStorage:', e);
-    return INITIAL_EMPLOYEES;
+    return [];
   }
 }
 
@@ -30,15 +73,20 @@ export function saveStoredEmployees(employees: Employee[]) {
 
 export function getStoredContracts(): Contract[] {
   try {
+    const isProd = isProductionMode();
     const raw = localStorage.getItem(CONTRACTS_KEY);
-    if (!raw) {
+    if (raw === null) {
+      if (isProd) {
+        localStorage.setItem(CONTRACTS_KEY, JSON.stringify([]));
+        return [];
+      }
       localStorage.setItem(CONTRACTS_KEY, JSON.stringify(INITIAL_CONTRACTS));
       return INITIAL_CONTRACTS;
     }
     return JSON.parse(raw);
   } catch (e) {
     console.error('Erro ao ler contratos:', e);
-    return INITIAL_CONTRACTS;
+    return [];
   }
 }
 
@@ -52,15 +100,20 @@ export function saveStoredContracts(contracts: Contract[]) {
 
 export function getStoredDemandLogs(): DemandLog[] {
   try {
+    const isProd = isProductionMode();
     const raw = localStorage.getItem(DEMAND_LOGS_KEY);
-    if (!raw) {
+    if (raw === null) {
+      if (isProd) {
+        localStorage.setItem(DEMAND_LOGS_KEY, JSON.stringify([]));
+        return [];
+      }
       localStorage.setItem(DEMAND_LOGS_KEY, JSON.stringify(INITIAL_DEMAND_LOGS));
       return INITIAL_DEMAND_LOGS;
     }
     return JSON.parse(raw);
   } catch (e) {
     console.error('Erro ao ler logs de demanda:', e);
-    return INITIAL_DEMAND_LOGS;
+    return [];
   }
 }
 
@@ -72,7 +125,26 @@ export function saveStoredDemandLogs(logs: DemandLog[]) {
   }
 }
 
+export function clearDatabaseForProduction(options: {
+  wipeEmployees?: boolean;
+  wipeContracts?: boolean;
+  wipeDemandLogs?: boolean;
+}) {
+  localStorage.setItem(IS_PRODUCTION_KEY, 'true');
+
+  if (options.wipeEmployees !== false) {
+    localStorage.setItem(EMPLOYEES_KEY, JSON.stringify([]));
+  }
+  if (options.wipeDemandLogs !== false) {
+    localStorage.setItem(DEMAND_LOGS_KEY, JSON.stringify([]));
+  }
+  if (options.wipeContracts) {
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify([]));
+  }
+}
+
 export function resetDatabaseToDefaults() {
+  localStorage.setItem(IS_PRODUCTION_KEY, 'false');
   localStorage.setItem(EMPLOYEES_KEY, JSON.stringify(INITIAL_EMPLOYEES));
   localStorage.setItem(CONTRACTS_KEY, JSON.stringify(INITIAL_CONTRACTS));
   localStorage.setItem(DEMAND_LOGS_KEY, JSON.stringify(INITIAL_DEMAND_LOGS));

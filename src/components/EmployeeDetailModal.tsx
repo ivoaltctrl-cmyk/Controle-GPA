@@ -2,20 +2,21 @@ import React, { useState } from 'react';
 import {
   X,
   User,
-  ShieldCheck,
   Building2,
   Calendar,
-  Clock,
+  ShieldCheck,
+  ShieldAlert,
   Send,
-  Edit3,
   FileText,
   HeartPulse,
   HardHat,
   Radio,
-  Image as ImageIcon,
   CheckCircle2,
   AlertTriangle,
-  Plus,
+  Clock,
+  ExternalLink,
+  Edit2,
+  Save,
 } from 'lucide-react';
 import { Employee, PendingDoc, DocType, DocStatus } from '../types/index.ts';
 import { recalculateEmployeeStatus } from '../utils/storage.ts';
@@ -24,7 +25,7 @@ interface EmployeeDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   employee: Employee | null;
-  onSaveEmployee: (updated: Employee) => void;
+  onSaveEmployee: (employee: Employee) => void;
   onOpenDemand: (employee: Employee) => void;
 }
 
@@ -35,380 +36,349 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
   onSaveEmployee,
   onOpenDemand,
 }) => {
-  const [activeTab, setActiveTab] = useState<'docs' | 'screenshot'>('docs');
-  const [isAddingDoc, setIsAddingDoc] = useState(false);
-  const [newDocData, setNewDocData] = useState<{
-    tipo: DocType;
-    nomeDocumento: string;
-    status: DocStatus;
-    dataVencimento?: string;
-    observacoes?: string;
-  }>({
-    tipo: 'ORDEM_DE_SERVICO',
-    nomeDocumento: '',
-    status: 'EM_DIA',
-    dataVencimento: '',
-    observacoes: '',
-  });
+  const [activeTab, setActiveTab] = useState<'pendencias' | 'print' | 'historico'>('pendencias');
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [editingDocData, setEditingDocData] = useState<Partial<PendingDoc>>({});
 
   if (!isOpen || !employee) return null;
 
+  const isEmDia = employee.statusGeral === 'EM_DIA';
+  const isBloqueado = employee.statusGeral === 'BLOQUEADO';
+
   const handleUpdateDocStatus = (docId: string, newStatus: DocStatus) => {
-    const updatedDocs = employee.pendencias.map((d) =>
-      d.id === docId ? { ...d, status: newStatus, ultimaAtualizacao: new Date().toISOString().split('T')[0] } : d
+    const updatedDocs = employee.pendencias.map((doc) =>
+      doc.id === docId
+        ? {
+            ...doc,
+            status: newStatus,
+            ultimaAtualizacao: new Date().toISOString().split('T')[0],
+          }
+        : doc
     );
-    const recalculated = recalculateEmployeeStatus({ ...employee, pendencias: updatedDocs });
-    onSaveEmployee({
+
+    const recalculated = recalculateEmployeeStatus({
+      ...employee,
+      pendencias: updatedDocs,
+    });
+
+    const updatedEmployee: Employee = {
       ...employee,
       pendencias: updatedDocs,
       indicadorPercentual: recalculated.indicadorPercentual,
       statusGeral: recalculated.statusGeral,
-    });
-  };
-
-  const handleAddCustomDoc = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDocData.nomeDocumento) return;
-
-    const newDoc: PendingDoc = {
-      id: `p_cust_${Date.now()}`,
-      tipo: newDocData.tipo,
-      nomeDocumento: newDocData.nomeDocumento,
-      status: newDocData.status,
-      dataVencimento: newDocData.dataVencimento || undefined,
-      observacoes: newDocData.observacoes || undefined,
-      obrigatorio: true,
-      ultimaAtualizacao: new Date().toISOString().split('T')[0],
     };
 
-    const updatedDocs = [...employee.pendencias, newDoc];
-    const recalculated = recalculateEmployeeStatus({ ...employee, pendencias: updatedDocs });
-    onSaveEmployee({
+    onSaveEmployee(updatedEmployee);
+  };
+
+  const handleSaveDocDetails = (docId: string) => {
+    const updatedDocs = employee.pendencias.map((doc) =>
+      doc.id === docId
+        ? {
+            ...doc,
+            ...editingDocData,
+            ultimaAtualizacao: new Date().toISOString().split('T')[0],
+          }
+        : doc
+    );
+
+    const recalculated = recalculateEmployeeStatus({
+      ...employee,
+      pendencias: updatedDocs,
+    });
+
+    const updatedEmployee: Employee = {
       ...employee,
       pendencias: updatedDocs,
       indicadorPercentual: recalculated.indicadorPercentual,
       statusGeral: recalculated.statusGeral,
-    });
+    };
 
-    setIsAddingDoc(false);
-    setNewDocData({
-      tipo: 'ORDEM_DE_SERVICO',
-      nomeDocumento: '',
-      status: 'EM_DIA',
-      dataVencimento: '',
-      observacoes: '',
-    });
+    onSaveEmployee(updatedEmployee);
+    setEditingDocId(null);
   };
 
-  const getDocIcon = (tipo: string) => {
+  const getDocIcon = (tipo: DocType) => {
     switch (tipo) {
       case 'ORDEM_DE_SERVICO':
-        return <FileText className="w-4 h-4 text-cyan-400" />;
+        return <FileText className="w-5 h-5 text-sky-600" />;
       case 'ATESTADO_SAUDE_OCUPACIONAL':
-        return <HeartPulse className="w-4 h-4 text-purple-400" />;
+        return <HeartPulse className="w-5 h-5 text-purple-600" />;
       case 'FICHA_EPI':
-        return <HardHat className="w-4 h-4 text-pink-400" />;
+        return <HardHat className="w-5 h-5 text-indigo-600" />;
       case 'TREINAMENTO_RADIOPROTECAO':
-        return <Radio className="w-4 h-4 text-amber-400" />;
+        return <Radio className="w-5 h-5 text-amber-600" />;
       default:
-        return <ShieldCheck className="w-4 h-4 text-slate-400" />;
+        return <FileText className="w-5 h-5 text-slate-500" />;
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
-      <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/40">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-cyan-500/20">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+      <div className="relative w-full max-w-3xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Modal Header */}
+        <div className="flex items-start justify-between px-6 py-5 border-b border-slate-200 bg-slate-50">
+          <div className="flex items-center gap-3.5">
+            <div
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-base shadow-xs ${
+                isEmDia
+                  ? 'bg-emerald-100 border border-emerald-300 text-emerald-800'
+                  : isBloqueado
+                  ? 'bg-rose-100 border border-rose-300 text-rose-800'
+                  : 'bg-amber-100 border border-amber-300 text-amber-800'
+              }`}
+            >
               {employee.nome.substring(0, 2).toUpperCase()}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-white">{employee.nome}</h2>
+                <h2 className="text-lg font-bold text-slate-900">{employee.nome}</h2>
                 <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    employee.statusGeral === 'EM_DIA'
-                      ? 'bg-emerald-950 border-emerald-500/40 text-emerald-300'
-                      : employee.statusGeral === 'BLOQUEADO'
-                      ? 'bg-rose-950 border-rose-500/40 text-rose-300'
-                      : 'bg-amber-950 border-amber-500/40 text-amber-300'
+                  className={`text-xs font-black px-2.5 py-0.5 rounded-full border ${
+                    isEmDia
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                      : isBloqueado
+                      ? 'bg-rose-50 text-rose-800 border-rose-300'
+                      : 'bg-amber-50 text-amber-800 border-amber-300'
                   }`}
                 >
-                  {employee.statusGeral === 'EM_DIA'
-                    ? '100% REGULAR'
-                    : employee.statusGeral === 'BLOQUEADO'
-                    ? 'ACESSO BLOQUEADO'
-                    : 'PENDÊNCIAS ATIVAS'}
+                  {isEmDia ? '100% EM DIA' : isBloqueado ? 'BLOQUEADO' : 'COM PENDÊNCIAS'} (
+                  {employee.indicadorPercentual}%)
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
-                Matrícula: <strong className="text-cyan-400">{employee.matricula}</strong> • Cargo: {employee.cargo} • {employee.empresa}
+              <p className="text-xs text-slate-500 mt-0.5">
+                Matrícula: <strong className="text-slate-700">{employee.matricula}</strong> • Cargo: {employee.cargo} • {employee.empresa}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onOpenDemand(employee)}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 shadow transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Demandar</span>
-            </button>
-
-            <button
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Tab switch bar */}
-        <div className="px-6 pt-3 border-b border-slate-800 flex items-center gap-4 text-xs font-bold">
+        {/* Navigation Tabs */}
+        <div className="flex items-center px-6 border-b border-slate-200 bg-slate-50 text-xs font-bold gap-6">
           <button
-            onClick={() => setActiveTab('docs')}
-            className={`pb-2 border-b-2 transition-colors cursor-pointer ${
-              activeTab === 'docs'
-                ? 'border-cyan-500 text-cyan-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+            onClick={() => setActiveTab('pendencias')}
+            className={`py-3 border-b-2 transition-colors cursor-pointer ${
+              activeTab === 'pendencias'
+                ? 'border-[#002D62] text-[#002D62]'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            Quadro de Pendências & Documentos ({employee.pendencias.length})
+            Ficha de Pendências ({employee.pendencias.length})
           </button>
-          {employee.imagemOrigemUrl && (
-            <button
-              onClick={() => setActiveTab('screenshot')}
-              className={`pb-2 border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'screenshot'
-                  ? 'border-cyan-500 text-cyan-400'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              <span>Print Original do Sistema</span>
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab('print')}
+            className={`py-3 border-b-2 transition-colors cursor-pointer ${
+              activeTab === 'print'
+                ? 'border-[#002D62] text-[#002D62]'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Print Original / OCR
+          </button>
         </div>
 
-        {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {activeTab === 'docs' ? (
-            <div className="space-y-5">
-              {/* Profile Info Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-xs">
-                <div>
-                  <span className="text-slate-400 font-semibold block">Setor / Departamento</span>
-                  <span className="text-white font-bold">{employee.setor}</span>
+        {/* Body Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {activeTab === 'pendencias' && (
+            <div className="space-y-4">
+              {/* Contract Information Pill */}
+              <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-[#002D62]" />
+                  <span className="text-slate-700">
+                    Contrato Vinculado: <strong className="text-slate-900">{employee.contratoNome || 'Não vinculado'}</strong>
+                  </span>
                 </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block">Contrato Vinculado</span>
-                  <span className="text-cyan-400 font-bold">{employee.contratoNome || 'Geral'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block">Taxa de Conformidade</span>
-                  <span className="text-emerald-400 font-extrabold text-sm">{employee.indicadorPercentual}%</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block">Última Leitura OCR</span>
-                  <span className="text-slate-300">{employee.dataUltimaLeitura || employee.dataCadastro}</span>
-                </div>
+                <span className="text-slate-500">Setor: {employee.setor}</span>
               </div>
 
-              {/* Documents List */}
+              {/* Document List */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                    Documentos de SST e Treinamentos Avaliados:
-                  </h3>
+                {employee.pendencias.map((doc) => {
+                  const isOk = doc.status === 'EM_DIA';
+                  const isVencido = doc.status === 'VENCIDO';
+                  const isEditing = editingDocId === doc.id;
 
-                  <button
-                    onClick={() => setIsAddingDoc(!isAddingDoc)}
-                    className="px-2.5 py-1 rounded text-xs font-bold text-cyan-400 hover:text-cyan-300 bg-cyan-950/60 border border-cyan-800 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Adicionar Documento</span>
-                  </button>
-                </div>
-
-                {/* Add Document Form */}
-                {isAddingDoc && (
-                  <form onSubmit={handleAddCustomDoc} className="p-4 rounded-xl bg-slate-950 border border-cyan-800/80 space-y-3 text-xs">
-                    <h4 className="font-bold text-white">Adicionar Novo Documento de SST</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-slate-400 mb-1">Tipo de Documento</label>
-                        <select
-                          value={newDocData.tipo}
-                          onChange={(e) => setNewDocData({ ...newDocData, tipo: e.target.value as DocType })}
-                          className="w-full p-2 rounded bg-slate-900 border border-slate-700 text-white"
-                        >
-                          <option value="ORDEM_DE_SERVICO">Ordem de Serviço (NR-01)</option>
-                          <option value="ATESTADO_SAUDE_OCUPACIONAL">ASO Médico (NR-07)</option>
-                          <option value="FICHA_EPI">Ficha de EPI (NR-06)</option>
-                          <option value="TREINAMENTO_RADIOPROTECAO">Treinamento de Radioproteção</option>
-                          <option value="OUTRO">Outro Treinamento / Certificado</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-slate-400 mb-1">Nome do Documento / Curso</label>
-                        <input
-                          type="text"
-                          required
-                          value={newDocData.nomeDocumento}
-                          onChange={(e) => setNewDocData({ ...newDocData, nomeDocumento: e.target.value })}
-                          placeholder="Ex: Treinamento NR-35 Trabalho em Altura"
-                          className="w-full p-2 rounded bg-slate-900 border border-slate-700 text-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-slate-400 mb-1">Status Atual</label>
-                        <select
-                          value={newDocData.status}
-                          onChange={(e) => setNewDocData({ ...newDocData, status: e.target.value as DocStatus })}
-                          className="w-full p-2 rounded bg-slate-900 border border-slate-700 text-white"
-                        >
-                          <option value="EM_DIA">✅ Em Dia</option>
-                          <option value="PENDENTE">⚠️ Pendente</option>
-                          <option value="VENCIDO">❌ Vencido</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setIsAddingDoc(false)}
-                        className="px-3 py-1 rounded text-slate-400 hover:text-white"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-1.5 rounded font-bold text-white bg-cyan-600 hover:bg-cyan-500"
-                      >
-                        Salvar Item
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {/* Docs list items */}
-                <div className="space-y-2.5">
-                  {employee.pendencias.map((doc) => {
-                    const isOk = doc.status === 'EM_DIA';
-                    const isVencido = doc.status === 'VENCIDO';
-                    const isPendente = doc.status === 'PENDENTE' || doc.status === 'EM_ANALISE';
-
-                    return (
-                      <div
-                        key={doc.id}
-                        className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                      >
+                  return (
+                    <div
+                      key={doc.id}
+                      className={`p-4 rounded-xl border transition-all bg-white ${
+                        isOk
+                          ? 'border-emerald-200 bg-emerald-50/20'
+                          : isVencido
+                          ? 'border-rose-200 bg-rose-50/20'
+                          : 'border-amber-200 bg-amber-50/20'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
-                          <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 shrink-0">
+                          <div className="p-2 rounded-lg bg-slate-100 border border-slate-200 shrink-0">
                             {getDocIcon(doc.tipo)}
                           </div>
-                          <div>
+
+                          <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-bold text-white">{doc.nomeDocumento}</h4>
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                  isOk
-                                    ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
-                                    : isVencido
-                                    ? 'bg-rose-950 text-rose-300 border-rose-600'
-                                    : isPendente
-                                    ? 'bg-amber-950 text-amber-300 border-amber-600'
-                                    : 'bg-slate-800 text-slate-400 border-slate-700'
-                                }`}
-                              >
-                                {doc.status}
-                              </span>
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+                                {doc.nomeDocumento}
+                              </h4>
                             </div>
 
-                            {doc.observacoes && (
-                              <p className="text-xs text-amber-300/90 mt-1">{doc.observacoes}</p>
-                            )}
-
-                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 mt-1.5">
-                              {doc.dataEmissao && <span>Emissão: {doc.dataEmissao}</span>}
+                            {/* Details: Vencimento & Emissão */}
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                              {doc.dataEmissao && (
+                                <span>Emissão: <strong className="text-slate-700">{doc.dataEmissao}</strong></span>
+                              )}
                               {doc.dataVencimento && (
-                                <span className="font-semibold text-slate-300">
-                                  Vencimento: {doc.dataVencimento}
+                                <span className={isVencido ? 'text-rose-600 font-bold' : ''}>
+                                  Vencimento: <strong className={isVencido ? 'text-rose-600' : 'text-slate-700'}>{doc.dataVencimento}</strong>
                                 </span>
                               )}
-                              {doc.ultimaAtualizacao && (
-                                <span className="text-slate-500">
-                                  Atualizado em: {doc.ultimaAtualizacao}
-                                </span>
+                              {doc.observacoes && (
+                                <span className="text-slate-600 italic">Obs: "{doc.observacoes}"</span>
                               )}
                             </div>
                           </div>
                         </div>
 
-                        {/* Status Switch Buttons */}
-                        <div className="flex items-center gap-1.5 self-end sm:self-center">
-                          <button
-                            onClick={() => handleUpdateDocStatus(doc.id, 'EM_DIA')}
-                            className={`px-2.5 py-1 rounded text-xs font-bold transition-colors cursor-pointer ${
+                        {/* Status Switcher */}
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={doc.status}
+                            onChange={(e) =>
+                              handleUpdateDocStatus(doc.id, e.target.value as DocStatus)
+                            }
+                            className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border focus:outline-none cursor-pointer ${
                               isOk
-                                ? 'bg-emerald-600 text-white shadow'
-                                : 'bg-slate-900 text-slate-400 hover:text-emerald-300 hover:bg-slate-800'
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                : isVencido
+                                ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                : 'bg-amber-100 text-amber-800 border-amber-300'
                             }`}
                           >
-                            Em Dia
-                          </button>
+                            <option value="EM_DIA">EM DIA</option>
+                            <option value="PENDENTE">PENDENTE</option>
+                            <option value="VENCIDO">VENCIDO</option>
+                            <option value="NAO_APLICAVEL">N/A</option>
+                          </select>
+
                           <button
-                            onClick={() => handleUpdateDocStatus(doc.id, 'PENDENTE')}
-                            className={`px-2.5 py-1 rounded text-xs font-bold transition-colors cursor-pointer ${
-                              isPendente
-                                ? 'bg-amber-600 text-white shadow'
-                                : 'bg-slate-900 text-slate-400 hover:text-amber-300 hover:bg-slate-800'
-                            }`}
+                            onClick={() => {
+                              if (isEditing) {
+                                handleSaveDocDetails(doc.id);
+                              } else {
+                                setEditingDocId(doc.id);
+                                setEditingDocData({
+                                  dataEmissao: doc.dataEmissao,
+                                  dataVencimento: doc.dataVencimento,
+                                  observacoes: doc.observacoes,
+                                });
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                            title={isEditing ? 'Salvar Detalhes' : 'Editar Vencimento / Obs'}
                           >
-                            Pendente
-                          </button>
-                          <button
-                            onClick={() => handleUpdateDocStatus(doc.id, 'VENCIDO')}
-                            className={`px-2.5 py-1 rounded text-xs font-bold transition-colors cursor-pointer ${
-                              isVencido
-                                ? 'bg-rose-600 text-white shadow'
-                                : 'bg-slate-900 text-slate-400 hover:text-rose-300 hover:bg-slate-800'
-                            }`}
-                          >
-                            Vencido
+                            {isEditing ? <Save className="w-4 h-4 text-emerald-600" /> : <Edit2 className="w-4 h-4" />}
                           </button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+
+                      {/* Editing fields */}
+                      {isEditing && (
+                        <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                          <div>
+                            <label className="block text-slate-500 font-semibold mb-0.5">Data Emissão</label>
+                            <input
+                              type="date"
+                              value={editingDocData.dataEmissao || ''}
+                              onChange={(e) =>
+                                setEditingDocData({
+                                  ...editingDocData,
+                                  dataEmissao: e.target.value,
+                                })
+                              }
+                              className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-slate-900"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-500 font-semibold mb-0.5">Data Vencimento</label>
+                            <input
+                              type="date"
+                              value={editingDocData.dataVencimento || ''}
+                              onChange={(e) =>
+                                setEditingDocData({
+                                  ...editingDocData,
+                                  dataVencimento: e.target.value,
+                                })
+                              }
+                              className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-slate-900"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-500 font-semibold mb-0.5">Observações</label>
+                            <input
+                              type="text"
+                              value={editingDocData.observacoes || ''}
+                              onChange={(e) =>
+                                setEditingDocData({
+                                  ...editingDocData,
+                                  observacoes: e.target.value,
+                                })
+                              }
+                              placeholder="Ex: Em processo de renovação"
+                              className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-slate-900"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          ) : (
-            /* Screenshot preview tab */
+          )}
+
+          {activeTab === 'print' && (
             <div className="space-y-3">
-              <p className="text-xs text-slate-400">
-                Imagem original capturada do sistema legado que gerou esta leitura:
-              </p>
-              {employee.imagemOrigemUrl && (
-                <div className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950 p-2">
+              {employee.imagemOrigemUrl ? (
+                <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-100 p-2 flex items-center justify-center">
                   <img
                     src={employee.imagemOrigemUrl}
-                    alt="Print de Origem"
-                    className="w-full h-auto rounded-lg object-contain max-h-[500px]"
+                    alt={`Print de ${employee.nome}`}
+                    className="max-h-[400px] w-auto object-contain rounded-lg shadow-sm"
                   />
+                </div>
+              ) : (
+                <div className="p-12 text-center rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs">
+                  <p>Colaborador cadastrado manualmente ou imagem não preservada.</p>
                 </div>
               )}
             </div>
           )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+          <button
+            onClick={() => onOpenDemand(employee)}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 shadow-sm flex items-center gap-1.5 cursor-pointer"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>Demandar Regularização ao Gestor</span>
+          </button>
+
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+          >
+            Fechar
+          </button>
         </div>
       </div>
     </div>

@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  ShieldCheck,
   FileScan,
   Users,
   Building2,
@@ -8,10 +7,13 @@ import {
   FileSpreadsheet,
   Printer,
   RotateCcw,
-  Database,
-  Search,
   Sparkles,
+  LayoutDashboard,
+  Palette,
+  Trash2,
 } from 'lucide-react';
+import { WfsLogo } from './WfsLogo.tsx';
+import { BrandConfig } from '../types/index.ts';
 
 interface NavbarProps {
   activeTab: 'dashboard' | 'employees' | 'contracts' | 'demands' | 'reports';
@@ -22,6 +24,9 @@ interface NavbarProps {
   onExportCsv: () => void;
   onOpenAuditReport: () => void;
   onResetData: () => void;
+  onOpenProductionReset: () => void;
+  onOpenBrandSettings: () => void;
+  brand: BrandConfig;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   totalEmployees: number;
@@ -37,63 +42,68 @@ export const Navbar: React.FC<NavbarProps> = ({
   onExportCsv,
   onOpenAuditReport,
   onResetData,
+  onOpenProductionReset,
+  onOpenBrandSettings,
+  brand,
   searchTerm,
   setSearchTerm,
   totalEmployees,
   totalPending,
 }) => {
+  const primaryColor = brand?.primaryColor || '#1e293b';
+  const accentColor = brand?.accentColor || '#f59e0b';
+  const accentTextColor = brand?.accentTextColor || '#0f172a';
+
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 shadow-lg">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200/90 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
-          {/* Logo / Title */}
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-cyan-500/20">
-                <ShieldCheck className="w-6 h-6 text-white" />
-              </div>
-              <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-              </span>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold text-white tracking-tight flex items-center gap-1.5">
-                  SST Vision <span className="text-cyan-400 font-extrabold text-sm px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/60">OCR IA</span>
-                </h1>
-              </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
-                Leitor de Pendências (OS • ASO • EPI • Radioproteção) & Contratos
-              </p>
-            </div>
+        <div className="flex items-center justify-between h-16 gap-3">
+          {/* Brand Logo & Title with click to customize */}
+          <div className="flex items-center">
+            <WfsLogo
+              brand={brand}
+              size="md"
+              onClickCustomize={onOpenBrandSettings}
+            />
           </div>
 
           {/* Navigation Tabs */}
-          <nav className="hidden md:flex items-center space-x-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
+          <nav className="hidden md:flex items-center space-x-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              style={activeTab === 'dashboard' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'dashboard'
-                  ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
+              <LayoutDashboard className="w-3.5 h-3.5" />
               <span>Painel</span>
             </button>
 
             <button
               onClick={() => setActiveTab('employees')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              style={activeTab === 'employees' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'employees'
-                  ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Funcionários</span>
+              <span>Colaboradores</span>
+              {totalEmployees > 0 && (
+                <span className="text-[10px] opacity-75">({totalEmployees})</span>
+              )}
               {totalPending > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">
+                <span
+                  style={{
+                    backgroundColor: activeTab === 'employees' ? accentColor : '#fef3c7',
+                    color: activeTab === 'employees' ? accentTextColor : '#92400e',
+                  }}
+                  className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold"
+                >
                   {totalPending}
                 </span>
               )}
@@ -101,10 +111,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               onClick={() => setActiveTab('contracts')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              style={activeTab === 'contracts' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'contracts'
-                  ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
               <Building2 className="w-3.5 h-3.5" />
@@ -113,22 +124,24 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               onClick={() => setActiveTab('demands')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              style={activeTab === 'demands' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'demands'
-                  ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
               <Send className="w-3.5 h-3.5" />
-              <span>Demandas</span>
+              <span>Demandas & Cobranças</span>
             </button>
 
             <button
               onClick={() => setActiveTab('reports')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              style={activeTab === 'reports' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'reports'
-                  ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
               <Printer className="w-3.5 h-3.5" />
@@ -136,38 +149,63 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Quick Actions */}
+          {/* Quick Actions & Brand Settings */}
           <div className="flex items-center gap-2">
             {/* Primary Action Button: OCR Leitor de Imagem */}
             <button
               onClick={onOpenOcrScanner}
-              className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+              style={{
+                backgroundColor: primaryColor,
+                color: '#ffffff',
+              }}
+              className="group relative inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-sm hover:opacity-95 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             >
-              <FileScan className="w-4 h-4 text-cyan-200 group-hover:rotate-6 transition-transform" />
-              <span>Fazer Leitura (Print / OCR)</span>
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse hidden sm:block" />
+              <FileScan className="w-4 h-4" style={{ color: accentColor }} />
+              <span className="hidden sm:inline">Lançar Print (OCR)</span>
+              <span className="sm:hidden">OCR</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse hidden lg:block" />
             </button>
 
-            {/* Export Menu Dropdown / Buttons */}
-            <div className="hidden sm:flex items-center gap-1 border-l border-slate-800 pl-2">
+            {/* Brand/Theme Config Button */}
+            <button
+              onClick={onOpenBrandSettings}
+              title="Personalizar Identidade Visual, Logotipo e Cores"
+              className="p-2 rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+            >
+              <Palette className="w-4 h-4 text-slate-600" />
+              <span className="hidden xl:inline">Identidade & Cores</span>
+            </button>
+
+            {/* Production Clear Button */}
+            <button
+              onClick={onOpenProductionReset}
+              title="Zerar dados simulados para iniciar em produção"
+              className="px-2.5 py-2 rounded-xl text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">Zerar p/ Produção</span>
+            </button>
+
+            {/* Export & Utility Menu */}
+            <div className="hidden sm:flex items-center gap-1 border-l border-slate-200 pl-2">
               <button
                 onClick={onExportExcel}
                 title="Exportar Base Completa para Excel (.xlsx)"
-                className="p-2 rounded-lg text-slate-300 hover:text-emerald-400 hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 transition-colors cursor-pointer"
               >
                 <FileSpreadsheet className="w-4 h-4" />
               </button>
               <button
                 onClick={onOpenAuditReport}
                 title="Imprimir / Salvar Relatório Executivo PDF"
-                className="p-2 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300 transition-colors cursor-pointer"
               >
                 <Printer className="w-4 h-4" />
               </button>
               <button
                 onClick={onResetData}
-                title="Restaurar dados de exemplo do sistema"
-                className="p-2 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors"
+                title="Restaurar dados de exemplo da base"
+                className="p-2 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
@@ -176,46 +214,46 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Mobile Navigation bar */}
-        <div className="flex md:hidden items-center justify-around py-2 border-t border-slate-800/80 overflow-x-auto text-xs">
+        <div className="flex md:hidden items-center justify-around py-2 border-t border-slate-100 overflow-x-auto text-xs bg-white">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`px-2.5 py-1 rounded font-medium ${
-              activeTab === 'dashboard' ? 'text-cyan-400 font-bold' : 'text-slate-400'
+            className={`px-2.5 py-1 rounded font-bold ${
+              activeTab === 'dashboard' ? 'text-slate-900 bg-slate-100' : 'text-slate-600'
             }`}
           >
             Painel
           </button>
           <button
             onClick={() => setActiveTab('employees')}
-            className={`px-2.5 py-1 rounded font-medium ${
-              activeTab === 'employees' ? 'text-cyan-400 font-bold' : 'text-slate-400'
+            className={`px-2.5 py-1 rounded font-bold ${
+              activeTab === 'employees' ? 'text-slate-900 bg-slate-100' : 'text-slate-600'
             }`}
           >
-            Funcionários ({totalEmployees})
+            Colaboradores ({totalEmployees})
           </button>
           <button
             onClick={() => setActiveTab('contracts')}
-            className={`px-2.5 py-1 rounded font-medium ${
-              activeTab === 'contracts' ? 'text-cyan-400 font-bold' : 'text-slate-400'
+            className={`px-2.5 py-1 rounded font-bold ${
+              activeTab === 'contracts' ? 'text-slate-900 bg-slate-100' : 'text-slate-600'
             }`}
           >
             Contratos
           </button>
           <button
             onClick={() => setActiveTab('demands')}
-            className={`px-2.5 py-1 rounded font-medium ${
-              activeTab === 'demands' ? 'text-cyan-400 font-bold' : 'text-slate-400'
+            className={`px-2.5 py-1 rounded font-bold ${
+              activeTab === 'demands' ? 'text-slate-900 bg-slate-100' : 'text-slate-600'
             }`}
           >
             Demandas
           </button>
           <button
             onClick={() => setActiveTab('reports')}
-            className={`px-2.5 py-1 rounded font-medium ${
-              activeTab === 'reports' ? 'text-cyan-400 font-bold' : 'text-slate-400'
+            className={`px-2.5 py-1 rounded font-bold ${
+              activeTab === 'reports' ? 'text-slate-900 bg-slate-100' : 'text-slate-600'
             }`}
           >
-            Relatórios
+            Auditoria
           </button>
         </div>
       </div>

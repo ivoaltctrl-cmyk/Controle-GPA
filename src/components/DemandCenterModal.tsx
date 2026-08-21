@@ -9,11 +9,8 @@ import {
   Check,
   Sparkles,
   Calendar,
-  UserCheck,
   Building2,
-  Clock,
   ExternalLink,
-  ShieldAlert,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Employee, Contract, DemandLog } from '../types/index.ts';
@@ -99,7 +96,7 @@ export const DemandCenterModal: React.FC<DemandCenterModalProps> = ({
     const deadlineFormatted = deadlineDate.toLocaleDateString('pt-BR');
 
     if (targetChannel === 'whatsapp') {
-      const text = `*⚠️ ALERTA DE PENDÊNCIA SST - COBRANÇA DE REGULARIZAÇÃO*
+      const text = `*⚠️ WFS SST - NOTIFICAÇÃO DE REGULARIZAÇÃO DOCUMENTAL*
 
 Olá, *${recipientName || 'Gestor / Encarregado'}*,
 
@@ -119,15 +116,15 @@ ${pending
   )
   .join('\n')}
 
-⏳ *PRAZO PARA ENVIO:* até *${deadlineFormatted}* (${prazoDias} dias úteis).
+⏳ *PRAZO PARA REGULARIZAÇÃO:* até *${deadlineFormatted}* (${prazoDias} dias úteis).
 ⚠️ *Impacto:* Risco de bloqueio do colaborador na portaria e paralisação dos serviços.
 
-Favor enviar os documentos regularizados em PDF respondendo a esta mensagem.`;
+Favor providenciar e enviar os documentos regularizados em PDF respondendo a esta mensagem.`;
 
       setMessageText(text);
       setSubject('');
     } else if (targetChannel === 'email') {
-      const emailSubject = `[URGENTE SST] Regularização de Pendências - ${employee.nome} (${contractName})`;
+      const emailSubject = `[URGENTE SST WFS] Regularização de Pendências - ${employee.nome} (${contractName})`;
       setSubject(emailSubject);
 
       const text = `Prezado(a) ${recipientName || 'Gestor Responsável'},
@@ -157,21 +154,21 @@ ${pending
 PRAZO DE REGULARIZAÇÃO:
 Solicitamos a gentileza de providenciar e nos encaminhar os respectivos comprovantes/certificados até o dia ${deadlineFormatted} (${prazoDias} dias úteis).
 
-Ressaltamos que a não regularização dentro do prazo poderá acarretar o bloqueio de acesso do colaborador à unidade industrial/hospitalar, conforme as normas de segurança e exigências contratuais.
+Ressaltamos que a não regularização dentro do prazo poderá acarretar o bloqueio de acesso do colaborador à unidade operacional, conforme as normas de segurança e exigências contratuais.
 
 Ficamos à disposição para quaisquer esclarecimentos.
 
 Atenciosamente,
-Coordenação de Segurança e Saúde no Trabalho (SST) & Gestão de Terceiros`;
+Coordenação de Segurança e Saúde no Trabalho (SST) & Gestão de Terceiros - WFS`;
 
       setMessageText(text);
     } else {
       // Chamado Técnico
-      const ticketSubject = `CHAMADO SST - Pendência Documental Colaborador ${employee.nome}`;
+      const ticketSubject = `CHAMADO SST WFS - Pendência Documental Colaborador ${employee.nome}`;
       setSubject(ticketSubject);
 
       const text = `========================================================
-CHAMADO DE REGULARIZAÇÃO DE SST / GESTÃO DE CONTRATOS
+CHAMADO DE REGULARIZAÇÃO DE SST / GESTÃO DE CONTRATOS - WFS
 ========================================================
 PRIORIDADE: ALTA
 CONTRATO: ${contractName}
@@ -292,27 +289,27 @@ AÇÃO REQUERIDA:
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
-      <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+      <div className="relative w-full max-w-3xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/40">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white shadow-md shadow-amber-500/20">
+            <div className="p-2.5 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white shadow-xs">
               <Send className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
                 Demandar Regularização ao Responsável
               </h2>
-              <p className="text-xs text-slate-400">
-                Gere e envie mensagens automáticas para o gestor ou encarregado do contrato.
+              <p className="text-xs text-slate-500">
+                Gere notificações automáticas para o gestor ou encarregado do contrato.
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -322,24 +319,24 @@ AÇÃO REQUERIDA:
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {/* Employee & Pending Summary Card */}
           {employee && (
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-cyan-950 border border-cyan-700 text-cyan-300 flex items-center justify-center font-bold text-sm">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 border border-blue-300 text-[#002D62] flex items-center justify-center font-bold text-sm">
                   {employee.nome.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">{employee.nome}</h3>
-                  <p className="text-xs text-slate-400">
+                  <h3 className="text-sm font-bold text-slate-900">{employee.nome}</h3>
+                  <p className="text-xs text-slate-500">
                     Matrícula: {employee.matricula} • Cargo: {employee.cargo} • {employee.empresa}
                   </p>
                 </div>
               </div>
 
-              <div className="text-right">
-                <span className="text-[10px] uppercase font-bold text-amber-400 block">
+              <div className="text-left sm:text-right">
+                <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full inline-block">
                   {getPendingItemsList().length} pendência(s) ativa(s)
                 </span>
-                <span className="text-xs text-slate-400 font-medium">
+                <span className="text-xs text-slate-500 font-medium block mt-1">
                   {employee.contratoNome || 'Sem Contrato Vinculado'}
                 </span>
               </div>
@@ -348,7 +345,7 @@ AÇÃO REQUERIDA:
 
           {/* Channel Selector Tabs */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
               Selecione o Canal de Comunicação:
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -357,11 +354,11 @@ AÇÃO REQUERIDA:
                 onClick={() => setChannel('whatsapp')}
                 className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                   channel === 'whatsapp'
-                    ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300 shadow-md shadow-emerald-500/10'
-                    : 'border-slate-800 bg-slate-950/50 text-slate-400 hover:text-slate-200'
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-xs'
+                    : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                <MessageSquare className="w-4 h-4 text-emerald-400" />
+                <MessageSquare className="w-4 h-4 text-emerald-600" />
                 <span>WhatsApp</span>
               </button>
 
@@ -370,11 +367,11 @@ AÇÃO REQUERIDA:
                 onClick={() => setChannel('email')}
                 className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                   channel === 'email'
-                    ? 'border-cyan-500 bg-cyan-950/40 text-cyan-300 shadow-md shadow-cyan-500/10'
-                    : 'border-slate-800 bg-slate-950/50 text-slate-400 hover:text-slate-200'
+                    ? 'border-sky-500 bg-sky-50 text-sky-800 shadow-xs'
+                    : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                <Mail className="w-4 h-4 text-cyan-400" />
+                <Mail className="w-4 h-4 text-sky-600" />
                 <span>E-mail Corporativo</span>
               </button>
 
@@ -383,11 +380,11 @@ AÇÃO REQUERIDA:
                 onClick={() => setChannel('chamado')}
                 className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                   channel === 'chamado'
-                    ? 'border-amber-500 bg-amber-950/40 text-amber-300 shadow-md shadow-amber-500/10'
-                    : 'border-slate-800 bg-slate-950/50 text-slate-400 hover:text-slate-200'
+                    ? 'border-amber-500 bg-amber-50 text-amber-800 shadow-xs'
+                    : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                <FileText className="w-4 h-4 text-amber-400" />
+                <FileText className="w-4 h-4 text-amber-600" />
                 <span>Chamado Técnico</span>
               </button>
             </div>
@@ -396,7 +393,7 @@ AÇÃO REQUERIDA:
           {/* Form Parameters */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">
+              <label className="block text-slate-600 font-semibold mb-1">
                 Nome do Responsável / Destinatário
               </label>
               <input
@@ -404,31 +401,31 @@ AÇÃO REQUERIDA:
                 value={recipientName}
                 onChange={(e) => setRecipientName(e.target.value)}
                 placeholder="Ex: Marcelo (Encarregado)"
-                className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white font-medium focus:border-cyan-400 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-[#002D62] focus:bg-white focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">
+              <label className="block text-slate-600 font-semibold mb-1">
                 {channel === 'whatsapp' ? 'Número WhatsApp / Telefone' : 'E-mail do Responsável'}
               </label>
               <input
                 type="text"
                 value={recipientContact}
                 onChange={(e) => setRecipientContact(e.target.value)}
-                placeholder={channel === 'whatsapp' ? '(21) 98765-4321' : 'gestor@empresa.com.br'}
-                className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white font-medium focus:border-cyan-400 focus:outline-none"
+                placeholder={channel === 'whatsapp' ? '(21) 98765-4321' : 'gestor@wfs.com.br'}
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-[#002D62] focus:bg-white focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">
+              <label className="block text-slate-600 font-semibold mb-1">
                 Prazo para Regularização
               </label>
               <select
                 value={prazoDias}
                 onChange={(e) => setPrazoDias(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white font-medium focus:border-cyan-400 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-[#002D62] focus:bg-white focus:outline-none cursor-pointer"
               >
                 <option value={1}>24 Horas (Crítico / Bloqueio Iminente)</option>
                 <option value={2}>2 Dias Úteis</option>
@@ -442,14 +439,14 @@ AÇÃO REQUERIDA:
           {/* Email / Chamado Subject input */}
           {(channel === 'email' || channel === 'chamado') && (
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Assunto do E-mail / Título do Chamado:
               </label>
               <input
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-lg bg-slate-950 border border-slate-700 text-white font-semibold focus:border-cyan-400 focus:outline-none"
+                className="w-full px-3 py-2 text-xs rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-semibold focus:border-[#002D62] focus:bg-white focus:outline-none"
               />
             </div>
           )}
@@ -457,15 +454,15 @@ AÇÃO REQUERIDA:
           {/* Message Content Area */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                <span>Texto da Mensagem Pronta:</span>
+              <label className="text-xs font-bold text-slate-700">
+                Texto da Mensagem Pronta:
               </label>
 
               <button
                 type="button"
                 onClick={handleGenerateAiEnhanced}
                 disabled={isGeneratingAi}
-                className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 px-2.5 py-1 rounded bg-cyan-950/60 border border-cyan-800/80 cursor-pointer disabled:opacity-50"
+                className="text-[11px] font-bold text-[#002D62] hover:text-[#001f44] flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 cursor-pointer disabled:opacity-50"
               >
                 <Sparkles className={`w-3.5 h-3.5 ${isGeneratingAi ? 'animate-spin' : ''}`} />
                 <span>{isGeneratingAi ? 'Aprimorando com IA...' : 'Aprimorar com Gemini AI'}</span>
@@ -476,25 +473,25 @@ AÇÃO REQUERIDA:
               rows={8}
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
-              className="w-full p-3.5 text-xs font-mono rounded-xl bg-slate-950 border border-slate-700 text-slate-200 focus:border-cyan-400 focus:outline-none leading-relaxed"
+              className="w-full p-3.5 text-xs font-mono rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:border-[#002D62] focus:bg-white focus:outline-none leading-relaxed"
             />
           </div>
         </div>
 
         {/* Modal Actions Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/40 flex flex-wrap items-center justify-between gap-3">
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
           <button
             onClick={handleCopyMessage}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-2 transition-all cursor-pointer"
+            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 flex items-center gap-2 transition-all cursor-pointer shadow-2xs"
           >
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            <span>{copied ? 'Copiado para Área de Transferência!' : 'Copiar Mensagem'}</span>
+            {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+            <span>{copied ? 'Copiado com Sucesso!' : 'Copiar Mensagem'}</span>
           </button>
 
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
             >
               Cancelar
             </button>
@@ -502,7 +499,7 @@ AÇÃO REQUERIDA:
             {channel === 'whatsapp' && (
               <button
                 onClick={handleSendWhatsApp}
-                className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-600/25 flex items-center gap-2 transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm flex items-center gap-2 transition-all cursor-pointer"
               >
                 <MessageSquare className="w-4 h-4" />
                 <span>Abrir no WhatsApp Web</span>
@@ -513,10 +510,10 @@ AÇÃO REQUERIDA:
             {channel === 'email' && (
               <button
                 onClick={handleSendEmail}
-                className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 shadow-lg shadow-cyan-600/25 flex items-center gap-2 transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-[#002D62] hover:bg-[#001f44] shadow-sm flex items-center gap-2 transition-all cursor-pointer"
               >
                 <Mail className="w-4 h-4" />
-                <span>Abrir no E-mail (mailto)</span>
+                <span>Abrir no E-mail</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             )}
@@ -527,7 +524,7 @@ AÇÃO REQUERIDA:
                   handleCopyMessage();
                   onClose();
                 }}
-                className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 shadow-lg shadow-amber-500/25 flex items-center gap-2 transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 shadow-sm flex items-center gap-2 transition-all cursor-pointer"
               >
                 <Check className="w-4 h-4" />
                 <span>Registrar Chamado e Copiar</span>

@@ -153,19 +153,19 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+      <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/40">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-cyan-600 text-white">
+            <div className="p-2.5 rounded-xl bg-[#002D62] text-white">
               <UserPlus className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">
                 {editingEmployee ? 'Editar Dados do Colaborador' : 'Cadastro Manual de Colaborador'}
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Preencha os dados e defina a situação dos documentos de SST.
               </p>
             </div>
@@ -173,7 +173,7 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -183,84 +183,84 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">Nome Completo *</label>
+              <label className="block text-slate-600 font-semibold mb-1">Nome Completo *</label>
               <input
                 type="text"
                 required
                 value={formData.nome}
                 onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                 placeholder="Ex: João da Silva Santos"
-                className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:border-cyan-400 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">Matrícula / ID *</label>
+              <label className="block text-slate-600 font-semibold mb-1">Matrícula / ID *</label>
               <input
                 type="text"
                 required
                 value={formData.matricula}
                 onChange={(e) => setFormData({ ...formData, matricula: e.target.value })}
                 placeholder="Ex: RAD-99201"
-                className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono focus:border-cyan-400 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold focus:border-[#002D62] focus:bg-white focus:outline-none"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">CPF</label>
+              <label className="block text-slate-600 font-semibold mb-1">CPF</label>
               <input
                 type="text"
                 value={formData.cpf || ''}
                 onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
                 placeholder="000.000.000-00"
-                className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:border-cyan-400 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">Cargo / Função *</label>
+              <label className="block text-slate-600 font-semibold mb-1">Cargo / Função *</label>
               <input
                 type="text"
                 required
                 value={formData.cargo}
                 onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
                 placeholder="Ex: Técnico em Radiologia"
-                className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:border-cyan-400 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">Setor / Área</label>
+              <label className="block text-slate-600 font-semibold mb-1">Setor / Área</label>
               <input
                 type="text"
                 value={formData.setor}
                 onChange={(e) => setFormData({ ...formData, setor: e.target.value })}
                 placeholder="Ex: Ensaios Não Destrutivos"
-                className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:border-cyan-400 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">Empresa / Prestadora</label>
+              <label className="block text-slate-600 font-semibold mb-1">Empresa / Prestadora</label>
               <input
                 type="text"
                 value={formData.empresa}
                 onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
-                placeholder="Ex: GamaTech Inspeções Ltda."
-                className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:border-cyan-400 focus:outline-none"
+                placeholder="Ex: WFS Ground Handling Ltda."
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">Contrato Vinculado</label>
+              <label className="block text-slate-600 font-semibold mb-1">Contrato Vinculado</label>
               <select
                 value={formData.contratoId || ''}
                 onChange={(e) => setFormData({ ...formData, contratoId: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:border-cyan-400 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none cursor-pointer"
               >
                 <option value="">-- Selecione o Contrato --</option>
                 {contracts.map((c) => (
@@ -274,22 +274,22 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
 
           {/* 4 Core Pillars Status Configuration */}
           <div className="pt-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-[#002D62]" />
               Status dos 4 Documentos Principais de SST:
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Pillar 1: OS */}
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <label className="block text-slate-300 font-bold mb-1 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-cyan-400" />
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <label className="block text-slate-800 font-bold mb-1 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-sky-600" />
                   1. Ordem de Serviço (NR-01)
                 </label>
                 <select
                   value={osStatus}
                   onChange={(e) => setOsStatus(e.target.value as DocStatus)}
-                  className="w-full p-2 rounded bg-slate-900 border border-slate-700 text-white font-semibold"
+                  className="w-full p-2 rounded bg-white border border-slate-200 text-slate-900 font-semibold cursor-pointer"
                 >
                   <option value="EM_DIA">✅ Em Dia</option>
                   <option value="PENDENTE">⚠️ Pendente</option>
@@ -298,15 +298,15 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
               </div>
 
               {/* Pillar 2: ASO */}
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <label className="block text-slate-300 font-bold mb-1 flex items-center gap-1.5">
-                  <HeartPulse className="w-3.5 h-3.5 text-purple-400" />
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <label className="block text-slate-800 font-bold mb-1 flex items-center gap-1.5">
+                  <HeartPulse className="w-3.5 h-3.5 text-purple-600" />
                   2. ASO Ocupacional (NR-07)
                 </label>
                 <select
                   value={asoStatus}
                   onChange={(e) => setAsoStatus(e.target.value as DocStatus)}
-                  className="w-full p-2 rounded bg-slate-900 border border-slate-700 text-white font-semibold"
+                  className="w-full p-2 rounded bg-white border border-slate-200 text-slate-900 font-semibold cursor-pointer"
                 >
                   <option value="EM_DIA">✅ Em Dia</option>
                   <option value="PENDENTE">⚠️ Pendente</option>
@@ -315,15 +315,15 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
               </div>
 
               {/* Pillar 3: EPI */}
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <label className="block text-slate-300 font-bold mb-1 flex items-center gap-1.5">
-                  <HardHat className="w-3.5 h-3.5 text-pink-400" />
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <label className="block text-slate-800 font-bold mb-1 flex items-center gap-1.5">
+                  <HardHat className="w-3.5 h-3.5 text-indigo-600" />
                   3. Ficha de EPI (NR-06)
                 </label>
                 <select
                   value={epiStatus}
                   onChange={(e) => setEpiStatus(e.target.value as DocStatus)}
-                  className="w-full p-2 rounded bg-slate-900 border border-slate-700 text-white font-semibold"
+                  className="w-full p-2 rounded bg-white border border-slate-200 text-slate-900 font-semibold cursor-pointer"
                 >
                   <option value="EM_DIA">✅ Em Dia</option>
                   <option value="PENDENTE">⚠️ Pendente</option>
@@ -332,15 +332,15 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
               </div>
 
               {/* Pillar 4: Radioproteção */}
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <label className="block text-slate-300 font-bold mb-1 flex items-center gap-1.5">
-                  <Radio className="w-3.5 h-3.5 text-amber-400" />
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <label className="block text-slate-800 font-bold mb-1 flex items-center gap-1.5">
+                  <Radio className="w-3.5 h-3.5 text-amber-600" />
                   4. Radioproteção (CNEN)
                 </label>
                 <select
                   value={radioStatus}
                   onChange={(e) => setRadioStatus(e.target.value as DocStatus)}
-                  className="w-full p-2 rounded bg-slate-900 border border-slate-700 text-white font-semibold"
+                  className="w-full p-2 rounded bg-white border border-slate-200 text-slate-900 font-semibold cursor-pointer"
                 >
                   <option value="EM_DIA">✅ Em Dia</option>
                   <option value="PENDENTE">⚠️ Pendente</option>
@@ -352,7 +352,7 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-slate-400 font-semibold mb-1">
+            <label className="block text-slate-600 font-semibold mb-1">
               Observações Adicionais
             </label>
             <textarea
@@ -360,21 +360,21 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
               value={formData.resumoGeral || ''}
               onChange={(e) => setFormData({ ...formData, resumoGeral: e.target.value })}
               placeholder="Anotações gerais sobre o colaborador..."
-              className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:border-cyan-400 focus:outline-none"
+              className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
             />
           </div>
 
-          <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+          <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-slate-400 hover:text-white"
+              className="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-lg font-bold text-white bg-cyan-600 hover:bg-cyan-500 transition-colors cursor-pointer"
+              className="px-5 py-2 rounded-lg font-bold text-white bg-[#002D62] hover:bg-[#001f44] transition-colors cursor-pointer"
             >
               Salvar Colaborador
             </button>

@@ -54,8 +54,6 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   searchTerm,
   setSearchTerm,
 }) => {
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
   // Filtered employees
   const filteredEmployees = employees.filter((emp) => {
     // Search match
@@ -117,7 +115,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 
     if (!doc || doc.status === 'NAO_APLICAVEL') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-800/80 text-slate-400 border border-slate-700/50">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-400 border border-slate-200">
           N/A
         </span>
       );
@@ -127,17 +125,17 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
     const isVencido = doc.status === 'VENCIDO';
     const isPendente = doc.status === 'PENDENTE' || doc.status === 'EM_ANALISE';
 
-    let colorClasses = 'bg-slate-800 text-slate-300 border-slate-700';
+    let colorClasses = 'bg-slate-100 text-slate-600 border-slate-200';
     let text = 'OK';
 
     if (isOk) {
-      colorClasses = 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900';
+      colorClasses = 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100';
       text = 'EM DIA';
     } else if (isVencido) {
-      colorClasses = 'bg-rose-950/80 text-rose-300 border-rose-500/40 hover:bg-rose-900 animate-pulse';
+      colorClasses = 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 font-extrabold';
       text = 'VENCIDO';
     } else if (isPendente) {
-      colorClasses = 'bg-amber-950/80 text-amber-300 border-amber-500/40 hover:bg-amber-900';
+      colorClasses = 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 font-bold';
       text = 'PENDENTE';
     }
 
@@ -148,11 +146,11 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
           onQuickToggleDoc(emp.id, tipo, nextStatus);
         }}
         title={`${label}: ${doc.nomeDocumento} - ${doc.status} (Clique para alternar status)`}
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${colorClasses}`}
+        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] border transition-all cursor-pointer font-semibold shadow-2xs ${colorClasses}`}
       >
-        {isOk && <CheckCircle2 className="w-2.5 h-2.5" />}
-        {isVencido && <AlertTriangle className="w-2.5 h-2.5" />}
-        {isPendente && <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>}
+        {isOk && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+        {isVencido && <AlertTriangle className="w-3 h-3 text-rose-600" />}
+        {isPendente && <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>}
         <span>{text}</span>
       </button>
     );
@@ -161,7 +159,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   return (
     <div className="space-y-4">
       {/* Controls Bar: Search, Contract Filter & Add Button */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
         {/* Search Input */}
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -169,13 +167,13 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por colaborador, matrícula, CPF, cargo, empresa..."
-            className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-slate-950/80 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
+            placeholder="Buscar por colaborador, matrícula, CPF, cargo, setor, empresa..."
+            className="w-full pl-10 pr-8 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#002D62] focus:bg-white transition-colors"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 cursor-pointer"
             >
               ✕
             </button>
@@ -189,7 +187,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
             <select
               value={selectedContractId}
               onChange={(e) => setSelectedContractId(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-200 focus:outline-none focus:border-cyan-400 appearance-none cursor-pointer"
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:border-[#002D62] focus:bg-white appearance-none cursor-pointer"
             >
               <option value="">Todos os Contratos ({contracts.length})</option>
               {contracts.map((c) => (
@@ -204,18 +202,18 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
           {/* Add Manual Employee Button */}
           <button
             onClick={onOpenNewEmployee}
-            className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+            className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
           >
-            <UserPlus className="w-3.5 h-3.5 text-cyan-400" />
-            <span>+ Novo Cadastro</span>
+            <UserPlus className="w-3.5 h-3.5 text-[#002D62]" />
+            <span>+ Novo Colaborador</span>
           </button>
         </div>
       </div>
 
       {/* Quick Filter Tags Bar */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-        <span className="text-slate-400 font-semibold text-[11px] mr-1 flex items-center gap-1">
-          <Filter className="w-3 h-3" /> Filtrar:
+        <span className="text-slate-500 font-bold text-[11px] mr-1 flex items-center gap-1">
+          <Filter className="w-3 h-3 text-[#002D62]" /> Filtrar:
         </span>
 
         {[
@@ -232,10 +230,10 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
           <button
             key={tag.id}
             onClick={() => setActiveFilter(tag.id)}
-            className={`px-3 py-1 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
               activeFilter === tag.id
-                ? 'bg-cyan-500 text-white font-bold shadow-sm shadow-cyan-500/30'
-                : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800'
+                ? 'bg-[#002D62] text-white shadow-xs'
+                : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200'
             }`}
           >
             {tag.label}
@@ -244,35 +242,35 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       </div>
 
       {/* Data Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-xl">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 <th className="py-3.5 px-4">Colaborador / Função</th>
                 <th className="py-3.5 px-3">Contrato & Empresa</th>
-                <th className="py-3.5 px-3 text-center">Indicador</th>
+                <th className="py-3.5 px-3 text-center">Índice</th>
                 <th className="py-3.5 px-3 text-center">
                   <div className="flex items-center justify-center gap-1">
-                    <FileText className="w-3 h-3 text-cyan-400" />
+                    <FileText className="w-3 h-3 text-sky-600" />
                     <span>OS (NR-01)</span>
                   </div>
                 </th>
                 <th className="py-3.5 px-3 text-center">
                   <div className="flex items-center justify-center gap-1">
-                    <HeartPulse className="w-3 h-3 text-purple-400" />
+                    <HeartPulse className="w-3 h-3 text-purple-600" />
                     <span>ASO (NR-07)</span>
                   </div>
                 </th>
                 <th className="py-3.5 px-3 text-center">
                   <div className="flex items-center justify-center gap-1">
-                    <HardHat className="w-3 h-3 text-pink-400" />
+                    <HardHat className="w-3 h-3 text-indigo-600" />
                     <span>EPI (NR-06)</span>
                   </div>
                 </th>
                 <th className="py-3.5 px-3 text-center">
                   <div className="flex items-center justify-center gap-1">
-                    <Radio className="w-3 h-3 text-amber-400" />
+                    <Radio className="w-3 h-3 text-amber-600" />
                     <span>Radioproteção</span>
                   </div>
                 </th>
@@ -280,14 +278,14 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-800/60 text-xs">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <Users className="w-8 h-8 text-slate-600" />
-                      <p className="text-sm font-semibold">Nenhum colaborador encontrado com os filtros atuais.</p>
-                      <p className="text-xs text-slate-500">Tente ajustar a busca ou carregue novos prints com o OCR.</p>
+                      <Users className="w-8 h-8 text-slate-300" />
+                      <p className="text-sm font-bold text-slate-700">Nenhum colaborador encontrado com os filtros atuais.</p>
+                      <p className="text-xs text-slate-400">Tente ajustar a busca ou carregue novos prints com o leitor OCR.</p>
                     </div>
                   </td>
                 </tr>
@@ -300,18 +298,18 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   return (
                     <tr
                       key={emp.id}
-                      className="hover:bg-slate-800/40 transition-colors group"
+                      className="hover:bg-slate-50/80 transition-colors group"
                     >
                       {/* Colaborador info */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow ${
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ${
                               isEmDia
-                                ? 'bg-emerald-950 border border-emerald-600 text-emerald-300'
+                                ? 'bg-emerald-100 border border-emerald-300 text-emerald-800'
                                 : isBloqueado
-                                ? 'bg-rose-950 border border-rose-600 text-rose-300'
-                                : 'bg-amber-950 border border-amber-600 text-amber-300'
+                                ? 'bg-rose-100 border border-rose-300 text-rose-800'
+                                : 'bg-amber-100 border border-amber-300 text-amber-800'
                             }`}
                           >
                             {emp.nome.substring(0, 2).toUpperCase()}
@@ -319,12 +317,12 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                           <div className="min-w-0">
                             <button
                               onClick={() => onOpenDetail(emp)}
-                              className="font-bold text-white hover:text-cyan-400 transition-colors truncate block text-left text-xs sm:text-sm cursor-pointer"
+                              className="font-bold text-slate-900 hover:text-[#002D62] transition-colors truncate block text-left text-xs sm:text-sm cursor-pointer"
                             >
                               {emp.nome}
                             </button>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                              <span>Mat: <strong className="text-slate-300">{emp.matricula}</strong></span>
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                              <span>Mat: <strong className="text-slate-700">{emp.matricula}</strong></span>
                               {emp.cpf && <span>• CPF: {emp.cpf}</span>}
                               <span>• {emp.cargo}</span>
                             </div>
@@ -334,11 +332,11 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 
                       {/* Contrato & Empresa */}
                       <td className="py-3.5 px-3">
-                        <div className="max-w-[200px]">
-                          <span className="font-semibold text-slate-200 truncate block">
+                        <div className="max-w-[220px]">
+                          <span className="font-bold text-slate-800 truncate block">
                             {emp.contratoNome || 'Sem Contrato Vinculado'}
                           </span>
-                          <span className="text-[11px] text-slate-400 truncate block mt-0.5">
+                          <span className="text-[11px] text-slate-500 truncate block mt-0.5">
                             {emp.empresa} • {emp.setor}
                           </span>
                         </div>
@@ -348,23 +346,23 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                       <td className="py-3.5 px-3 text-center">
                         <div className="flex flex-col items-center justify-center">
                           <span
-                            className={`font-extrabold text-xs ${
+                            className={`font-black text-xs ${
                               emp.indicadorPercentual >= 85
-                                ? 'text-emerald-400'
+                                ? 'text-emerald-700'
                                 : emp.indicadorPercentual >= 60
-                                ? 'text-amber-400'
-                                : 'text-rose-400'
+                                ? 'text-amber-700'
+                                : 'text-rose-700'
                             }`}
                           >
                             {emp.indicadorPercentual}%
                           </span>
                           <span
-                            className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full border mt-0.5 ${
+                            className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border mt-0.5 ${
                               isEmDia
-                                ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
                                 : isBloqueado
-                                ? 'bg-rose-950/60 border-rose-500/40 text-rose-300'
-                                : 'bg-amber-950/60 border-amber-500/40 text-amber-300'
+                                ? 'bg-rose-50 border-rose-300 text-rose-800'
+                                : 'bg-amber-50 border-amber-300 text-amber-800'
                             }`}
                           >
                             {isEmDia ? 'REGULAR' : isBloqueado ? 'BLOQUEADO' : 'PENDENTE'}
@@ -399,10 +397,10 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                           <button
                             onClick={() => onOpenDemand(emp)}
                             title="Demandar / Notificar Responsável via WhatsApp ou E-mail"
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
                               !isEmDia
-                                ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white shadow-md shadow-amber-500/20'
-                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                             }`}
                           >
                             <Send className="w-3 h-3" />
@@ -413,7 +411,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                           <button
                             onClick={() => onOpenDetail(emp)}
                             title="Ver Ficha Completa"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-[#002D62] hover:bg-blue-50 transition-colors cursor-pointer"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
@@ -422,7 +420,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                           <button
                             onClick={() => onEditEmployee(emp)}
                             title="Editar Dados"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
@@ -435,7 +433,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                               }
                             }}
                             title="Excluir Colaborador"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -450,12 +448,12 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
         </div>
 
         {/* Footer info bar */}
-        <div className="p-3 bg-slate-950/60 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
           <span>
             Exibindo <strong>{filteredEmployees.length}</strong> de <strong>{employees.length}</strong> colaboradores cadastrados
           </span>
-          <span className="text-[11px] text-slate-500">
-            Dica: Clique nos botões de status (EM DIA / PENDENTE / VENCIDO) para atualizar rapidamente.
+          <span className="text-[11px] text-slate-500 font-medium">
+            💡 Dica: Clique nos botões de status (EM DIA / PENDENTE / VENCIDO) para atualizar com 1 clique.
           </span>
         </div>
       </div>

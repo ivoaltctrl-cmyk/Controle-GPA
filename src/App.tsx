@@ -38,6 +38,7 @@ import {
   Send,
   Printer,
   FileSpreadsheet,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function App() {
@@ -190,7 +191,7 @@ export default function App() {
 
   // System actions
   const handleResetData = () => {
-    if (confirm('Deseja restaurar a base com os dados iniciais de demonstração?')) {
+    if (confirm('Deseja restaurar a base com os dados iniciais de demonstração da WFS?')) {
       resetDatabaseToDefaults();
       setEmployees(getStoredEmployees());
       setContracts(getStoredContracts());
@@ -205,8 +206,8 @@ export default function App() {
   const totalPendingCount = employees.filter((e) => e.statusGeral !== 'EM_DIA').length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
-      {/* Top Main Navigation Bar */}
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans selection:bg-[#00A3E0] selection:text-white">
+      {/* Top Main Navigation Bar with WFS Branding */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={(tab) => {
@@ -236,43 +237,43 @@ export default function App() {
         {/* Tab 1: Dashboard & Fast Overview */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            {/* High-impact Quick OCR Banner */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-950 via-slate-900 to-indigo-950/80 border border-cyan-800/40 p-6 sm:p-8 shadow-2xl">
+            {/* Clean WFS Quick OCR Banner */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#002D62] via-[#003B7A] to-[#00A3E0] p-6 sm:p-8 shadow-sm text-white">
               <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
                 <div className="max-w-2xl space-y-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                    <Sparkles className="w-3.5 h-3.5" />
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-white/15 text-sky-100 border border-white/20 backdrop-blur-xs">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                     <span>Leitor Visual Multimodal com Gemini 3.7 Flash</span>
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                     Extraia pendências de prints em segundos e automatize suas cobranças
                   </h2>
-                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                    Tire um print da tela do seu sistema de SST e cole aqui (<kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300">Ctrl + V</kbd>). A IA lê automaticamente Ordem de Serviço, ASO, Ficha de EPI, Certificado de Radioproteção e indicadores de conformidade!
+                  <p className="text-xs sm:text-sm text-sky-100/90 leading-relaxed font-medium">
+                    Tire um print da tela do seu sistema de SST e cole aqui (<kbd className="px-1.5 py-0.5 rounded bg-black/20 border border-white/20 text-white font-mono">Ctrl + V</kbd>). A IA lê automaticamente Ordem de Serviço, ASO, Ficha de EPI, Certificado de Radioproteção e indicadores de conformidade!
                   </p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 w-full lg:w-auto">
                   <button
                     onClick={() => setIsOcrOpen(true)}
-                    className="w-full sm:w-auto px-6 py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 shadow-xl shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-3.5 rounded-xl text-sm font-bold text-[#002D62] bg-white hover:bg-sky-50 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <FileScan className="w-5 h-5" />
-                    <span>Lançar Print / Fazer OCR Agora</span>
+                    <FileScan className="w-5 h-5 text-[#002D62]" />
+                    <span>Lançar Print / Fazer OCR</span>
                   </button>
 
                   <button
                     onClick={() => exportEmployeesToExcel(employees, contracts)}
-                    className="w-full sm:w-auto px-4 py-3.5 rounded-xl text-xs font-bold text-slate-200 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    className="w-full sm:w-auto px-4 py-3.5 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/25 flex items-center justify-center gap-2 transition-colors cursor-pointer"
                   >
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                    <span>Exportar Excel (.xlsx)</span>
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
+                    <span>Exportar Excel</span>
                   </button>
                 </div>
               </div>
 
-              {/* Decorative background glow */}
-              <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+              {/* Decorative clean curves */}
+              <div className="absolute -bottom-16 -right-16 w-80 h-80 rounded-full bg-white/10 blur-2xl pointer-events-none" />
             </div>
 
             {/* KPI Cards and Pillar Gauges */}
@@ -294,12 +295,12 @@ export default function App() {
             <div id="employee-table-section" className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Users className="w-5 h-5 text-cyan-400" />
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-[#002D62]" />
                     Base de Dados de Colaboradores & Status Documental
                   </h3>
-                  <p className="text-xs text-slate-400">
-                    Clique nos badges de status para atualizar ou clique em Demandar para notificar via WhatsApp/E-mail.
+                  <p className="text-xs text-slate-500">
+                    Clique nos botões de status para atualizar ou clique em Demandar para notificar via WhatsApp/E-mail.
                   </p>
                 </div>
               </div>
@@ -336,13 +337,13 @@ export default function App() {
         {/* Tab 2: Full Employees Database View */}
         {activeTab === 'employees' && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
               <div>
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Users className="w-6 h-6 text-cyan-400" />
-                  Base Cadastral de Funcionários ({employees.length})
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Users className="w-6 h-6 text-[#002D62]" />
+                  Base Cadastral de Colaboradores WFS ({employees.length})
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Gerencie todo o quadro de pessoal, consulte pendências por contrato e emita notificações.
                 </p>
               </div>
@@ -350,7 +351,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsOcrOpen(true)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 shadow flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#002D62] hover:bg-[#001f44] shadow-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <FileScan className="w-4 h-4" />
                   <span>Ler Mais Prints (OCR)</span>
@@ -398,7 +399,6 @@ export default function App() {
             onSaveContract={handleSaveContract}
             onDeleteContract={handleDeleteContract}
             onDemandContract={(c) => {
-              // Find first pending employee or null
               const firstPending = employees.find((e) => e.contratoId === c.id && e.statusGeral !== 'EM_DIA');
               setDemandEmployee(firstPending || employees.find((e) => e.contratoId === c.id) || null);
               setDemandContract(c);
@@ -421,7 +421,7 @@ export default function App() {
         )}
       </main>
 
-      {/* OCR Scanner Modal (Supports Batch, Clipboard Paste & Sample Prints) */}
+      {/* OCR Scanner Modal */}
       <OcrScannerModal
         isOpen={isOcrOpen}
         onClose={() => setIsOcrOpen(false)}

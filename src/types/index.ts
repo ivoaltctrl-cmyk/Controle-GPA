@@ -1,3 +1,25 @@
+export type ThemePaletteId =
+  | 'industrial-amber'
+  | 'safety-orange'
+  | 'hse-emerald'
+  | 'corporate-red'
+  | 'neutral-graphite'
+  | 'wfs-navy'
+  | 'custom';
+
+export interface BrandConfig {
+  companyName: string;
+  companySubtitle: string;
+  badgeText: string;
+  logoType: 'custom_image' | 'styled_wfs' | 'initials_badge' | 'text_only';
+  customLogoUrl?: string;
+  paletteId: ThemePaletteId;
+  primaryColor: string;
+  primaryHoverColor: string;
+  accentColor: string;
+  accentTextColor: string;
+}
+
 export type DocType =
   | 'ORDEM_DE_SERVICO'
   | 'ATESTADO_SAUDE_OCUPACIONAL'
