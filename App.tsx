@@ -24,6 +24,8 @@ import {
   updateEmployeeCalculatedFields,
   isStoredAdminAuthenticated,
   setStoredAdminAuthenticated,
+  getStoredBlinkingAlerts,
+  saveStoredBlinkingAlerts,
 } from './utils/storage.ts';
 import {
   Employee,
@@ -80,6 +82,15 @@ export default function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState<boolean>(false);
+  const [blinkingAlerts, setBlinkingAlerts] = useState<boolean>(getStoredBlinkingAlerts());
+
+  const handleToggleBlinkingAlerts = () => {
+    setBlinkingAlerts((prev) => {
+      const next = !prev;
+      saveStoredBlinkingAlerts(next);
+      return next;
+    });
+  };
 
   // Admin Sub Navigation & Filtering
   const [activeTab, setActiveTab] = useState<
@@ -411,6 +422,8 @@ export default function App() {
         totalEmployees={employees.length}
         totalPending={totalPendingCount}
         totalAVencer={totalAVencerCount}
+        blinkingAlerts={blinkingAlerts}
+        onToggleBlinkingAlerts={handleToggleBlinkingAlerts}
       />
 
       {/* Main Content Area */}
@@ -428,6 +441,8 @@ export default function App() {
             onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
             isAdminLoggedIn={isAdminLoggedIn}
             onSwitchToAdminTab={() => setPortalMode('admin')}
+            onResetData={handleResetData}
+            blinkingAlerts={blinkingAlerts}
           />
         )}
 
@@ -439,45 +454,61 @@ export default function App() {
             {/* Tab 1: Dashboard & Fast Overview */}
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
-                {/* GPA Hero Banner */}
-                <div
-                  style={{
-                    backgroundColor: primaryColor,
-                  }}
-                  className="relative overflow-hidden rounded-3xl p-6 sm:p-8 shadow-md text-white border border-black/5"
-                >
-                  <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-                    <div className="max-w-2xl space-y-2">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black bg-white/15 text-white border border-white/20 backdrop-blur-xs">
-                        <Sparkles className="w-3.5 h-3.5" style={{ color: accentColor }} />
-                        <span>PAINEL DE ADMINISTRAÇÃO - {companyName.toUpperCase()}</span>
-                      </div>
-                      <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                        Gestão Geral de Contratos, Áreas & Auditoria Completa
-                      </h2>
-                      <p className="text-xs sm:text-sm text-emerald-100 leading-relaxed font-medium">
-                        Controle total do quadro de terceiros, cobranças em massa para responsáveis de área, leitor OCR de prints com IA e importação de planilhas oficiais.
-                      </p>
+                {/* GPA Admin Light Clean Banner */}
+                <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200 border-l-4 border-l-slate-800 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                  <div className="space-y-1.5 max-w-2xl">
+                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md text-[11px] font-black bg-slate-100 text-slate-800 uppercase tracking-wider border border-slate-200">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>PAINEL DE ADMINISTRAÇÃO • {companyName.toUpperCase()}</span>
                     </div>
+                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                      Gestão Geral de Contratos, Áreas & Auditoria Completa
+                    </h2>
+                    <p className="text-xs text-slate-600 font-medium">
+                      Controle total do quadro de terceiros, cobranças em massa para responsáveis de área, leitor OCR de prints com IA e importação de planilhas.
+                    </p>
+                  </div>
 
-                    <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 w-full lg:w-auto">
-                      <button
-                        onClick={() => setIsOcrOpen(true)}
-                        style={{ color: primaryColor }}
-                        className="w-full sm:w-auto px-5 py-3 rounded-2xl text-xs font-black bg-white hover:bg-slate-50 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <FileScan className="w-4 h-4" />
-                        <span>Lançar Print (OCR)</span>
-                      </button>
+                  <div className="flex flex-wrap items-center gap-2 shrink-0 w-full lg:w-auto">
+                    {/* Alertas ON/OFF Toggle */}
+                    <button
+                      onClick={handleToggleBlinkingAlerts}
+                      title="Ativar/Desativar efeito de sinalizadores visuais piscantes em todo o sistema"
+                      className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border flex items-center gap-2 cursor-pointer transition-all shadow-2xs ${
+                        blinkingAlerts
+                          ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                          : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                      }`}
+                    >
+                      <span className="relative flex h-2.5 w-2.5">
+                        {blinkingAlerts && (
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                        )}
+                        <span
+                          className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                            blinkingAlerts ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'
+                          }`}
+                        />
+                      </span>
+                      <span>Alertas Piscantes: <strong>{blinkingAlerts ? 'ON' : 'OFF'}</strong></span>
+                    </button>
 
-                      <button
-                        onClick={() => setIsExcelImportOpen(true)}
-                        className="w-full sm:w-auto px-4 py-3 rounded-2xl text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                      >
-                        <FileSpreadsheet className="w-4 h-4" style={{ color: accentColor }} />
-                        <span>Importar Planilha</span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => setIsOcrOpen(true)}
+                      style={{ backgroundColor: primaryColor }}
+                      className="px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-90 flex items-center gap-2 cursor-pointer transition-all"
+                    >
+                      <FileScan className="w-4 h-4" />
+                      <span>Lançar Print (OCR)</span>
+                    </button>
+
+                    <button
+                      onClick={() => setIsExcelImportOpen(true)}
+                      className="px-4 py-2.5 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-2xs flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                      <span>Importar Planilha</span>
+                    </button>
                   </div>
                 </div>
 

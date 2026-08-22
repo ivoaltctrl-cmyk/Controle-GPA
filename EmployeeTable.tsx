@@ -24,6 +24,7 @@ import {
   Sparkles,
   Phone,
   Mail,
+  Layers,
 } from 'lucide-react';
 import { Employee, Contract, AreaResponsavel, DocType, DocStatus, BrandConfig } from '../types/index.ts';
 
@@ -70,6 +71,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   setSearchTerm,
   brand,
 }) => {
+  const [selectedCategory, setSelectedCategory] = useState<'TODOS' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('TODOS');
   const primaryColor = brand?.primaryColor || '#006837';
   const accentColor = brand?.accentColor || '#f59e0b';
 
@@ -269,6 +271,53 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
               <span>Novo Colaborador</span>
             </button>
           </div>
+        </div>
+
+        {/* Categories Bar (SST, Trabalhista, Demais) */}
+        <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex flex-wrap items-center gap-1">
+          <button
+            onClick={() => setSelectedCategory('TODOS')}
+            className={`flex-1 min-w-[130px] px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
+              selectedCategory === 'TODOS'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-transparent text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Todos os Documentos
+          </button>
+          <button
+            onClick={() => setSelectedCategory('SST')}
+            className={`flex-1 min-w-[170px] px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+              selectedCategory === 'SST'
+                ? 'bg-emerald-700 text-white shadow-xs'
+                : 'bg-transparent text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Pendências Documentações de SST</span>
+          </button>
+          <button
+            onClick={() => setSelectedCategory('TRABALHISTA')}
+            className={`flex-1 min-w-[170px] px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+              selectedCategory === 'TRABALHISTA'
+                ? 'bg-blue-700 text-white shadow-xs'
+                : 'bg-transparent text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Pendências Documentações Trabalhistas</span>
+          </button>
+          <button
+            onClick={() => setSelectedCategory('DEMAIS')}
+            className={`flex-1 min-w-[170px] px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+              selectedCategory === 'DEMAIS'
+                ? 'bg-purple-700 text-white shadow-xs'
+                : 'bg-transparent text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Pendências Demais Documentações</span>
+          </button>
         </div>
 
         {/* Filter Pills */}

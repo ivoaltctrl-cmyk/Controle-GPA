@@ -21,11 +21,23 @@ export interface BrandConfig {
   accentTextColor: string;
 }
 
+export type DocCategory = 'SST' | 'TRABALHISTA' | 'DEMAIS';
+
 export type DocType =
   | 'ORDEM_DE_SERVICO'
   | 'ATESTADO_SAUDE_OCUPACIONAL'
   | 'FICHA_EPI'
   | 'TREINAMENTO_RADIOPROTECAO'
+  | 'TREINAMENTO_NR'
+  | 'PGR_PCMSO'
+  | 'REGISTRO_CTPS'
+  | 'FOLHA_PAGAMENTO'
+  | 'FGTS_GFIP'
+  | 'CNDT'
+  | 'CONTRATO_TRABALHO'
+  | 'SEGURO_VIDA'
+  | 'CERTIDOES'
+  | 'CARTAO_CNPJ'
   | 'OUTRO';
 
 export type DocStatus =
@@ -42,6 +54,7 @@ export interface PendingDoc {
   id: string;
   tipo: DocType;
   nomeDocumento: string;
+  categoria?: DocCategory;
   status: DocStatus;
   dataEmissao?: string;
   dataVencimento?: string;
