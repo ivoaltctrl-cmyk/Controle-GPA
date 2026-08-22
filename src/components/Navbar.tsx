@@ -47,6 +47,8 @@ interface NavbarProps {
   totalEmployees: number;
   totalPending: number;
   totalAVencer: number;
+  blinkingAlerts?: boolean;
+  onToggleBlinkingAlerts?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -72,6 +74,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   totalEmployees,
   totalPending,
   totalAVencer,
+  blinkingAlerts = true,
+  onToggleBlinkingAlerts,
 }) => {
   const primaryColor = brand?.primaryColor || '#E21B23';
   const accentColor = brand?.accentColor || '#1E293B';
@@ -215,36 +219,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               </>
             ) : (
-              /* Portal Demandado Header Action */
+              /* Portal Demandado Header Action (Sem botão duplicado de ADM) */
               <div className="flex items-center gap-2">
                 <button
                   onClick={onOpenAuditReport}
                   title="Visualizar Relatório de Auditoria"
-                  className="p-2 rounded-xl text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+                  className="px-3 py-2 rounded-xl text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
                 >
-                  <Printer className="w-4 h-4" />
-                  <span className="hidden sm:inline">Relatório</span>
+                  <Printer className="w-4 h-4 text-slate-600" />
+                  <span className="hidden sm:inline">Relatório de Auditoria</span>
                 </button>
-
-                {!isAdminLoggedIn ? (
-                  <button
-                    onClick={onOpenAdminLogin}
-                    style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
-                    className="px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs hover:opacity-90 flex items-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    <Lock className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Entrar como Gestor</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setPortalMode('admin')}
-                    style={{ backgroundColor: primaryColor }}
-                    className="px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-90 flex items-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Abrir Painel ADM</span>
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -336,7 +320,33 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </nav>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
+              {/* Alertas ON/OFF Toggle na barra do ADM */}
+              {onToggleBlinkingAlerts && (
+                <button
+                  onClick={onToggleBlinkingAlerts}
+                  title="Ativar/Desativar efeito piscante de alertas de urgência em todo o sistema"
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 cursor-pointer transition-all ${
+                    blinkingAlerts
+                      ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                      : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
+                  }`}
+                >
+                  <span className="relative flex h-2 w-2">
+                    {blinkingAlerts && (
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    )}
+                    <span
+                      className={`relative inline-flex rounded-full h-2 w-2 ${
+                        blinkingAlerts ? 'bg-amber-500' : 'bg-slate-400'
+                      }`}
+                    />
+                  </span>
+                  <span className="hidden sm:inline">Alertas:</span>
+                  <strong>{blinkingAlerts ? 'ON' : 'OFF'}</strong>
+                </button>
+              )}
+
               <button
                 onClick={onExportExcel}
                 title="Exportar Base Completa para Excel (.xlsx)"

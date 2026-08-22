@@ -25,6 +25,25 @@ const BRAND_CONFIG_KEY = 'sst_pendencias_brand_config_v1';
 const IS_PRODUCTION_KEY = 'sst_pendencias_is_production_v1';
 const ADMIN_AUTH_KEY = 'sst_gpa_admin_auth_status_v1';
 const ADMIN_CREDENTIALS_KEY = 'sst_gpa_admin_credentials_v1';
+const BLINKING_ALERTS_KEY = 'sst_gpa_blinking_alerts_v1';
+
+export function getStoredBlinkingAlerts(): boolean {
+  try {
+    const raw = localStorage.getItem(BLINKING_ALERTS_KEY);
+    if (raw === null) return true;
+    return raw === 'true';
+  } catch {
+    return true;
+  }
+}
+
+export function saveStoredBlinkingAlerts(enabled: boolean) {
+  try {
+    localStorage.setItem(BLINKING_ALERTS_KEY, enabled ? 'true' : 'false');
+  } catch (e) {
+    console.error('Erro ao salvar configuração de alertas piscantes:', e);
+  }
+}
 
 export interface AdminCredentials {
   username: string;
@@ -148,9 +167,13 @@ export function getStoredEmployees(): Employee[] {
         return [];
       }
       localStorage.setItem(EMPLOYEES_KEY, JSON.stringify(INITIAL_EMPLOYEES));
-      return INITIAL_EMPLOYEES;
+      return INITIAL_EMPLOYEES.map((emp) => updateEmployeeCalculatedFields(emp));
     }
     const parsed: Employee[] = JSON.parse(raw);
+    if (parsed.length === 0 && !isProd) {
+      localStorage.setItem(EMPLOYEES_KEY, JSON.stringify(INITIAL_EMPLOYEES));
+      return INITIAL_EMPLOYEES.map((emp) => updateEmployeeCalculatedFields(emp));
+    }
     // Refresh 30-day alerts and days left calculations
     return parsed.map((emp) => updateEmployeeCalculatedFields(emp));
   } catch (e) {

@@ -28,6 +28,7 @@ import {
   RefreshCw,
   SlidersHorizontal,
   FileSpreadsheet,
+  Layers,
 } from 'lucide-react';
 import { Employee, Contract, AreaResponsavel, DocType, DocStatus, BrandConfig, PendingDoc } from '../types/index.ts';
 import { updateEmployeeCalculatedFields } from '../utils/storage.ts';
@@ -44,6 +45,7 @@ interface DemandadoPortalProps {
   isAdminLoggedIn: boolean;
   onSwitchToAdminTab: () => void;
   onResetData?: () => void;
+  blinkingAlerts?: boolean;
 }
 
 type SortField = 'matricula' | 'cpf' | 'nome' | 'cargo' | 'setor' | 'os' | 'aso' | 'epi' | 'radio' | 'statusGeral';
@@ -59,10 +61,12 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   isAdminLoggedIn,
   onSwitchToAdminTab,
   onResetData,
+  blinkingAlerts = true,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContractId, setSelectedContractId] = useState('');
   const [selectedAreaId, setSelectedAreaId] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<'TODOS' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('TODOS');
   const [filterStatus, setFilterStatus] = useState<'TODOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA'>('TODOS');
   
   // Selection for bulk actions
@@ -78,9 +82,6 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
 
   // Toast feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Blinking Alerts Effect State (enabled by default)
-  const [blinkingAlerts, setBlinkingAlerts] = useState<boolean>(true);
 
   const primaryColor = brand?.primaryColor || '#E21B23'; // WFS Red
   const companyName = brand?.companyName || 'WFS';
@@ -528,33 +529,6 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {/* Toggle de Alertas Piscantes */}
-          <button
-            onClick={() => {
-              const nextVal = !blinkingAlerts;
-              setBlinkingAlerts(nextVal);
-              showToast(
-                nextVal
-                  ? 'Sinalizadores e alertas piscantes ativados!'
-                  : 'Alertas piscantes pausados.'
-              );
-            }}
-            title="Alternar efeito de sinalizadores visuais piscantes (Beacons de Urgência)"
-            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center gap-2 cursor-pointer transition-all shadow-2xs"
-          >
-            <span className="relative flex h-2.5 w-2.5">
-              {blinkingAlerts && (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-              )}
-              <span
-                className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                  blinkingAlerts ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'
-                }`}
-              />
-            </span>
-            <span>Alertas Piscantes: <strong>{blinkingAlerts ? 'ON' : 'OFF'}</strong></span>
-          </button>
-
           <button
             onClick={handleExportExcel}
             className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 shadow-2xs flex items-center gap-2 cursor-pointer transition-all"
@@ -563,6 +537,68 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             <span>Exportar Excel (.xlsx)</span>
           </button>
         </div>
+      </div>
+
+      {/* Seletor de Categorias de Controle Documental GPA */}
+      <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 flex flex-wrap items-center gap-1.5 shadow-inner">
+        <button
+          onClick={() => {
+            setSelectedCategory('TODOS');
+            setCurrentPage(1);
+          }}
+          className={`flex-1 min-w-[140px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+            selectedCategory === 'TODOS'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
+          }`}
+        >
+          <span>Todos os Documentos</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setSelectedCategory('SST');
+            setCurrentPage(1);
+          }}
+          className={`flex-1 min-w-[180px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+            selectedCategory === 'SST'
+              ? 'bg-emerald-700 text-white shadow-xs'
+              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
+          }`}
+        >
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Pendências Documentações de SST</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setSelectedCategory('TRABALHISTA');
+            setCurrentPage(1);
+          }}
+          className={`flex-1 min-w-[180px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+            selectedCategory === 'TRABALHISTA'
+              ? 'bg-blue-700 text-white shadow-xs'
+              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          <span>Pendências Documentações Trabalhistas</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setSelectedCategory('DEMAIS');
+            setCurrentPage(1);
+          }}
+          className={`flex-1 min-w-[180px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+            selectedCategory === 'DEMAIS'
+              ? 'bg-purple-700 text-white shadow-xs'
+              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>Pendências Demais Documentações</span>
+        </button>
       </div>
 
       {/* KPI Cards Rápidos Compactos com Alertas Piscantes */}
