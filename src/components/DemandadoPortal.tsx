@@ -43,6 +43,7 @@ interface DemandadoPortalProps {
   onOpenAdminLogin: () => void;
   isAdminLoggedIn: boolean;
   onSwitchToAdminTab: () => void;
+  onResetData?: () => void;
 }
 
 type SortField = 'matricula' | 'cpf' | 'nome' | 'cargo' | 'setor' | 'os' | 'aso' | 'epi' | 'radio' | 'statusGeral';
@@ -57,6 +58,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   onOpenAdminLogin,
   isAdminLoggedIn,
   onSwitchToAdminTab,
+  onResetData,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContractId, setSelectedContractId] = useState('');
@@ -422,15 +424,17 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   };
 
   /**
-   * Helper component to render an interactive document cell matching the exact screenshot
+   * Helper component to render an interactive document cell optimized for single-page view (no scrollbar)
    */
   const renderDocCell = (emp: Employee, docType: DocType) => {
     const doc = getEmpDoc(emp, docType);
     if (!doc || doc.status === 'NAO_APLICAVEL') {
       return (
-        <span className="text-slate-400 text-xs font-normal italic">
-          não aplicável
-        </span>
+        <div className="text-center">
+          <span className="text-slate-300 text-[11px] font-normal" title="Não aplicável para esta função">
+            —
+          </span>
+        </div>
       );
     }
 
@@ -439,10 +443,10 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         <button
           onClick={(e) => handleToggleDoc(emp, docType, e)}
           title="Status: EM DIA. Clique se desejar reabrir a pendência."
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 font-bold text-xs cursor-pointer transition-all hover:scale-102"
+          className="w-full inline-flex items-center justify-center gap-1 px-1.5 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 font-bold text-[10.5px] cursor-pointer transition-all hover:scale-102"
         >
-          <Check className="w-3.5 h-3.5 stroke-[3] text-emerald-600" />
-          <span>EM DIA</span>
+          <Check className="w-3 h-3 stroke-[3] text-emerald-600 shrink-0" />
+          <span className="truncate">EM DIA</span>
         </button>
       );
     }
@@ -453,44 +457,44 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         <button
           onClick={(e) => handleToggleDoc(emp, docType, e)}
           title={`Vencendo em ${dias} dias. Clique para registrar renovação (Dar Check)!`}
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-50 text-amber-900 hover:bg-amber-100 border font-bold text-xs cursor-pointer transition-all hover:scale-102 ${
+          className={`w-full inline-flex items-center justify-center gap-1 px-1.5 py-1 rounded bg-amber-50 text-amber-900 hover:bg-amber-100 border font-bold text-[10.5px] cursor-pointer transition-all hover:scale-102 ${
             blinkingAlerts ? 'border-amber-400 ring-1 ring-amber-300' : 'border-amber-300'
           }`}
         >
           {/* Pulsing Amber Beacon Indicator */}
-          <span className="relative flex h-2 w-2 shrink-0">
+          <span className="relative flex h-1.5 w-1.5 shrink-0">
             {blinkingAlerts && (
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
             )}
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 animate-pulse" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500 animate-pulse" />
           </span>
-          <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-          <span>VENCENDO EM {dias} DIAS</span>
+          <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+          <span className="truncate">{dias}d (Renovar)</span>
         </button>
       );
     }
 
-    // VENCIDO or PENDENTE -> Render the interactive message requested in image.png with pulsing alerts
+    // VENCIDO or PENDENTE -> Render interactive single-click status with pulsing alert
     return (
       <button
         onClick={(e) => handleToggleDoc(emp, docType, e)}
-        title="Clique aqui para dar o check e informar que a pendência foi sanada"
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-rose-700 hover:text-rose-900 border font-bold text-xs cursor-pointer transition-all hover:shadow-xs text-left leading-tight group ${
+        title="Status: VENCIDO. Clique aqui para informar que a pendência foi sanada (Dar Check)!"
+        className={`w-full inline-flex items-center justify-center gap-1 px-1.5 py-1 rounded text-rose-700 hover:text-rose-900 border font-bold text-[10.5px] cursor-pointer transition-all hover:shadow-xs group ${
           blinkingAlerts
-            ? 'bg-rose-50/90 hover:bg-rose-100 border-rose-400 ring-1 ring-rose-300/80 animate-pulse'
+            ? 'bg-rose-50/90 hover:bg-rose-100 border-rose-400 ring-1 ring-rose-300 animate-pulse'
             : 'bg-rose-50 hover:bg-rose-100 border-rose-300'
         }`}
       >
         {/* Pulsing Red Radar Beacon */}
-        <span className="relative flex h-2.5 w-2.5 shrink-0">
+        <span className="relative flex h-2 w-2 shrink-0">
           {blinkingAlerts && (
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
           )}
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#E21B23]" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#E21B23]" />
         </span>
         <span className="font-black text-rose-800 shrink-0">VENCIDO</span>
-        <span className="text-[11px] font-medium text-rose-600 group-hover:text-rose-800 underline decoration-rose-400">
-          (Clique aqui para informar se a pendência já foi sanada)
+        <span className="text-[10px] text-rose-600 group-hover:text-rose-800 underline truncate">
+          (Sanar)
         </span>
       </button>
     );
@@ -508,20 +512,17 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
       )}
 
-      {/* Header Corporativo WFS */}
-      <div
-        style={{ backgroundColor: primaryColor }}
-        className="rounded-2xl p-5 sm:p-6 shadow-sm text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-black/10"
-      >
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md text-[11px] font-black bg-white/20 text-white uppercase tracking-wider backdrop-blur-xs">
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-            <span>PORTAL DO DEMANDADO & PRESTADOR • {companyName}</span>
+      {/* Header Discreto - Portal de Pendências dos Contratos GPA */}
+      <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200 border-l-4 border-l-[#E21B23] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md text-[11px] font-black bg-[#E21B23]/10 text-[#E21B23] uppercase tracking-wider border border-[#E21B23]/20">
+            <span className="w-2 h-2 rounded-full bg-[#E21B23]" />
+            <span>PORTAL DE PENDÊNCIAS DOS CONTRATOS GPA • WFS</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            Controle & Saneamento de Pendências Documentais
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            Controle Pendências Documentais
           </h2>
-          <p className="text-xs text-white/90 font-medium">
+          <p className="text-xs text-slate-600 font-medium max-w-2xl">
             Visualize a lista geral de colaboradores e clique diretamente no texto da pendência para saná-la com 1 clique.
           </p>
         </div>
@@ -539,15 +540,15 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
               );
             }}
             title="Alternar efeito de sinalizadores visuais piscantes (Beacons de Urgência)"
-            className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-white/15 hover:bg-white/25 text-white border border-white/20 flex items-center gap-2 cursor-pointer transition-all shadow-xs"
+            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center gap-2 cursor-pointer transition-all shadow-2xs"
           >
             <span className="relative flex h-2.5 w-2.5">
               {blinkingAlerts && (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-80" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
               )}
               <span
                 className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                  blinkingAlerts ? 'bg-amber-300 animate-pulse' : 'bg-white/50'
+                  blinkingAlerts ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'
                 }`}
               />
             </span>
@@ -556,30 +557,11 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
 
           <button
             onClick={handleExportExcel}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white text-slate-800 hover:bg-slate-50 shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 shadow-2xs flex items-center gap-2 cursor-pointer transition-all"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
             <span>Exportar Excel (.xlsx)</span>
           </button>
-
-          {isAdminLoggedIn ? (
-            <button
-              onClick={onSwitchToAdminTab}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-xs flex items-center gap-2 cursor-pointer transition-all"
-            >
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Painel Admin</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          ) : (
-            <button
-              onClick={onOpenAdminLogin}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-black/20 hover:bg-black/30 border border-white/20 flex items-center gap-2 transition-all cursor-pointer"
-            >
-              <Lock className="w-4 h-4 text-white" />
-              <span>Acesso Gestão</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -843,14 +825,28 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
       </div>
 
-      {/* TABELA PLANILHA COMPACTA (Excel-Style para 1.000+ Colaboradores) */}
+      {/* TABELA PLANILHA COMPACTA EM PÁGINA ÚNICA (SEM BARRA DE ROLAGEM HORIZONTAL) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="w-full">
+          <table className="w-full text-left border-collapse text-xs table-fixed">
+            <colgroup>
+              <col className="w-7 sm:w-8" />
+              <col className="w-[78px] sm:w-[84px]" />
+              <col className="w-[100px] sm:w-[108px]" />
+              <col className="w-[17%]" />
+              <col className="w-[12%]" />
+              <col className="w-[9%]" />
+              <col className="w-[11%]" />
+              <col className="w-[11%]" />
+              <col className="w-[11%]" />
+              <col className="w-[11%]" />
+              <col className="w-[74px] sm:w-[80px]" />
+            </colgroup>
+
             {/* Header da Planilha */}
             <thead>
-              <tr className="bg-slate-100/90 text-slate-700 font-black uppercase text-[11px] border-b border-slate-300 select-none">
-                <th className="py-2.5 px-3 w-8 text-center">
+              <tr className="bg-slate-100/90 text-slate-700 font-black uppercase text-[10.5px] border-b border-slate-300 select-none">
+                <th className="py-2.5 px-2 text-center">
                   <input
                     type="checkbox"
                     checked={paginatedEmployees.length > 0 && paginatedEmployees.every((e) => selectedIds.includes(e.id))}
@@ -860,123 +856,123 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
                 </th>
                 <th
                   onClick={() => handleSort('matricula')}
-                  className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors whitespace-nowrap"
+                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
                 >
-                  <div className="flex items-center gap-1">
-                    <span>MATRÍCULA</span>
+                  <div className="flex items-center gap-0.5">
+                    <span className="truncate">MATRÍCULA</span>
                     {sortField === 'matricula' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23]" /> : <ArrowDown className="w-3 h-3 text-[#E21B23]" />
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
                     ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
                     )}
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('cpf')}
-                  className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors whitespace-nowrap"
+                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
                 >
-                  <div className="flex items-center gap-1">
-                    <span>CPF</span>
+                  <div className="flex items-center gap-0.5">
+                    <span className="truncate">CPF</span>
                     {sortField === 'cpf' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23]" /> : <ArrowDown className="w-3 h-3 text-[#E21B23]" />
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
                     ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
                     )}
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('nome')}
-                  className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors whitespace-nowrap min-w-[180px]"
+                  className="py-2.5 px-2 cursor-pointer hover:bg-slate-200 transition-colors"
                 >
-                  <div className="flex items-center gap-1">
-                    <span>NOME</span>
+                  <div className="flex items-center gap-0.5">
+                    <span className="truncate">NOME</span>
                     {sortField === 'nome' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23]" /> : <ArrowDown className="w-3 h-3 text-[#E21B23]" />
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
                     ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
                     )}
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('cargo')}
-                  className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors whitespace-nowrap"
+                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
                 >
-                  <div className="flex items-center gap-1">
-                    <span>FUNÇÃO</span>
+                  <div className="flex items-center gap-0.5">
+                    <span className="truncate">FUNÇÃO</span>
                     {sortField === 'cargo' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23]" /> : <ArrowDown className="w-3 h-3 text-[#E21B23]" />
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
                     ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
                     )}
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('setor')}
-                  className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors whitespace-nowrap"
+                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
                 >
-                  <div className="flex items-center gap-1">
-                    <span>SETOR</span>
+                  <div className="flex items-center gap-0.5">
+                    <span className="truncate">SETOR</span>
                     {sortField === 'setor' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23]" /> : <ArrowDown className="w-3 h-3 text-[#E21B23]" />
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
                     ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
                     )}
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('os')}
-                  className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors min-w-[200px]"
+                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
                 >
-                  <div className="flex items-center gap-1">
-                    <span>OS</span>
+                  <div className="flex items-center justify-center gap-0.5">
+                    <span className="truncate">OS</span>
                     {sortField === 'os' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23]" /> : <ArrowDown className="w-3 h-3 text-[#E21B23]" />
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
                     ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
                     )}
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('aso')}
-                  className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors min-w-[200px]"
+                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
                 >
-                  <div className="flex items-center gap-1">
-                    <span>ASO</span>
+                  <div className="flex items-center justify-center gap-0.5">
+                    <span className="truncate">ASO</span>
                     {sortField === 'aso' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23]" /> : <ArrowDown className="w-3 h-3 text-[#E21B23]" />
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
                     ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
                     )}
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('epi')}
-                  className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors min-w-[200px]"
+                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
                 >
-                  <div className="flex items-center gap-1">
-                    <span>FICHA DE EPI</span>
+                  <div className="flex items-center justify-center gap-0.5">
+                    <span className="truncate">FICHA EPI</span>
                     {sortField === 'epi' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23]" /> : <ArrowDown className="w-3 h-3 text-[#E21B23]" />
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
                     ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
                     )}
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('radio')}
-                  className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors min-w-[160px]"
+                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
                 >
-                  <div className="flex items-center gap-1">
-                    <span>RADIOPROTEÇÃO</span>
+                  <div className="flex items-center justify-center gap-0.5">
+                    <span className="truncate">RADIOPROTEÇÃO</span>
                     {sortField === 'radio' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23]" /> : <ArrowDown className="w-3 h-3 text-[#E21B23]" />
+                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
                     ) : (
-                      <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
                     )}
                   </div>
                 </th>
-                <th className="py-2.5 px-3 text-right whitespace-nowrap">
-                  <span>AÇÕES RÁPIDAS</span>
+                <th className="py-2.5 px-2 text-center">
+                  <span className="truncate">AÇÕES</span>
                 </th>
               </tr>
             </thead>
@@ -985,10 +981,39 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             <tbody className="divide-y divide-slate-200">
               {paginatedEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-slate-500">
-                    <CheckCircle2 className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                    <p className="font-bold text-sm text-slate-700">Nenhum colaborador encontrado</p>
-                    <p className="text-xs text-slate-400">Verifique os filtros de busca aplicados.</p>
+                  <td colSpan={11} className="py-12 px-4 text-center text-slate-500">
+                    <CheckCircle2 className="w-10 h-10 mx-auto text-slate-300 mb-3" />
+                    <p className="font-bold text-base text-slate-800">Nenhum colaborador encontrado</p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                      {employees.length === 0
+                        ? 'A base de dados está vazia. Você pode carregar a base de dados de demonstração da WFS com mais de 1.450 colaboradores cadastrados.'
+                        : 'Não encontramos nenhum registro correspondente aos filtros e termos de busca aplicados.'}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                      {employees.length === 0 && onResetData ? (
+                        <button
+                          onClick={onResetData}
+                          className="px-4 py-2 rounded-xl text-xs font-black bg-[#E21B23] text-white hover:bg-red-700 shadow-sm cursor-pointer transition-all flex items-center gap-1.5"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          <span>Carregar Base Demonstrativa WFS (+1.450 Colaboradores)</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSearchTerm('');
+                            setSelectedContractId('');
+                            setSelectedAreaId('');
+                            setFilterStatus('TODOS');
+                            setCurrentPage(1);
+                          }}
+                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-all"
+                        >
+                          Limpar Todos os Filtros
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -1004,7 +1029,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
                       }`}
                     >
                       {/* Checkbox */}
-                      <td className="py-2 px-3 text-center">
+                      <td className="py-2 px-2 text-center">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -1014,64 +1039,64 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
                       </td>
 
                       {/* Matrícula */}
-                      <td className="py-2 px-3 font-mono font-bold text-slate-800 whitespace-nowrap">
+                      <td className="py-2 px-1.5 font-mono font-bold text-slate-800 truncate" title={emp.matricula}>
                         {emp.matricula}
                       </td>
 
                       {/* CPF */}
-                      <td className="py-2 px-3 font-mono text-slate-600 whitespace-nowrap">
+                      <td className="py-2 px-1.5 font-mono text-slate-600 truncate text-[11px]" title={emp.cpf || '—'}>
                         {emp.cpf || '—'}
                       </td>
 
                       {/* Nome */}
-                      <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap">
+                      <td className="py-2 px-2 font-bold text-slate-900 truncate" title={emp.nome}>
                         {emp.nome}
                       </td>
 
                       {/* Função */}
-                      <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                      <td className="py-2 px-1.5 text-slate-700 truncate" title={emp.cargo}>
                         {emp.cargo}
                       </td>
 
                       {/* Setor */}
-                      <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                      <td className="py-2 px-1.5 text-slate-700 truncate" title={emp.setor || emp.areaNome || 'Operações'}>
                         {emp.setor || emp.areaNome || 'Operações'}
                       </td>
 
                       {/* OS */}
-                      <td className="py-2 px-3">
+                      <td className="py-2 px-1">
                         {renderDocCell(emp, 'ORDEM_DE_SERVICO')}
                       </td>
 
                       {/* ASO */}
-                      <td className="py-2 px-3">
+                      <td className="py-2 px-1">
                         {renderDocCell(emp, 'ATESTADO_SAUDE_OCUPACIONAL')}
                       </td>
 
                       {/* FICHA DE EPI */}
-                      <td className="py-2 px-3">
+                      <td className="py-2 px-1">
                         {renderDocCell(emp, 'FICHA_EPI')}
                       </td>
 
                       {/* RADIOPROTEÇÃO */}
-                      <td className="py-2 px-3">
+                      <td className="py-2 px-1">
                         {renderDocCell(emp, 'TREINAMENTO_RADIOPROTECAO')}
                       </td>
 
                       {/* Ações Rápidas */}
-                      <td className="py-2 px-3 text-right whitespace-nowrap">
+                      <td className="py-2 px-1.5 text-center">
                         {!isAllEmDia ? (
                           <button
                             onClick={(e) => handleSanarEmployeeAll(emp, e)}
                             title="Regularizar todas as pendências deste colaborador com 1 clique"
-                            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-900 text-white font-bold text-[11px] cursor-pointer transition-all shadow-2xs hover:scale-102"
+                            className="w-full px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] cursor-pointer transition-all shadow-2xs truncate"
                           >
                             Sanar Tudo
                           </button>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>100% Regular</span>
+                          <span className="inline-flex items-center justify-center gap-0.5 text-[10px] font-bold text-emerald-700">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                            <span className="truncate">Regular</span>
                           </span>
                         )}
                       </td>
