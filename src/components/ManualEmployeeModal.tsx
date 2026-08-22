@@ -3,15 +3,18 @@ import {
   X,
   UserPlus,
   Building2,
+  Building,
   ShieldCheck,
   CheckCircle2,
   FileText,
   HeartPulse,
   HardHat,
   Radio,
+  Calendar,
+  Check,
 } from 'lucide-react';
-import { Employee, Contract, DocType, DocStatus, PendingDoc } from '../types/index.ts';
-import { recalculateEmployeeStatus } from '../utils/storage.ts';
+import { Employee, Contract, AreaResponsavel, DocType, DocStatus, PendingDoc, BrandConfig } from '../types/index.ts';
+import { recalculateEmployeeStatus, updateEmployeeCalculatedFields } from '../utils/storage.ts';
 
 interface ManualEmployeeModalProps {
   isOpen: boolean;
@@ -19,6 +22,8 @@ interface ManualEmployeeModalProps {
   onSaveEmployee: (employee: Employee) => void;
   editingEmployee?: Employee | null;
   contracts: Contract[];
+  areas: AreaResponsavel[];
+  brand: BrandConfig;
 }
 
 export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
@@ -27,13 +32,21 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
   onSaveEmployee,
   editingEmployee,
   contracts,
+  areas,
+  brand,
 }) => {
+  const primaryColor = brand?.primaryColor || '#006837';
+  const accentColor = brand?.accentColor || '#f59e0b';
+
   const [formData, setFormData] = useState<Partial<Employee>>({
     nome: '',
     matricula: '',
     cpf: '',
     cargo: '',
     setor: '',
+    areaId: '',
+    areaNome: '',
+    areaResponsavelNome: '',
     empresa: '',
     contratoId: '',
     contratoNome: '',
@@ -60,15 +73,23 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
       if (epi) setEpiStatus(epi.status);
       if (radio) setRadioStatus(radio.status);
     } else {
+      const defaultArea = areas[0];
+      const defaultContract = contracts[0];
+
       setFormData({
         nome: '',
-        matricula: `MAT-${Math.floor(10000 + Math.random() * 90000)}`,
+        matricula: `GPA-${Math.floor(10000 + Math.random() * 90000)}`,
         cpf: '',
         cargo: '',
-        setor: '',
-        empresa: '',
-        contratoId: contracts[0]?.id || '',
-        contratoNome: contracts[0] ? `${contracts[0].numero} - ${contracts[0].titulo}` : '',
+        setor: defaultArea?.nome || 'Operações',
+        areaId: defaultArea?.id || '',
+        areaNome: defaultArea?.nome || '',
+        areaResponsavelNome: defaultArea?.responsavelNome || '',
+        areaResponsavelEmail: defaultArea?.responsavelEmail || '',
+        areaResponsavelTelefone: defaultArea?.responsavelTelefone || '',
+        empresa: 'GPA Prestadora',
+        contratoId: defaultContract?.id || '',
+        contratoNome: defaultContract ? `${defaultContract.numero} - ${defaultContract.titulo}` : '',
         resumoGeral: '',
       });
       setOsStatus('EM_DIA');
@@ -76,9 +97,31 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
       setEpiStatus('EM_DIA');
       setRadioStatus('NAO_APLICAVEL');
     }
-  }, [isOpen, editingEmployee, contracts]);
+  }, [isOpen, editingEmployee, contracts, areas]);
 
   if (!isOpen) return null;
+
+  const handleAreaSelect = (areaId: string) => {
+    const selected = areas.find((a) => a.id === areaId);
+    if (selected) {
+      setFormData({
+        ...formData,
+        areaId: selected.id,
+        areaNome: selected.nome,
+        setor: selected.nome,
+        areaResponsavelNome: selected.responsavelNome,
+        areaResponsavelEmail: selected.responsavelEmail,
+        areaResponsavelTelefone: selected.responsavelTelefone,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        areaId: '',
+        areaNome: '',
+        areaResponsavelNome: '',
+      });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +160,7 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
       {
         id: `p_man_rad_${Date.now()}`,
         tipo: 'TREINAMENTO_RADIOPROTECAO',
-        nomeDocumento: 'Certificado de Treinamento de Radioproteção (CNEN)',
+        nomeDocumento: 'Certificação Técnica Obrigatória (NR-10/NR-35/NR-33/Radioproteção)',
         status: radioStatus,
         obrigatorio: radioStatus !== 'NAO_APLICAVEL',
         ultimaAtualizacao: new Date().toISOString().split('T')[0],
@@ -130,50 +173,50 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
       matricula: formData.matricula || '',
       cpf: formData.cpf || '',
       cargo: formData.cargo || '',
-      setor: formData.setor || 'Operações',
-      empresa: formData.empresa || 'Empresa Prestadora',
+      setor: formData.setor || formData.areaNome || 'Operações',
+      areaId: formData.areaId,
+      areaNome: formData.areaNome,
+      areaResponsavelNome: formData.areaResponsavelNome,
+      areaResponsavelEmail: formData.areaResponsavelEmail,
+      areaResponsavelTelefone: formData.areaResponsavelTelefone,
+      empresa: formData.empresa || 'GPA Prestadora',
       contratoId: formData.contratoId,
       contratoNome: matchedContract ? `${matchedContract.numero} - ${matchedContract.titulo}` : formData.contratoNome,
       pendencias,
       dataCadastro: editingEmployee ? editingEmployee.dataCadastro : new Date().toISOString().split('T')[0],
       dataUltimaLeitura: new Date().toISOString().split('T')[0],
       resumoGeral: formData.resumoGeral || '',
-      imagemOrigemUrl: editingEmployee?.imagemOrigemUrl,
     };
 
-    const calculated = recalculateEmployeeStatus(rawEmployee);
-    const saved: Employee = {
-      ...(rawEmployee as Employee),
-      indicadorPercentual: calculated.indicadorPercentual,
-      statusGeral: calculated.statusGeral,
-    };
-
-    onSaveEmployee(saved);
+    const updated = updateEmployeeCalculatedFields(rawEmployee as Employee);
+    onSaveEmployee(updated);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
-      <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-[#002D62] text-white">
-              <UserPlus className="w-5 h-5" />
+            <div
+              style={{ backgroundColor: primaryColor }}
+              className="p-2.5 rounded-2xl text-white shadow-xs"
+            >
+              <UserPlus className="w-5 h-5" style={{ color: accentColor }} />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                {editingEmployee ? 'Editar Dados do Colaborador' : 'Cadastro Manual de Colaborador'}
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+                {editingEmployee ? 'Editar Colaborador & Pendências' : 'Novo Colaborador GPA'}
               </h2>
               <p className="text-xs text-slate-500">
-                Preencha os dados e defina a situação dos documentos de SST.
+                Preencha os dados e selecione a área e o contrato vinculado
               </p>
             </div>
           </div>
-
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-200/60"
           >
             <X className="w-5 h-5" />
           </button>
@@ -181,202 +224,214 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-slate-600 font-semibold mb-1">Nome Completo *</label>
-              <input
-                type="text"
-                required
-                value={formData.nome}
-                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                placeholder="Ex: João da Silva Santos"
-                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-600 font-semibold mb-1">Matrícula / ID *</label>
-              <input
-                type="text"
-                required
-                value={formData.matricula}
-                onChange={(e) => setFormData({ ...formData, matricula: e.target.value })}
-                placeholder="Ex: RAD-99201"
-                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold focus:border-[#002D62] focus:bg-white focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-slate-600 font-semibold mb-1">CPF</label>
-              <input
-                type="text"
-                value={formData.cpf || ''}
-                onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
-                placeholder="000.000.000-00"
-                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-600 font-semibold mb-1">Cargo / Função *</label>
-              <input
-                type="text"
-                required
-                value={formData.cargo}
-                onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
-                placeholder="Ex: Técnico em Radiologia"
-                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-600 font-semibold mb-1">Setor / Área</label>
-              <input
-                type="text"
-                value={formData.setor}
-                onChange={(e) => setFormData({ ...formData, setor: e.target.value })}
-                placeholder="Ex: Ensaios Não Destrutivos"
-                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-slate-600 font-semibold mb-1">Empresa / Prestadora</label>
-              <input
-                type="text"
-                value={formData.empresa}
-                onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
-                placeholder="Ex: WFS Ground Handling Ltda."
-                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-600 font-semibold mb-1">Contrato Vinculado</label>
-              <select
-                value={formData.contratoId || ''}
-                onChange={(e) => setFormData({ ...formData, contratoId: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none cursor-pointer"
-              >
-                <option value="">-- Selecione o Contrato --</option>
-                {contracts.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.numero} - {c.titulo}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* 4 Core Pillars Status Configuration */}
-          <div className="pt-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-[#002D62]" />
-              Status dos 4 Documentos Principais de SST:
-            </h3>
+          {/* Identificação */}
+          <div className="space-y-3">
+            <span className="font-bold text-slate-900 uppercase tracking-wider block">
+              1. Identificação do Colaborador
+            </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Pillar 1: OS */}
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                <label className="block text-slate-800 font-bold mb-1 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-sky-600" />
-                  1. Ordem de Serviço (NR-01)
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nome Completo *:</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Lucas Ferreira Silva"
+                  value={formData.nome || ''}
+                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Matrícula / ID *:</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="GPA-00000"
+                  value={formData.matricula || ''}
+                  onChange={(e) => setFormData({ ...formData, matricula: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">CPF:</label>
+                <input
+                  type="text"
+                  placeholder="000.000.000-00"
+                  value={formData.cpf || ''}
+                  onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Cargo / Função *:</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Operador Logístico, Eletricista"
+                  value={formData.cargo || ''}
+                  onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Área & Contrato */}
+          <div className="space-y-3 pt-2 border-t border-slate-100">
+            <span className="font-bold text-slate-900 uppercase tracking-wider block">
+              2. Área & Responsável & Contrato GPA
+            </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Área / Setor Responsável *:
                 </label>
+                <select
+                  value={formData.areaId || ''}
+                  onChange={(e) => handleAreaSelect(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-slate-900"
+                >
+                  <option value="">Selecione uma Área</option>
+                  {areas.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.nome} (Resp: {a.responsavelNome})
+                    </option>
+                  ))}
+                </select>
+                {formData.areaResponsavelNome && (
+                  <span className="text-[11px] text-emerald-700 font-semibold mt-1 block">
+                    ✓ Gestor vinculado: {formData.areaResponsavelNome}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Contrato GPA Vinculado:
+                </label>
+                <select
+                  value={formData.contratoId || ''}
+                  onChange={(e) => {
+                    const c = contracts.find((con) => con.id === e.target.value);
+                    setFormData({
+                      ...formData,
+                      contratoId: e.target.value,
+                      contratoNome: c ? `${c.numero} - ${c.titulo}` : '',
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-slate-900"
+                >
+                  <option value="">Selecione um Contrato</option>
+                  {contracts.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.numero} - {c.titulo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Empresa / Razão Social Prestadora:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: WFS Facilities Ltda"
+                  value={formData.empresa || ''}
+                  onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Status dos 4 Documentos */}
+          <div className="space-y-3 pt-2 border-t border-slate-100">
+            <span className="font-bold text-slate-900 uppercase tracking-wider block">
+              3. Situação dos Documentos Obrigatórios
+            </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <span className="font-bold text-slate-800 block">1. Ordem de Serviço (NR-01)</span>
                 <select
                   value={osStatus}
                   onChange={(e) => setOsStatus(e.target.value as DocStatus)}
-                  className="w-full p-2 rounded bg-white border border-slate-200 text-slate-900 font-semibold cursor-pointer"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-bold"
                 >
-                  <option value="EM_DIA">✅ Em Dia</option>
-                  <option value="PENDENTE">⚠️ Pendente</option>
-                  <option value="VENCIDO">❌ Vencido</option>
+                  <option value="EM_DIA">EM DIA</option>
+                  <option value="A_VENCER">A VENCER (≤ 30 dias)</option>
+                  <option value="PENDENTE">PENDENTE</option>
+                  <option value="VENCIDO">VENCIDO</option>
                 </select>
               </div>
 
-              {/* Pillar 2: ASO */}
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                <label className="block text-slate-800 font-bold mb-1 flex items-center gap-1.5">
-                  <HeartPulse className="w-3.5 h-3.5 text-purple-600" />
-                  2. ASO Ocupacional (NR-07)
-                </label>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <span className="font-bold text-slate-800 block">2. ASO Ocupacional (NR-07)</span>
                 <select
                   value={asoStatus}
                   onChange={(e) => setAsoStatus(e.target.value as DocStatus)}
-                  className="w-full p-2 rounded bg-white border border-slate-200 text-slate-900 font-semibold cursor-pointer"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-bold"
                 >
-                  <option value="EM_DIA">✅ Em Dia</option>
-                  <option value="PENDENTE">⚠️ Pendente</option>
-                  <option value="VENCIDO">❌ Vencido</option>
+                  <option value="EM_DIA">EM DIA</option>
+                  <option value="A_VENCER">A VENCER (≤ 30 dias)</option>
+                  <option value="PENDENTE">PENDENTE</option>
+                  <option value="VENCIDO">VENCIDO</option>
                 </select>
               </div>
 
-              {/* Pillar 3: EPI */}
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                <label className="block text-slate-800 font-bold mb-1 flex items-center gap-1.5">
-                  <HardHat className="w-3.5 h-3.5 text-indigo-600" />
-                  3. Ficha de EPI (NR-06)
-                </label>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <span className="font-bold text-slate-800 block">3. Ficha de EPI (NR-06)</span>
                 <select
                   value={epiStatus}
                   onChange={(e) => setEpiStatus(e.target.value as DocStatus)}
-                  className="w-full p-2 rounded bg-white border border-slate-200 text-slate-900 font-semibold cursor-pointer"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-bold"
                 >
-                  <option value="EM_DIA">✅ Em Dia</option>
-                  <option value="PENDENTE">⚠️ Pendente</option>
-                  <option value="VENCIDO">❌ Vencido</option>
+                  <option value="EM_DIA">EM DIA</option>
+                  <option value="A_VENCER">A VENCER (≤ 30 dias)</option>
+                  <option value="PENDENTE">PENDENTE</option>
+                  <option value="VENCIDO">VENCIDO</option>
                 </select>
               </div>
 
-              {/* Pillar 4: Radioproteção */}
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                <label className="block text-slate-800 font-bold mb-1 flex items-center gap-1.5">
-                  <Radio className="w-3.5 h-3.5 text-amber-600" />
-                  4. Radioproteção (CNEN)
-                </label>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <span className="font-bold text-slate-800 block">4. Certificação Técnica</span>
                 <select
                   value={radioStatus}
                   onChange={(e) => setRadioStatus(e.target.value as DocStatus)}
-                  className="w-full p-2 rounded bg-white border border-slate-200 text-slate-900 font-semibold cursor-pointer"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-bold"
                 >
-                  <option value="EM_DIA">✅ Em Dia</option>
-                  <option value="PENDENTE">⚠️ Pendente</option>
-                  <option value="VENCIDO">❌ Vencido</option>
-                  <option value="NAO_APLICAVEL">⚪ Não Aplicável</option>
+                  <option value="EM_DIA">EM DIA</option>
+                  <option value="A_VENCER">A VENCER (≤ 30 dias)</option>
+                  <option value="PENDENTE">PENDENTE</option>
+                  <option value="VENCIDO">VENCIDO</option>
+                  <option value="NAO_APLICAVEL">NÃO SE APLICA</option>
                 </select>
               </div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-slate-600 font-semibold mb-1">
-              Observações Adicionais
-            </label>
-            <textarea
-              rows={2}
-              value={formData.resumoGeral || ''}
-              onChange={(e) => setFormData({ ...formData, resumoGeral: e.target.value })}
-              placeholder="Anotações gerais sobre o colaborador..."
-              className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#002D62] focus:bg-white focus:outline-none"
-            />
-          </div>
-
-          <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-lg font-bold text-white bg-[#002D62] hover:bg-[#001f44] transition-colors cursor-pointer"
+              style={{ backgroundColor: primaryColor }}
+              className="px-5 py-2 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-95 flex items-center gap-1.5 cursor-pointer"
             >
-              Salvar Colaborador
+              <Check className="w-4 h-4" />
+              <span>Salvar Colaborador</span>
             </button>
           </div>
         </form>

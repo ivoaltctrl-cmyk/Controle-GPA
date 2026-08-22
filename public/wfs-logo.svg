@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" width="100%" height="100%">
+  <defs>
+    <style>
+      .wfs-red { fill: #E21B23; }
+      .wfs-sub {
+        font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+        font-weight: 800;
+        font-size: 34px;
+        letter-spacing: 0.12em;
+        fill: #E21B23;
+      }
+      .wfs-wordmark {
+        font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+        font-weight: 900;
+        font-size: 195px;
+        fill: #E21B23;
+      }
+    </style>
+  </defs>
+
+  <!-- WFS Official Red: #E21B23 -->
+  <g id="wfs-brand-logo">
+    <!-- WFS Vortex / Spiral Symbol -->
+    <g transform="translate(45, 40)">
+      <!-- Outer Dynamic Crescent -->
+      <path class="wfs-red" d="M 200,45 C 285,45 355,115 355,200 C 355,265 315,320 255,344 C 230,354 200,360 170,360 C 235,348 290,295 290,225 C 290,155 230,95 160,95 C 105,95 60,125 38,170 C 50,98 118,45 200,45 Z" />
+      
+      <!-- Inner Dynamic Crescent -->
+      <path class="wfs-red" d="M 200,355 C 115,355 45,285 45,200 C 45,135 85,80 145,56 C 170,46 200,40 230,40 C 165,52 110,105 110,175 C 110,245 170,305 240,305 C 295,305 340,275 362,230 C 350,302 282,355 200,355 Z" />
+    </g>
+
+    <!-- Wordmark "wfs" -->
+    <text x="445" y="265" class="wfs-wordmark" letter-spacing="-0.03em">wfs</text>
+
+    <!-- Subtitle "A SATS COMPANY" -->
+    <text x="450" y="325" class="wfs-sub">A SATS COMPANY</text>
+  </g>
+</svg>

@@ -10,22 +10,31 @@ import {
   Radio,
   HardHat,
   HeartPulse,
+  Calendar,
+  Building,
 } from 'lucide-react';
-import { SystemStats } from '../types/index.ts';
+import { SystemStats, BrandConfig } from '../types/index.ts';
 
 interface DashboardStatsProps {
   stats: SystemStats;
   totalContracts: number;
+  totalAreas: number;
   onFilterClick: (filterType: string) => void;
   currentFilter: string;
+  brand: BrandConfig;
 }
 
 export const DashboardStats: React.FC<DashboardStatsProps> = ({
   stats,
   totalContracts,
+  totalAreas,
   onFilterClick,
   currentFilter,
+  brand,
 }) => {
+  const primaryColor = brand?.primaryColor || '#006837';
+  const accentColor = brand?.accentColor || '#f59e0b';
+
   return (
     <div className="space-y-4">
       {/* Top 4 Primary KPI Cards */}
@@ -35,40 +44,57 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           onClick={() => onFilterClick('TODOS')}
           className={`relative overflow-hidden rounded-2xl p-5 border cursor-pointer transition-all hover:shadow-md bg-white ${
             currentFilter === 'TODOS'
-              ? 'border-[#002D62] ring-2 ring-[#002D62]/15 shadow-sm'
-              : 'border-slate-200/80 hover:border-slate-300'
+              ? 'ring-2 shadow-sm'
+              : 'border-slate-200 hover:border-slate-300'
           }`}
+          style={
+            currentFilter === 'TODOS'
+              ? { borderColor: primaryColor, boxShadow: `0 0 0 2px ${primaryColor}20` }
+              : {}
+          }
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Taxa de Conformidade SST
+            <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+              Taxa Geral de Conformidade
             </span>
-            <div className="p-2 rounded-xl bg-blue-50 border border-blue-100 text-[#002D62]">
+            <div
+              style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
+              className="p-2 rounded-xl border border-black/5"
+            >
               <TrendingUp className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            <span
+              style={{ color: primaryColor }}
+              className="text-3xl font-black tracking-tight"
+            >
               {stats.taxaConformidadeGeral}%
             </span>
-            <span className="text-xs font-medium text-slate-500">índice consolidado</span>
+            <span className="text-xs font-semibold text-slate-500">índice consolidado</span>
           </div>
           {/* Progress bar */}
           <div className="mt-3 w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200/50">
             <div
-              className={`h-full rounded-full transition-all duration-700 ${
-                stats.taxaConformidadeGeral >= 80
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
-                  : stats.taxaConformidadeGeral >= 60
-                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500'
-                  : 'bg-gradient-to-r from-rose-600 to-red-500'
-              }`}
-              style={{ width: `${Math.min(stats.taxaConformidadeGeral, 100)}%` }}
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${Math.min(stats.taxaConformidadeGeral, 100)}%`,
+                backgroundColor:
+                  stats.taxaConformidadeGeral >= 80
+                    ? '#059669'
+                    : stats.taxaConformidadeGeral >= 60
+                    ? '#f59e0b'
+                    : '#e11d48',
+              }}
             />
           </div>
           <p className="mt-2.5 text-[11px] text-slate-500 flex items-center justify-between font-medium">
-            <span>Base total: <strong>{stats.totalFuncionarios}</strong> colaboradores</span>
-            <span className="text-emerald-700 font-bold">{stats.totalEmDia} regulares</span>
+            <span>
+              Base: <strong>{stats.totalFuncionarios}</strong> colaboradores
+            </span>
+            <span className="text-emerald-700 font-bold">
+              {stats.totalEmDia} em dia
+            </span>
           </p>
         </div>
 
@@ -78,198 +104,244 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           className={`relative overflow-hidden rounded-2xl p-5 border cursor-pointer transition-all hover:shadow-md bg-white ${
             currentFilter === 'EM_DIA'
               ? 'border-emerald-600 ring-2 ring-emerald-500/20 shadow-sm'
-              : 'border-slate-200/80 hover:border-slate-300'
+              : 'border-slate-200 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Total 100% Em Dia
+            <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+              100% Em Dia (Regulares)
             </span>
             <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600">
               <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-emerald-600 tracking-tight">
+            <span className="text-3xl font-black text-emerald-600 tracking-tight">
               {stats.totalEmDia}
             </span>
-            <span className="text-xs font-semibold text-slate-500">
+            <span className="text-xs font-bold text-slate-500">
               ({stats.totalFuncionarios > 0 ? Math.round((stats.totalEmDia / stats.totalFuncionarios) * 100) : 0}%)
             </span>
           </div>
           <p className="mt-3 text-xs text-slate-600">
-            Colaboradores com todos os documentos e treinamentos válidos.
+            Documentos, NRs e exames com validade regular.
           </p>
-          <div className="mt-2 text-[11px] font-bold text-emerald-700 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            <span>Liberados para acesso irrestrito</span>
+          <div className="mt-2 text-[11px] font-bold text-emerald-700 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Acesso liberado nas portarias e lojas</span>
           </div>
         </div>
 
-        {/* Card 3: Com Pendências & Críticos */}
+        {/* Card 3: A Vencer em ≤ 30 Dias (Amarelo Piscante) */}
         <div
-          onClick={() => onFilterClick('COM_PENDENCIA')}
+          onClick={() => onFilterClick('A_VENCER_30')}
           className={`relative overflow-hidden rounded-2xl p-5 border cursor-pointer transition-all hover:shadow-md bg-white ${
-            currentFilter === 'COM_PENDENCIA' || currentFilter === 'CRITICO'
-              ? 'border-amber-500 ring-2 ring-amber-500/20 shadow-sm'
-              : 'border-slate-200/80 hover:border-slate-300'
+            currentFilter === 'A_VENCER_30'
+              ? 'border-amber-500 ring-2 ring-amber-500/30 shadow-sm bg-amber-50/20'
+              : 'border-slate-200 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Pendências & Críticos
-            </span>
-            <div className="p-2 rounded-xl bg-amber-50 border border-amber-100 text-amber-600">
-              <AlertTriangle className="w-5 h-5" />
+            <div className="flex items-center gap-1.5">
+              {/* Pulsing Beacon */}
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500 animate-pulse" />
+              </span>
+              <span className="text-xs font-black uppercase tracking-wider text-amber-800">
+                A Vencer (≤ 30 Dias)
+              </span>
+            </div>
+            <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-600">
+              <Calendar className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-amber-600 tracking-tight">
-              {stats.totalComPendencia}
+            <span className="text-3xl font-black text-amber-600 tracking-tight">
+              {stats.totalAVencer30Dias}
             </span>
-            <span className="text-xs text-rose-600 font-bold">
-              ({stats.totalCriticos + stats.totalBloqueados} críticos/vencidos)
+            <span className="text-xs font-bold text-amber-800">
+              alerta preventivo
             </span>
           </div>
           <p className="mt-3 text-xs text-slate-600">
-            Requerem demanda de regularização junto ao gestor ou RH do contrato.
+            Itens que vencem nos próximos 30 dias para agendamento prévio.
           </p>
-          <div className="mt-2 text-[11px] font-bold text-amber-700 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            <span>Clique para filtrar apenas pendentes</span>
+          <div className="mt-2 text-[11px] font-bold text-amber-700 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            <span>Clique para filtrar a vencer</span>
           </div>
         </div>
 
-        {/* Card 4: Bloqueios de Acesso */}
+        {/* Card 4: Vencidos / Bloqueados (Vermelho Piscante) */}
         <div
-          onClick={() => onFilterClick('BLOQUEADO')}
+          onClick={() => onFilterClick('CRITICO')}
           className={`relative overflow-hidden rounded-2xl p-5 border cursor-pointer transition-all hover:shadow-md bg-white ${
-            currentFilter === 'BLOQUEADO'
-              ? 'border-rose-500 ring-2 ring-rose-500/20 shadow-sm'
-              : 'border-slate-200/80 hover:border-slate-300'
+            currentFilter === 'CRITICO' || currentFilter === 'BLOQUEADO'
+              ? 'border-rose-600 ring-2 ring-rose-500/30 shadow-sm bg-rose-50/20'
+              : 'border-slate-200 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Bloqueios de Acesso
-            </span>
-            <div className="p-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-600">
+            <div className="flex items-center gap-1.5">
+              {/* Pulsing Beacon */}
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600 animate-pulse" />
+              </span>
+              <span className="text-xs font-black uppercase tracking-wider text-rose-800">
+                Vencidos / Bloqueados
+              </span>
+            </div>
+            <div className="p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-600">
               <ShieldAlert className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-rose-600 tracking-tight">
-              {stats.totalBloqueados}
+            <span className="text-3xl font-black text-rose-600 tracking-tight">
+              {stats.totalCriticos + stats.totalBloqueados}
             </span>
-            <span className="text-xs font-medium text-slate-500">colaboradores barrados</span>
+            <span className="text-xs text-rose-700 font-extrabold">
+              ({stats.totalBloqueados} bloqueios imediatos)
+            </span>
           </div>
           <p className="mt-3 text-xs text-slate-600">
-            Risco de interrupção operacional em <strong>{totalContracts}</strong> contratos ativos.
+            Documentação obrigatória vencida ou pendência crítica.
           </p>
-          <div className="mt-2 text-[11px] font-bold text-rose-700 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-            <span>Ver bloqueios imediatos</span>
+          <div className="mt-2 text-[11px] font-bold text-rose-700 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>
+            <span>Risco de autuação e retenção em portaria</span>
           </div>
         </div>
       </div>
 
-      {/* Secondary Row: The 4 Document Pillars Quick Dashboard */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Pillar 1: Ordem de Serviço */}
-        <button
-          onClick={() => onFilterClick('FILTRO_OS')}
-          className={`p-3.5 rounded-xl border text-left transition-all bg-white cursor-pointer hover:shadow-xs ${
-            currentFilter === 'FILTRO_OS'
-              ? 'border-sky-500 ring-2 ring-sky-500/20 shadow-xs'
-              : 'border-slate-200/80 hover:border-slate-300'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-100">
-                <FileText className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold text-slate-800">Ordem de Serviço (NR-01)</span>
-            </div>
-            <span className="text-xs font-extrabold text-sky-700">{stats.ordemServico.taxa}%</span>
+      {/* Breakdown by the 4 Core SST Pillars */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-slate-700" />
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+              Conformidade por Pilar Documental (NR-01, NR-07, NR-06 & Certificação)
+            </h3>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-600">
-            <span>Em dia: <strong className="text-emerald-600">{stats.ordemServico.emDia}</strong></span>
-            <span>Pendentes: <strong className="text-amber-600">{stats.ordemServico.pendente + stats.ordemServico.vencido}</strong></span>
-          </div>
-        </button>
+          <span className="text-xs text-slate-500 font-medium">
+            Monitoramento de 30 dias ativo
+          </span>
+        </div>
 
-        {/* Pillar 2: ASO */}
-        <button
-          onClick={() => onFilterClick('FILTRO_ASO')}
-          className={`p-3.5 rounded-xl border text-left transition-all bg-white cursor-pointer hover:shadow-xs ${
-            currentFilter === 'FILTRO_ASO'
-              ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-xs'
-              : 'border-slate-200/80 hover:border-slate-300'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-100">
-                <HeartPulse className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold text-slate-800">ASO Médico (NR-07)</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* OS */}
+          <div
+            onClick={() => onFilterClick('FILTRO_OS')}
+            className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-slate-100 transition-colors cursor-pointer space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900">Ordem de Serviço (NR-01)</span>
+              <span
+                className={`text-xs font-black ${
+                  stats.ordemServico.taxa >= 80 ? 'text-emerald-700' : 'text-rose-600'
+                }`}
+              >
+                {stats.ordemServico.taxa}%
+              </span>
             </div>
-            <span className="text-xs font-extrabold text-purple-700">{stats.aso.taxa}%</span>
+            <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-full bg-emerald-600 rounded-full"
+                style={{ width: `${stats.ordemServico.taxa}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <span>{stats.ordemServico.emDia} em dia</span>
+              <span className="text-amber-700 font-semibold">{stats.ordemServico.aVencer} a vencer</span>
+              <span className="text-rose-600 font-semibold">{stats.ordemServico.vencido} vencidos</span>
+            </div>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-600">
-            <span>Em dia: <strong className="text-emerald-600">{stats.aso.emDia}</strong></span>
-            <span>Vencidos: <strong className="text-rose-600">{stats.aso.vencido}</strong></span>
-          </div>
-        </button>
 
-        {/* Pillar 3: Ficha de EPI */}
-        <button
-          onClick={() => onFilterClick('FILTRO_EPI')}
-          className={`p-3.5 rounded-xl border text-left transition-all bg-white cursor-pointer hover:shadow-xs ${
-            currentFilter === 'FILTRO_EPI'
-              ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs'
-              : 'border-slate-200/80 hover:border-slate-300'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
-                <HardHat className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold text-slate-800">Ficha de EPI (NR-06)</span>
+          {/* ASO */}
+          <div
+            onClick={() => onFilterClick('FILTRO_ASO')}
+            className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-slate-100 transition-colors cursor-pointer space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900">ASO Ocupacional (NR-07)</span>
+              <span
+                className={`text-xs font-black ${
+                  stats.aso.taxa >= 80 ? 'text-emerald-700' : 'text-rose-600'
+                }`}
+              >
+                {stats.aso.taxa}%
+              </span>
             </div>
-            <span className="text-xs font-extrabold text-indigo-700">{stats.fichaEpi.taxa}%</span>
+            <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-full bg-emerald-600 rounded-full"
+                style={{ width: `${stats.aso.taxa}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <span>{stats.aso.emDia} em dia</span>
+              <span className="text-amber-700 font-semibold">{stats.aso.aVencer} a vencer</span>
+              <span className="text-rose-600 font-semibold">{stats.aso.vencido} vencidos</span>
+            </div>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-600">
-            <span>Em dia: <strong className="text-emerald-600">{stats.fichaEpi.emDia}</strong></span>
-            <span>Pendentes: <strong className="text-amber-600">{stats.fichaEpi.pendente + stats.fichaEpi.vencido}</strong></span>
-          </div>
-        </button>
 
-        {/* Pillar 4: Radioproteção */}
-        <button
-          onClick={() => onFilterClick('FILTRO_RADIO')}
-          className={`p-3.5 rounded-xl border text-left transition-all bg-white cursor-pointer hover:shadow-xs ${
-            currentFilter === 'FILTRO_RADIO'
-              ? 'border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
-              : 'border-slate-200/80 hover:border-slate-300'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-100">
-                <Radio className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold text-slate-800">Radioproteção (CNEN)</span>
+          {/* Ficha EPI */}
+          <div
+            onClick={() => onFilterClick('FILTRO_EPI')}
+            className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-slate-100 transition-colors cursor-pointer space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900">Ficha de EPI (NR-06)</span>
+              <span
+                className={`text-xs font-black ${
+                  stats.fichaEpi.taxa >= 80 ? 'text-emerald-700' : 'text-rose-600'
+                }`}
+              >
+                {stats.fichaEpi.taxa}%
+              </span>
             </div>
-            <span className="text-xs font-extrabold text-amber-700">{stats.radioprotecao.taxa}%</span>
+            <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-full bg-emerald-600 rounded-full"
+                style={{ width: `${stats.fichaEpi.taxa}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <span>{stats.fichaEpi.emDia} em dia</span>
+              <span className="text-amber-700 font-semibold">{stats.fichaEpi.pendente} pendentes</span>
+              <span className="text-rose-600 font-semibold">{stats.fichaEpi.vencido} vencidos</span>
+            </div>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-600">
-            <span>Em dia: <strong className="text-emerald-600">{stats.radioprotecao.emDia}</strong></span>
-            <span>Vencidos: <strong className="text-rose-600">{stats.radioprotecao.vencido}</strong></span>
+
+          {/* Certificação Técnica */}
+          <div
+            onClick={() => onFilterClick('FILTRO_RADIO')}
+            className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-slate-100 transition-colors cursor-pointer space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900">Certificação / Treinamento</span>
+              <span
+                className={`text-xs font-black ${
+                  stats.radioprotecao.taxa >= 80 ? 'text-emerald-700' : 'text-rose-600'
+                }`}
+              >
+                {stats.radioprotecao.taxa}%
+              </span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-full bg-emerald-600 rounded-full"
+                style={{ width: `${stats.radioprotecao.taxa}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <span>{stats.radioprotecao.emDia} em dia</span>
+              <span className="text-amber-700 font-semibold">{stats.radioprotecao.aVencer} a vencer</span>
+              <span className="text-rose-600 font-semibold">{stats.radioprotecao.vencido} vencidos</span>
+            </div>
           </div>
-        </button>
+        </div>
       </div>
     </div>
   );

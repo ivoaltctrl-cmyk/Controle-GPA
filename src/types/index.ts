@@ -1,17 +1,18 @@
 export type ThemePaletteId =
+  | 'wfs-red'
+  | 'gpa-corporate'
   | 'industrial-amber'
   | 'safety-orange'
   | 'hse-emerald'
   | 'corporate-red'
   | 'neutral-graphite'
-  | 'wfs-navy'
   | 'custom';
 
 export interface BrandConfig {
   companyName: string;
   companySubtitle: string;
   badgeText: string;
-  logoType: 'custom_image' | 'styled_wfs' | 'initials_badge' | 'text_only';
+  logoType: 'styled_wfs' | 'custom_image' | 'styled_gpa' | 'initials_badge' | 'text_only';
   customLogoUrl?: string;
   paletteId: ThemePaletteId;
   primaryColor: string;
@@ -29,6 +30,7 @@ export type DocType =
 
 export type DocStatus =
   | 'EM_DIA'
+  | 'A_VENCER'
   | 'PENDENTE'
   | 'VENCIDO'
   | 'EM_ANALISE'
@@ -49,13 +51,32 @@ export interface PendingDoc {
   ultimaAtualizacao?: string;
 }
 
+export interface AreaResponsavel {
+  id: string;
+  nome: string; // ex: "Logística & CD", "Manutenção & Obras", "Operações de Loja", "Segurança & Prevenção", "Facilities & TI"
+  responsavelNome: string;
+  responsavelCargo: string;
+  responsavelEmail: string;
+  responsavelTelefone: string;
+  unidadeOuLoja?: string;
+  observacoes?: string;
+  totalColaboradores?: number;
+  totalPendencias?: number;
+  taxaConformidade?: number;
+}
+
 export interface Employee {
   id: string;
   nome: string;
   matricula: string;
   cpf?: string;
   cargo: string;
-  setor: string;
+  setor: string; // Ex: Logística, Manutenção, etc.
+  areaId?: string;
+  areaNome?: string;
+  areaResponsavelNome?: string;
+  areaResponsavelEmail?: string;
+  areaResponsavelTelefone?: string;
   empresa: string;
   contratoId?: string;
   contratoNome?: string;
@@ -77,6 +98,8 @@ export interface Contract {
   gestorResponsavel: string;
   emailContato?: string;
   telefoneContato?: string;
+  areaId?: string;
+  areaNome?: string;
   vigenciaInicio: string;
   vigenciaFim: string;
   status: 'ATIVO' | 'ALERTA' | 'BLOQUEADO' | 'ENCERRADO';
@@ -88,6 +111,9 @@ export interface DemandLog {
   id: string;
   funcionarioId: string;
   funcionarioNome: string;
+  areaId?: string;
+  areaNome?: string;
+  responsavelArea?: string;
   contratoId?: string;
   contratoNome?: string;
   canal: 'whatsapp' | 'email' | 'chamado';
@@ -104,6 +130,7 @@ export interface SystemStats {
   totalFuncionarios: number;
   totalEmDia: number;
   totalComPendencia: number;
+  totalAVencer30Dias: number;
   totalCriticos: number;
   totalBloqueados: number;
   taxaConformidadeGeral: number;
@@ -111,6 +138,7 @@ export interface SystemStats {
   ordemServico: {
     total: number;
     emDia: number;
+    aVencer: number;
     pendente: number;
     vencido: number;
     taxa: number;
@@ -118,6 +146,7 @@ export interface SystemStats {
   aso: {
     total: number;
     emDia: number;
+    aVencer: number;
     pendente: number;
     vencido: number;
     taxa: number;
@@ -125,6 +154,7 @@ export interface SystemStats {
   fichaEpi: {
     total: number;
     emDia: number;
+    aVencer: number;
     pendente: number;
     vencido: number;
     taxa: number;
@@ -132,6 +162,7 @@ export interface SystemStats {
   radioprotecao: {
     total: number;
     emDia: number;
+    aVencer: number;
     pendente: number;
     vencido: number;
     taxa: number;

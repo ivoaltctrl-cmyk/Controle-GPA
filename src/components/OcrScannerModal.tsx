@@ -10,20 +10,35 @@ import {
   Check,
   Save,
   Building2,
+  Building,
   Trash2,
   RefreshCw,
   Zap,
+  Users,
+  UserCheck,
+  Calendar,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { Employee, Contract, PendingDoc, DocType, DocStatus } from '../types/index.ts';
+import {
+  Employee,
+  Contract,
+  AreaResponsavel,
+  PendingDoc,
+  DocType,
+  DocStatus,
+  BrandConfig,
+} from '../types/index.ts';
 import { SAMPLE_OCR_IMAGES, SAMPLE_OCR_RESULTS } from '../data/mockData.ts';
-import { recalculateEmployeeStatus } from '../utils/storage.ts';
+import { recalculateEmployeeStatus, updateEmployeeCalculatedFields } from '../utils/storage.ts';
 
 interface OcrScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveEmployee: (employee: Employee) => void;
   contracts: Contract[];
+  employees: Employee[];
+  areas: AreaResponsavel[];
+  brand: BrandConfig;
 }
 
 export const OcrScannerModal: React.FC<OcrScannerModalProps> = ({
@@ -31,11 +46,16 @@ export const OcrScannerModal: React.FC<OcrScannerModalProps> = ({
   onClose,
   onSaveEmployee,
   contracts,
+  employees,
+  areas,
+  brand,
 }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedData, setExtractedData] = useState<Partial<Employee> | null>(null);
+  const [matchedExistingEmployee, setMatchedExistingEmployee] = useState<Employee | null>(null);
+  const [selectedAreaId, setSelectedAreaId] = useState<string>('');
   const [selectedContractId, setSelectedContractId] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -43,21 +63,30 @@ export const OcrScannerModal: React.FC<OcrScannerModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Set default contract when modal opens
+  const primaryColor = brand?.primaryColor || '#006837';
+  const accentColor = brand?.accentColor || '#f59e0b';
+  const companyName = brand?.companyName || 'GPA';
+
+  // Set default contract and area when modal opens
   useEffect(() => {
-    if (isOpen && contracts.length > 0 && !selectedContractId) {
-      setSelectedContractId(contracts[0].id);
+    if (isOpen) {
+      if (contracts.length > 0 && !selectedContractId) {
+        setSelectedContractId(contracts[0].id);
+      }
+      if (areas.length > 0 && !selectedAreaId) {
+        setSelectedAreaId(areas[0].id);
+      }
     }
     if (!isOpen) {
-      // Reset states
       setSelectedImage(null);
       setImageFile(null);
       setExtractedData(null);
+      setMatchedExistingEmployee(null);
       setErrorMsg(null);
       setIsProcessing(false);
       setSuccessSaved(false);
     }
-  }, [isOpen, contracts]);
+  }, [isOpen, contracts, areas]);
 
   // Handle global paste event (Ctrl+V) when modal is open
   useEffect(() => {
@@ -106,6 +135,38 @@ export const OcrScannerModal: React.FC<OcrScannerModalProps> = ({
     processOcrImage(imgData, sampleKey);
   };
 
+  /**
+   * Search for existing registered employee matching parsed name or matricula
+   */
+  const findMatchingEmployee = (nome: string, matricula?: string): Employee | null => {
+    if (!nome && !matricula) return null;
+
+    const clean = (s: string) =>
+      s
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+
+    const targetName = clean(nome);
+    const targetMat = matricula ? clean(matricula) : '';
+
+    return (
+      employees.find((emp) => {
+        const empName = clean(emp.nome);
+        const empMat = clean(emp.matricula);
+
+        if (targetMat && (empMat === targetMat || empMat.includes(targetMat))) {
+          return true;
+        }
+        if (targetName && (empName === targetName || empName.includes(targetName) || targetName.includes(empName))) {
+          return true;
+        }
+        return false;
+      }) || null
+    );
+  };
+
   const processOcrImage = async (
     imageBase64: string,
     sampleKey?: keyof typeof SAMPLE_OCR_IMAGES
@@ -113,6 +174,7 @@ export const OcrScannerModal: React.FC<OcrScannerModalProps> = ({
     setIsProcessing(true);
     setErrorMsg(null);
     setSuccessSaved(false);
+    setMatchedExistingEmployee(null);
 
     try {
       // Call Gemini Vision API server route
@@ -135,20 +197,39 @@ export const OcrScannerModal: React.FC<OcrScannerModalProps> = ({
 
       // Map parsed data
       const parsedData = result.data;
-      const matchedContract = contracts.find((c) => c.id === selectedContractId) || contracts[0];
+      const extractedName = parsedData.nome || 'Colaborador Identificado';
+      const extractedMatricula = parsedData.matricula || '';
+
+      // Check if employee already exists in database
+      const existingMatch = findMatchingEmployee(extractedName, extractedMatricula);
+      setMatchedExistingEmployee(existingMatch);
+
+      const matchedContract =
+        contracts.find((c) => c.id === (existingMatch?.contratoId || selectedContractId)) ||
+        contracts[0];
+
+      const matchedArea =
+        areas.find((a) => a.id === (existingMatch?.areaId || selectedAreaId)) ||
+        areas[0];
 
       const newEmployeeDraft: Partial<Employee> = {
-        nome: parsedData.nome || 'Colaborador Identificado',
-        matricula: parsedData.matricula || `MAT-${Math.floor(10000 + Math.random() * 90000)}`,
-        cpf: parsedData.cpf || '',
-        cargo: parsedData.cargo || 'Operador Especializado',
-        setor: parsedData.setor || 'Operações de Campo',
-        empresa: parsedData.empresa || 'Prestadora de Serviços',
+        id: existingMatch?.id || `emp-${Date.now()}`,
+        nome: existingMatch?.nome || extractedName,
+        matricula: existingMatch?.matricula || extractedMatricula || `GPA-${Math.floor(10000 + Math.random() * 90000)}`,
+        cpf: existingMatch?.cpf || parsedData.cpf || '',
+        cargo: existingMatch?.cargo || parsedData.cargo || 'Operador Especializado',
+        setor: existingMatch?.setor || matchedArea?.nome || 'Operações',
+        areaId: existingMatch?.areaId || matchedArea?.id,
+        areaNome: existingMatch?.areaNome || matchedArea?.nome,
+        areaResponsavelNome: existingMatch?.areaResponsavelNome || matchedArea?.responsavelNome,
+        areaResponsavelEmail: existingMatch?.areaResponsavelEmail || matchedArea?.responsavelEmail,
+        areaResponsavelTelefone: existingMatch?.areaResponsavelTelefone || matchedArea?.responsavelTelefone,
+        empresa: existingMatch?.empresa || parsedData.empresa || 'GPA Prestadora',
         contratoId: matchedContract?.id,
         contratoNome: matchedContract ? `${matchedContract.numero} - ${matchedContract.titulo}` : '',
         resumoGeral: parsedData.resumoGeral || '',
         imagemOrigemUrl: imageBase64.length < 500000 ? imageBase64 : undefined,
-        dataCadastro: new Date().toISOString().split('T')[0],
+        dataCadastro: existingMatch?.dataCadastro || new Date().toISOString().split('T')[0],
         dataUltimaLeitura: new Date().toISOString().split('T')[0],
         pendencias: (parsedData.pendencias || []).map((p: any, idx: number) => ({
           id: `p_ocr_${Date.now()}_${idx}`,
@@ -158,71 +239,118 @@ export const OcrScannerModal: React.FC<OcrScannerModalProps> = ({
           dataEmissao: p.dataEmissao,
           dataVencimento: p.dataVencimento,
           obrigatorio: p.obrigatorio !== false,
-          observacoes: p.observacoes || '',
+          observacoes: p.observacoes,
           ultimaAtualizacao: new Date().toISOString().split('T')[0],
         })),
       };
 
-      // Recalculate compliance indicator
-      const evaluated = recalculateEmployeeStatus(newEmployeeDraft);
-      newEmployeeDraft.indicadorPercentual = evaluated.indicadorPercentual;
-      newEmployeeDraft.statusGeral = evaluated.statusGeral;
+      const recalc = recalculateEmployeeStatus(newEmployeeDraft);
+      newEmployeeDraft.indicadorPercentual = recalc.indicadorPercentual;
+      newEmployeeDraft.statusGeral = recalc.statusGeral;
 
       setExtractedData(newEmployeeDraft);
-
-      // Trigger celebrate sound/confetti
-      try {
-        confetti({
-          particleCount: 50,
-          spread: 70,
-          origin: { y: 0.7 },
-        });
-      } catch (e) {}
     } catch (err: any) {
-      console.error('OCR Error:', err);
-      // Fallback to sample if offline / API issue
+      console.error(err);
+      // Fallback to sample data if network or API key fails
       if (sampleKey && SAMPLE_OCR_RESULTS[sampleKey]) {
-        const fallback = SAMPLE_OCR_RESULTS[sampleKey];
-        setExtractedData(fallback);
+        const mockParsed = SAMPLE_OCR_RESULTS[sampleKey];
+        const existingMatch = findMatchingEmployee(mockParsed.nome || '', mockParsed.matricula);
+        setMatchedExistingEmployee(existingMatch);
+
+        const matchedContract = contracts[0];
+        const matchedArea = areas[0];
+
+        const draft: Partial<Employee> = {
+          id: existingMatch?.id || `emp-${Date.now()}`,
+          nome: existingMatch?.nome || mockParsed.nome || 'Colaborador',
+          matricula: existingMatch?.matricula || mockParsed.matricula || 'GPA-10001',
+          cargo: existingMatch?.cargo || mockParsed.cargo || 'Operador',
+          setor: existingMatch?.setor || matchedArea?.nome || 'Operações',
+          areaId: existingMatch?.areaId || matchedArea?.id,
+          areaNome: existingMatch?.areaNome || matchedArea?.nome,
+          areaResponsavelNome: existingMatch?.areaResponsavelNome || matchedArea?.responsavelNome,
+          empresa: existingMatch?.empresa || mockParsed.empresa || 'GPA Prestadora',
+          contratoId: matchedContract?.id,
+          contratoNome: matchedContract ? `${matchedContract.numero} - ${matchedContract.titulo}` : '',
+          statusGeral: mockParsed.statusGeral || 'PENDENTE',
+          indicadorPercentual: mockParsed.indicadorPercentual || 75,
+          resumoGeral: mockParsed.resumoGeral || '',
+          dataCadastro: existingMatch?.dataCadastro || new Date().toISOString().split('T')[0],
+          dataUltimaLeitura: new Date().toISOString().split('T')[0],
+          pendencias: mockParsed.pendencias || [],
+        };
+        setExtractedData(draft);
       } else {
-        setErrorMsg(
-          err.message ||
-            'Falha na leitura via IA. Tente novamente ou use uma das amostras pré-carregadas.'
-        );
+        setErrorMsg(`Falha na extração de texto via IA: ${err.message || 'Verifique o print'}.`);
       }
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleSaveToDatabase = () => {
+  const handleDocStatusChange = (docId: string, newStatus: DocStatus) => {
+    if (!extractedData || !extractedData.pendencias) return;
+
+    const updatedDocs = extractedData.pendencias.map((doc) =>
+      doc.id === docId ? { ...doc, status: newStatus } : doc
+    );
+
+    const recalc = recalculateEmployeeStatus({
+      ...extractedData,
+      pendencias: updatedDocs,
+    });
+
+    setExtractedData({
+      ...extractedData,
+      pendencias: updatedDocs,
+      indicadorPercentual: recalc.indicadorPercentual,
+      statusGeral: recalc.statusGeral,
+    });
+  };
+
+  const handleSave = () => {
     if (!extractedData || !extractedData.nome) return;
 
-    const matchedContract = contracts.find((c) => c.id === selectedContractId);
+    const targetContract = contracts.find((c) => c.id === selectedContractId);
+    const targetArea = areas.find((a) => a.id === selectedAreaId);
 
-    const fullEmployee: Employee = {
-      id: `emp_${Date.now()}`,
-      nome: extractedData.nome || 'Colaborador',
-      matricula: extractedData.matricula || `MAT-${Math.floor(10000 + Math.random() * 90000)}`,
-      cpf: extractedData.cpf || '',
-      cargo: extractedData.cargo || 'Colaborador',
-      setor: extractedData.setor || 'Operações',
-      empresa: extractedData.empresa || 'Empresa Prestadora',
-      contratoId: selectedContractId || extractedData.contratoId,
-      contratoNome: matchedContract
-        ? `${matchedContract.numero} - ${matchedContract.titulo}`
-        : extractedData.contratoNome,
-      indicadorPercentual: extractedData.indicadorPercentual ?? 80,
+    const completeEmployee: Employee = {
+      id: matchedExistingEmployee ? matchedExistingEmployee.id : extractedData.id || `emp-${Date.now()}`,
+      nome: extractedData.nome,
+      matricula: extractedData.matricula || `GPA-${Math.floor(10000 + Math.random() * 90000)}`,
+      cpf: extractedData.cpf || matchedExistingEmployee?.cpf,
+      cargo: extractedData.cargo || 'Operador',
+      setor: targetArea?.nome || extractedData.setor || 'Operações',
+      areaId: targetArea?.id || matchedExistingEmployee?.areaId,
+      areaNome: targetArea?.nome || matchedExistingEmployee?.areaNome,
+      areaResponsavelNome: targetArea?.responsavelNome || matchedExistingEmployee?.areaResponsavelNome,
+      areaResponsavelEmail: targetArea?.responsavelEmail || matchedExistingEmployee?.areaResponsavelEmail,
+      areaResponsavelTelefone: targetArea?.responsavelTelefone || matchedExistingEmployee?.areaResponsavelTelefone,
+      empresa: extractedData.empresa || 'GPA Prestadora',
+      contratoId: targetContract?.id || matchedExistingEmployee?.contratoId,
+      contratoNome: targetContract
+        ? `${targetContract.numero} - ${targetContract.titulo}`
+        : matchedExistingEmployee?.contratoNome,
       statusGeral: extractedData.statusGeral || 'PENDENTE',
-      pendencias: extractedData.pendencias || [],
-      dataCadastro: new Date().toISOString().split('T')[0],
-      dataUltimaLeitura: new Date().toISOString().split('T')[0],
-      imagemOrigemUrl: selectedImage || undefined,
+      indicadorPercentual: extractedData.indicadorPercentual ?? 75,
       resumoGeral: extractedData.resumoGeral,
+      dataCadastro: matchedExistingEmployee?.dataCadastro || extractedData.dataCadastro || new Date().toISOString().split('T')[0],
+      dataUltimaLeitura: new Date().toISOString().split('T')[0],
+      imagemOrigemUrl: extractedData.imagemOrigemUrl,
+      pendencias: extractedData.pendencias || [],
     };
 
-    onSaveEmployee(fullEmployee);
+    const finalEmployee = updateEmployeeCalculatedFields(completeEmployee);
+    onSaveEmployee(finalEmployee);
     setSuccessSaved(true);
+
+    try {
+      confetti({
+        particleCount: 70,
+        spread: 60,
+        origin: { y: 0.6 },
+      });
+    } catch {}
 
     setTimeout(() => {
       onClose();
@@ -230,357 +358,381 @@ export const OcrScannerModal: React.FC<OcrScannerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
-      <div className="relative w-full max-w-4xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-5xl bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-tr from-[#002D62] to-[#00A3E0] text-white shadow-xs">
-              <FileScan className="w-5 h-5" />
+            <div
+              style={{ backgroundColor: primaryColor }}
+              className="p-2.5 rounded-2xl text-white shadow-xs"
+            >
+              <FileScan className="w-5 h-5" style={{ color: accentColor }} />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                Leitor Inteligente de Prints de SST (OCR IA)
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                  Leitor Inteligente de Imagem (OCR & IA)
+                </h2>
+                <span
+                  style={{ backgroundColor: `${accentColor}20`, color: primaryColor }}
+                  className="px-2 py-0.5 rounded text-[10px] font-black uppercase"
+                >
+                  Busca & Sincronização
+                </span>
+              </div>
               <p className="text-xs text-slate-500">
-                Cole o print com <kbd className="px-1 py-0.5 rounded bg-slate-200 text-slate-800 text-[10px] font-mono font-bold">Ctrl + V</kbd> ou envie a foto da tela do colaborador.
+                A IA lê o print, localiza o colaborador na base cadastrada e atualiza apenas as pendências
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-200/60 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Top Quick Samples */}
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2">
-              Ou teste com amostras simuladas de telas do sistema:
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <button
-                onClick={() => handleSelectSample('print1')}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 text-left transition-all cursor-pointer group"
+        {/* Modal Content Grid */}
+        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 bg-slate-50/40">
+          {/* Left Column: Image Upload / Paste / Sample Selector (5 cols) */}
+          <div className="lg:col-span-5 space-y-4">
+            <div className="space-y-2">
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
+                1. Carregar ou Colar Print (Ctrl + V)
+              </label>
+
+              {/* Upload Dropzone */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const file = e.dataTransfer.files[0];
+                  if (file) handleFileSelect(file);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`relative border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[200px] ${
+                  isDragging
+                    ? 'border-emerald-500 bg-emerald-50/50'
+                    : selectedImage
+                    ? 'border-slate-300 bg-white'
+                    : 'border-slate-300 hover:border-slate-400 bg-white'
+                }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">👤</span>
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#002D62] block">
-                      Amostra 1: Carlos Eduardo
-                    </span>
-                    <span className="text-[10px] text-slate-500">
-                      Téc. Radiologia (Pendente OS + Treinamento)
+                {selectedImage ? (
+                  <div className="relative w-full h-full flex flex-col items-center">
+                    <img
+                      src={selectedImage}
+                      alt="Print Carregado"
+                      className="max-h-48 object-contain rounded-lg border border-slate-200 shadow-xs"
+                    />
+                    <span className="mt-2 text-[11px] font-bold text-slate-500 hover:text-slate-900">
+                      Clique para trocar imagem
                     </span>
                   </div>
-                </div>
-              </button>
+                ) : (
+                  <>
+                    <Upload className="w-8 h-8 text-slate-400 mb-2" />
+                    <p className="text-xs font-bold text-slate-700">
+                      Arraste ou clique para selecionar o print
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Ou simplesmente aperte <strong>Ctrl + V</strong> em qualquer lugar da tela
+                    </p>
+                  </>
+                )}
 
-              <button
-                onClick={() => handleSelectSample('print2')}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 text-left transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">👤</span>
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#002D62] block">
-                      Amostra 2: Juliana Mendes
-                    </span>
-                    <span className="text-[10px] text-slate-500">
-                      Engenheira SST (100% Em Dia - 100%)
-                    </span>
-                  </div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => handleSelectSample('print3')}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 text-left transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">👤</span>
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#002D62] block">
-                      Amostra 3: Rodrigo Lima
-                    </span>
-                    <span className="text-[10px] text-slate-500">
-                      Inspetor END (Crítico - ASO Vencido)
-                    </span>
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Upload / Paste Area */}
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setIsDragging(false);
-              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                handleFileSelect(e.dataTransfer.files[0]);
-              }
-            }}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
-              isDragging
-                ? 'border-[#002D62] bg-blue-50/70'
-                : 'border-slate-300 bg-slate-50/60 hover:bg-slate-100 hover:border-slate-400'
-            }`}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  handleFileSelect(e.target.files[0]);
-                }
-              }}
-            />
-
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 text-[#002D62] flex items-center justify-center shadow-xs">
-              <Upload className="w-6 h-6" />
-            </div>
-
-            <div>
-              <p className="text-sm font-bold text-slate-800">
-                Arraste ou clique para selecionar o print da tela
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Ou simplesmente tire um print da tela e pressione <strong className="text-slate-800">Ctrl + V</strong> em qualquer lugar desta janela.
-              </p>
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {errorMsg && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
-          {/* Processing Indicator */}
-          {isProcessing && (
-            <div className="p-6 rounded-2xl bg-blue-50 border border-blue-200 text-center space-y-3">
-              <div className="inline-flex items-center justify-center p-3 rounded-full bg-[#002D62] text-white animate-bounce shadow-md">
-                <Sparkles className="w-6 h-6 animate-spin" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900">
-                  Lendo e Extraindo Pendências com Gemini Multimodal...
-                </h4>
-                <p className="text-xs text-slate-600 mt-1">
-                  Identificando Nome, Matrícula, Cargo, Empresa, Ordem de Serviço, ASO, Ficha de EPI e Radioproteção.
-                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileSelect(file);
+                  }}
+                  className="hidden"
+                />
               </div>
             </div>
-          )}
 
-          {/* Extracted Data Form & Validation Panel */}
-          {extractedData && !isProcessing && (
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Dados Extraídos com Sucesso (Revise ou Edite Antes de Salvar):</span>
-                </h3>
-                <span
-                  className={`text-xs font-black px-2.5 py-1 rounded-full border ${
-                    (extractedData.indicadorPercentual ?? 0) >= 85
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                      : 'bg-amber-50 text-amber-800 border-amber-300'
-                  }`}
+            {/* Quick Test Samples */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-600">
+                Ou teste com prints de exemplo GPA:
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSelectSample('print1')}
+                  className="p-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 shadow-xs text-left cursor-pointer"
                 >
-                  Conformidade: {extractedData.indicadorPercentual}%
-                </span>
+                  <span className="text-[10px] text-amber-600 block">Carlos E.</span>
+                  <span className="truncate block">Print Logística</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectSample('print2')}
+                  className="p-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 shadow-xs text-left cursor-pointer"
+                >
+                  <span className="text-[10px] text-emerald-600 block">Juliana M.</span>
+                  <span className="truncate block">100% Em Dia</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectSample('print3')}
+                  className="p-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 shadow-xs text-left cursor-pointer"
+                >
+                  <span className="text-[10px] text-rose-600 block">Rodrigo L.</span>
+                  <span className="truncate block">Bloqueado</span>
+                </button>
               </div>
+            </div>
 
-              {/* Editable Fields Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Nome do Colaborador</label>
-                  <input
-                    type="text"
-                    value={extractedData.nome || ''}
-                    onChange={(e) => setExtractedData({ ...extractedData, nome: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-[#002D62] focus:bg-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Matrícula / ID</label>
-                  <input
-                    type="text"
-                    value={extractedData.matricula || ''}
-                    onChange={(e) =>
-                      setExtractedData({ ...extractedData, matricula: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold focus:border-[#002D62] focus:bg-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">CPF</label>
-                  <input
-                    type="text"
-                    value={extractedData.cpf || ''}
-                    onChange={(e) => setExtractedData({ ...extractedData, cpf: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-[#002D62] focus:bg-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Cargo / Função</label>
-                  <input
-                    type="text"
-                    value={extractedData.cargo || ''}
-                    onChange={(e) => setExtractedData({ ...extractedData, cargo: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-[#002D62] focus:bg-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Empresa Prestadora</label>
-                  <input
-                    type="text"
-                    value={extractedData.empresa || ''}
-                    onChange={(e) =>
-                      setExtractedData({ ...extractedData, empresa: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-[#002D62] focus:bg-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Vincular ao Contrato</label>
-                  <select
-                    value={selectedContractId}
-                    onChange={(e) => setSelectedContractId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-[#002D62] focus:bg-white focus:outline-none"
-                  >
-                    {contracts.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.numero} - {c.titulo}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* 4 Core Documents Status */}
+            {/* Contract & Area Selector */}
+            <div className="space-y-3 pt-2">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2">
-                  Status Identificado dos 4 Documentos de SST:
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Área / Setor Responsável:
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {extractedData.pendencias?.map((doc, idx) => {
-                    const isOk = doc.status === 'EM_DIA';
-                    const isVencido = doc.status === 'VENCIDO';
+                <select
+                  value={selectedAreaId}
+                  onChange={(e) => setSelectedAreaId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-slate-900"
+                >
+                  {areas.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.nome} (Resp: {a.responsavelNome})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                    return (
-                      <div
-                        key={idx}
-                        className={`p-3 rounded-xl border flex items-center justify-between bg-white ${
-                          isOk
-                            ? 'border-emerald-200 bg-emerald-50/40'
-                            : isVencido
-                            ? 'border-rose-200 bg-rose-50/40'
-                            : 'border-amber-200 bg-amber-50/40'
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Vincular ao Contrato GPA:
+                </label>
+                <select
+                  value={selectedContractId}
+                  onChange={(e) => setSelectedContractId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-slate-900"
+                >
+                  {contracts.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.numero} - {c.titulo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: AI Extraction Results & Match Status (7 cols) */}
+          <div className="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                    2. Dados Extraídos & Sincronização
+                  </h3>
+                </div>
+
+                {isProcessing && (
+                  <span className="flex items-center gap-1.5 text-xs text-amber-600 font-bold animate-pulse">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Lendo imagem via IA...</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Matching Employee Notification Banner */}
+              {matchedExistingEmployee && extractedData && (
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Colaborador Encontrado na Base de Dados!</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-800 leading-relaxed">
+                    Localizamos <strong>{matchedExistingEmployee.nome}</strong> (Matrícula: {matchedExistingEmployee.matricula}, Área: {matchedExistingEmployee.areaNome || matchedExistingEmployee.setor}).
+                    Os dados cadastrais serão mantidos e <strong>apenas as 4 pendências documentais serão atualizadas</strong>.
+                  </p>
+                </div>
+              )}
+
+              {/* Extraction Preview */}
+              {extractedData ? (
+                <div className="space-y-3">
+                  {/* Candidate Profile Box */}
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase">
+                        Nome
+                      </span>
+                      <input
+                        type="text"
+                        value={extractedData.nome || ''}
+                        onChange={(e) =>
+                          setExtractedData({ ...extractedData, nome: e.target.value })
+                        }
+                        className="w-full font-bold text-slate-900 bg-transparent border-b border-transparent focus:border-slate-400 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase">
+                        Matrícula
+                      </span>
+                      <input
+                        type="text"
+                        value={extractedData.matricula || ''}
+                        onChange={(e) =>
+                          setExtractedData({ ...extractedData, matricula: e.target.value })
+                        }
+                        className="w-full font-bold text-slate-800 bg-transparent border-b border-transparent focus:border-slate-400 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase">
+                        Cargo
+                      </span>
+                      <input
+                        type="text"
+                        value={extractedData.cargo || ''}
+                        onChange={(e) =>
+                          setExtractedData({ ...extractedData, cargo: e.target.value })
+                        }
+                        className="w-full text-slate-700 bg-transparent border-b border-transparent focus:border-slate-400 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase">
+                        Status Geral
+                      </span>
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-black ${
+                          extractedData.statusGeral === 'EM_DIA'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : extractedData.statusGeral === 'CRITICO'
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-amber-100 text-amber-800'
                         }`}
                       >
-                        <div>
-                          <span className="text-xs font-bold text-slate-800 block">
-                            {doc.nomeDocumento}
-                          </span>
-                          <span className="text-[10px] text-slate-500">
-                            {doc.observacoes || (isOk ? 'Documento Conforme' : 'Ação requerida')}
-                          </span>
-                        </div>
+                        {extractedData.statusGeral} ({extractedData.indicadorPercentual}%)
+                      </span>
+                    </div>
+                  </div>
 
-                        <select
-                          value={doc.status}
-                          onChange={(e) => {
-                            const newStatus = e.target.value as DocStatus;
-                            const updatedDocs = [...(extractedData.pendencias || [])];
-                            updatedDocs[idx] = { ...updatedDocs[idx], status: newStatus };
-                            const recalculated = recalculateEmployeeStatus({
-                              ...extractedData,
-                              pendencias: updatedDocs,
-                            });
-                            setExtractedData({
-                              ...extractedData,
-                              pendencias: updatedDocs,
-                              indicadorPercentual: recalculated.indicadorPercentual,
-                              statusGeral: recalculated.statusGeral,
-                            });
-                          }}
-                          className={`text-xs font-bold px-2 py-1 rounded-lg border focus:outline-none ${
-                            isOk
-                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                              : isVencido
-                              ? 'bg-rose-100 text-rose-800 border-rose-300'
-                              : 'bg-amber-100 text-amber-800 border-amber-300'
-                          }`}
+                  {/* Documents Checklist extracted */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Situação dos Documentos Identificados no Print:
+                    </label>
+
+                    <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                      {(extractedData.pendencias || []).map((doc) => (
+                        <div
+                          key={doc.id}
+                          className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
                         >
-                          <option value="EM_DIA">EM DIA</option>
-                          <option value="PENDENTE">PENDENTE</option>
-                          <option value="VENCIDO">VENCIDO</option>
-                          <option value="NAO_APLICAVEL">N/A</option>
-                        </select>
-                      </div>
-                    );
-                  })}
+                          <div className="space-y-0.5 max-w-[240px] sm:max-w-xs">
+                            <span className="text-xs font-bold text-slate-900 block truncate">
+                              {doc.nomeDocumento}
+                            </span>
+                            {doc.dataVencimento && (
+                              <span className="text-[10px] text-slate-500 block">
+                                Vencimento: {doc.dataVencimento}
+                              </span>
+                            )}
+                          </div>
+
+                          <select
+                            value={doc.status}
+                            onChange={(e) =>
+                              handleDocStatusChange(doc.id, e.target.value as DocStatus)
+                            }
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border cursor-pointer ${
+                              doc.status === 'EM_DIA'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                : doc.status === 'VENCIDO'
+                                ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                : doc.status === 'A_VENCER'
+                                ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                : doc.status === 'PENDENTE'
+                                ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                : 'bg-slate-50 text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            <option value="EM_DIA">EM DIA</option>
+                            <option value="A_VENCER">A VENCER (≤ 30d)</option>
+                            <option value="PENDENTE">PENDENTE</option>
+                            <option value="VENCIDO">VENCIDO</option>
+                            <option value="NAO_APLICAVEL">NÃO SE APLICA</option>
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
-          >
-            Cancelar
-          </button>
-
-          {extractedData && (
-            <button
-              onClick={handleSaveToDatabase}
-              disabled={successSaved}
-              className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-sm flex items-center gap-2 transition-all cursor-pointer ${
-                successSaved
-                  ? 'bg-emerald-600'
-                  : 'bg-[#002D62] hover:bg-[#001f44]'
-              }`}
-            >
-              {successSaved ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>Salvo na Base com Sucesso!</span>
-                </>
               ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  <span>Salvar na Base de Dados</span>
-                </>
+                <div className="p-8 text-center text-slate-400 space-y-2">
+                  <ImageIcon className="w-10 h-10 mx-auto text-slate-300" />
+                  <p className="text-xs">
+                    Faça o upload do print ou selecione um exemplo acima para iniciar a leitura.
+                  </p>
+                </div>
               )}
-            </button>
-          )}
+            </div>
+
+            {/* Error or Success notification */}
+            {errorMsg && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {successSaved && (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 font-bold animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Colaborador e pendências sincronizados com sucesso!</span>
+              </div>
+            )}
+
+            {/* Modal Bottom Actions */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                disabled={!extractedData || isProcessing}
+                onClick={handleSave}
+                style={{ backgroundColor: primaryColor }}
+                className="px-6 py-2.5 rounded-xl text-xs font-bold text-white shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Save className="w-4 h-4" />
+                <span>
+                  {matchedExistingEmployee
+                    ? 'Sincronizar Pendências do Colaborador'
+                    : 'Salvar na Base de Contratos'}
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

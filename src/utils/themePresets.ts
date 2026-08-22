@@ -14,10 +14,32 @@ export interface PalettePreset {
 
 export const THEME_PALETTES: PalettePreset[] = [
   {
+    id: 'wfs-red',
+    name: 'Vermelho Oficial WFS (A SATS Company)',
+    category: 'Identidade Corporativa WFS',
+    description: 'Padrão global WFS com vermelho dinâmico (#E21B23), tipografia corporativa e alta visibilidade operacional.',
+    primaryColor: '#E21B23', // Vermelho WFS Oficial
+    primaryHoverColor: '#B81219',
+    accentColor: '#1E293B', // Slate Escuro / Navy
+    accentTextColor: '#ffffff',
+    previewBg: 'from-[#E21B23] to-[#1E293B]',
+  },
+  {
+    id: 'gpa-corporate',
+    name: 'Verde Oficial GPA & Dourado',
+    category: 'Identidade Corporativa GPA',
+    description: 'Paleta padrão do GPA (Grupo Pão de Açúcar) com verde corporativo e detalhes em ouro.',
+    primaryColor: '#006837', // Verde GPA
+    primaryHoverColor: '#004d28',
+    accentColor: '#f59e0b', // Âmbar Dourado
+    accentTextColor: '#0f172a',
+    previewBg: 'from-[#006837] to-[#f59e0b]',
+  },
+  {
     id: 'industrial-amber',
-    name: 'Grafite & Âmbar Industrial',
-    category: 'Indústria & Engenharia',
-    description: 'Tons neutros de grafite escuro com destaque âmbar dourado de alta legibilidade.',
+    name: 'Grafite Escuro & Âmbar Industrial',
+    category: 'Indústria & Contratos',
+    description: 'Tons neutros de grafite executivo com destaque âmbar dourado de alta legibilidade.',
     primaryColor: '#1e293b', // slate-800
     primaryHoverColor: '#0f172a', // slate-900
     accentColor: '#f59e0b', // amber-500
@@ -28,7 +50,7 @@ export const THEME_PALETTES: PalettePreset[] = [
     id: 'safety-orange',
     name: 'Carvão & Laranja Segurança SST',
     category: 'Segurança do Trabalho (NRs)',
-    description: 'Preto carvão com laranja sinalizador padrão normas de segurança e EPI.',
+    description: 'Preto carvão com laranja sinalizador padrão normas de segurança e fiscalização.',
     primaryColor: '#18181b', // zinc-900
     primaryHoverColor: '#09090b', // zinc-950
     accentColor: '#ea580c', // orange-600
@@ -37,14 +59,14 @@ export const THEME_PALETTES: PalettePreset[] = [
   },
   {
     id: 'hse-emerald',
-    name: 'Grafite & Verde Esmeralda HSE',
+    name: 'Verde Esmeralda HSE & Floresta',
     category: 'Saúde & Meio Ambiente',
     description: 'Combinação clássica de conformidade, saúde ocupacional e sustentabilidade.',
-    primaryColor: '#0f172a', // slate-900
-    primaryHoverColor: '#020617', // slate-950
-    accentColor: '#059669', // emerald-600
+    primaryColor: '#064e3b', // emerald-900
+    primaryHoverColor: '#022c22', // emerald-950
+    accentColor: '#10b981', // emerald-500
     accentTextColor: '#ffffff',
-    previewBg: 'from-slate-900 to-emerald-600',
+    previewBg: 'from-emerald-900 to-emerald-500',
   },
   {
     id: 'corporate-red',
@@ -68,29 +90,18 @@ export const THEME_PALETTES: PalettePreset[] = [
     accentTextColor: '#ffffff',
     previewBg: 'from-zinc-950 to-zinc-600',
   },
-  {
-    id: 'wfs-navy',
-    name: 'Azul Marinho & Ciano',
-    category: 'Institucional',
-    description: 'Azul marinho clássico corporativo.',
-    primaryColor: '#002D62',
-    primaryHoverColor: '#001f44',
-    accentColor: '#00A3E0',
-    accentTextColor: '#ffffff',
-    previewBg: 'from-[#002D62] to-[#00A3E0]',
-  },
 ];
 
 export const DEFAULT_BRAND_CONFIG: BrandConfig = {
   companyName: 'WFS',
-  companySubtitle: 'Gestão de SST, Conformidade & Contratos',
-  badgeText: 'SST & Compliance',
+  companySubtitle: 'A SATS COMPANY',
+  badgeText: 'SST & CONFORMIDADE OPERACIONAL',
   logoType: 'styled_wfs',
-  paletteId: 'industrial-amber',
-  primaryColor: '#1e293b',
-  primaryHoverColor: '#0f172a',
-  accentColor: '#f59e0b',
-  accentTextColor: '#0f172a',
+  paletteId: 'wfs-red',
+  primaryColor: '#E21B23', // Vermelho Oficial WFS
+  primaryHoverColor: '#B81219',
+  accentColor: '#1E293B',
+  accentTextColor: '#ffffff',
 };
 
 /**
