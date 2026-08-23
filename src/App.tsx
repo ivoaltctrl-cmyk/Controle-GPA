@@ -26,6 +26,8 @@ import {
   setStoredAdminAuthenticated,
   getStoredBlinkingAlerts,
   saveStoredBlinkingAlerts,
+  getStoredTrabalhistaEnvios,
+  saveStoredTrabalhistaEnvios,
 } from './utils/storage.ts';
 import {
   Employee,
@@ -35,9 +37,11 @@ import {
   DocType,
   DocStatus,
   BrandConfig,
+  TrabalhistaEnvio,
 } from './types/index.ts';
 import { Navbar, MainPortalMode } from './components/Navbar.tsx';
 import { DemandadoPortal } from './components/DemandadoPortal.tsx';
+import { TrabalhistaModule } from './components/TrabalhistaModule.tsx';
 import { AdminLoginModal } from './components/AdminLoginModal.tsx';
 import { AdminPasswordModal } from './components/AdminPasswordModal.tsx';
 import { DashboardStats } from './components/DashboardStats.tsx';
@@ -75,6 +79,7 @@ export default function App() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [areas, setAreas] = useState<AreaResponsavel[]>([]);
   const [demandLogs, setDemandLogs] = useState<DemandLog[]>([]);
+  const [trabalhistaEnvios, setTrabalhistaEnvios] = useState<TrabalhistaEnvio[]>([]);
   const [brand, setBrand] = useState<BrandConfig>(getStoredBrandConfig());
 
   // Master Portal Mode: 'demandados' or 'admin'
@@ -94,7 +99,7 @@ export default function App() {
 
   // Admin Sub Navigation & Filtering
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'employees' | 'areas' | 'contracts' | 'demands' | 'reports'
+    'dashboard' | 'employees' | 'trabalhista' | 'areas' | 'contracts' | 'demands' | 'reports'
   >('dashboard');
   const [activeFilter, setActiveFilter] = useState<string>('TODOS');
   const [selectedContractId, setSelectedContractId] = useState<string>('');
@@ -119,6 +124,7 @@ export default function App() {
     const loadedContracts = getStoredContracts();
     const loadedAreas = getStoredAreas();
     const loadedLogs = getStoredDemandLogs();
+    const loadedTrabalhista = getStoredTrabalhistaEnvios();
     const loadedBrand = getStoredBrandConfig();
     const isAuth = isStoredAdminAuthenticated();
 
@@ -126,6 +132,7 @@ export default function App() {
     setContracts(loadedContracts);
     setAreas(loadedAreas);
     setDemandLogs(loadedLogs);
+    setTrabalhistaEnvios(loadedTrabalhista);
     setBrand(loadedBrand);
     setIsAdminLoggedIn(isAuth);
   }, []);
@@ -134,6 +141,11 @@ export default function App() {
   const updateEmployees = (newEmployees: Employee[]) => {
     setEmployees(newEmployees);
     saveStoredEmployees(newEmployees);
+  };
+
+  const updateTrabalhistaEnvios = (newEnvios: TrabalhistaEnvio[]) => {
+    setTrabalhistaEnvios(newEnvios);
+    saveStoredTrabalhistaEnvios(newEnvios);
   };
 
   const updateContracts = (newContracts: Contract[]) => {
@@ -443,6 +455,8 @@ export default function App() {
             onSwitchToAdminTab={() => setPortalMode('admin')}
             onResetData={handleResetData}
             blinkingAlerts={blinkingAlerts}
+            trabalhistaEnvios={trabalhistaEnvios}
+            onSaveTrabalhistaEnvios={updateTrabalhistaEnvios}
           />
         )}
 
@@ -615,6 +629,16 @@ export default function App() {
                   brand={brand}
                 />
               </div>
+            )}
+
+            {/* Tab: Documentação Trabalhista Mensal */}
+            {activeTab === 'trabalhista' && (
+              <TrabalhistaModule
+                envios={trabalhistaEnvios}
+                onSaveEnvios={updateTrabalhistaEnvios}
+                brand={brand}
+                isAdmin={true}
+              />
             )}
 
             {/* Tab 3: Areas & Managers Module */}

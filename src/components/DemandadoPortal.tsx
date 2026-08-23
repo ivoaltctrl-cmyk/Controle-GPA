@@ -30,8 +30,9 @@ import {
   FileSpreadsheet,
   Layers,
 } from 'lucide-react';
-import { Employee, Contract, AreaResponsavel, DocType, DocStatus, BrandConfig, PendingDoc } from '../types/index.ts';
+import { Employee, Contract, AreaResponsavel, DocType, DocStatus, BrandConfig, PendingDoc, TrabalhistaEnvio } from '../types/index.ts';
 import { updateEmployeeCalculatedFields } from '../utils/storage.ts';
+import { TrabalhistaModule } from './TrabalhistaModule.tsx';
 import * as XLSX from 'xlsx';
 import confetti from 'canvas-confetti';
 
@@ -46,6 +47,8 @@ interface DemandadoPortalProps {
   onSwitchToAdminTab: () => void;
   onResetData?: () => void;
   blinkingAlerts?: boolean;
+  trabalhistaEnvios?: TrabalhistaEnvio[];
+  onSaveTrabalhistaEnvios?: (envios: TrabalhistaEnvio[]) => void;
 }
 
 type SortField = 'matricula' | 'cpf' | 'nome' | 'cargo' | 'setor' | 'os' | 'aso' | 'epi' | 'radio' | 'statusGeral';
@@ -62,6 +65,8 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   onSwitchToAdminTab,
   onResetData,
   blinkingAlerts = true,
+  trabalhistaEnvios = [],
+  onSaveTrabalhistaEnvios,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContractId, setSelectedContractId] = useState('');
@@ -601,6 +606,34 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </button>
       </div>
 
+      {/* RENDERIZAÇÃO CONDICIONAL POR CATEGORIA */}
+      {selectedCategory === 'TRABALHISTA' ? (
+        <TrabalhistaModule
+          envios={trabalhistaEnvios}
+          onSaveEnvios={onSaveTrabalhistaEnvios || (() => {})}
+          brand={brand}
+          isAdmin={isAdminLoggedIn}
+        />
+      ) : selectedCategory === 'DEMAIS' ? (
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xs text-center space-y-3">
+          <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center mx-auto">
+            <Layers className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-black text-slate-800">Módulo: Pendências Demais Documentações</h3>
+          <p className="text-xs text-slate-600 max-w-xl mx-auto">
+            Pronto para receber as regras e modelos das demais documentações (ex: Certidões, Contratos Sociais, Seguros, Alvarás). Aguardando envio das diretrizes.
+          </p>
+          <div className="pt-2">
+            <button
+              onClick={() => setSelectedCategory('TODOS')}
+              className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-slate-800"
+            >
+              Voltar para Visão Geral
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* KPI Cards Rápidos Compactos com Alertas Piscantes */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div
@@ -1220,6 +1253,8 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
           )}
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

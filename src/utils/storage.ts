@@ -8,12 +8,15 @@ import {
   BrandConfig,
   AreaResponsavel,
   DocStatus,
+  TrabalhistaEnvio,
+  TrabalhistaMesConsolidado,
 } from '../types/index.ts';
 import {
   INITIAL_CONTRACTS,
   INITIAL_EMPLOYEES,
   INITIAL_DEMAND_LOGS,
   INITIAL_AREAS,
+  INITIAL_TRABALHISTA_ENVIOS,
 } from '../data/mockData.ts';
 import { DEFAULT_BRAND_CONFIG, applyBrandThemeToCss } from './themePresets.ts';
 
@@ -21,6 +24,7 @@ const EMPLOYEES_KEY = 'sst_pendencias_employees_v1';
 const CONTRACTS_KEY = 'sst_pendencias_contracts_v1';
 const AREAS_KEY = 'sst_pendencias_areas_v1';
 const DEMAND_LOGS_KEY = 'sst_pendencias_demand_logs_v1';
+const TRABALHISTA_ENVIOS_KEY = 'sst_pendencias_trabalhista_envios_v1';
 const BRAND_CONFIG_KEY = 'sst_pendencias_brand_config_v1';
 const IS_PRODUCTION_KEY = 'sst_pendencias_is_production_v1';
 const ADMIN_AUTH_KEY = 'sst_gpa_admin_auth_status_v1';
@@ -243,6 +247,113 @@ export function saveStoredDemandLogs(logs: DemandLog[]) {
     console.error('Erro ao salvar logs de demanda:', e);
   }
 }
+
+export function getStoredTrabalhistaEnvios(): TrabalhistaEnvio[] {
+  try {
+    const isProd = isProductionMode();
+    const raw = localStorage.getItem(TRABALHISTA_ENVIOS_KEY);
+    if (raw === null) {
+      if (isProd) {
+        localStorage.setItem(TRABALHISTA_ENVIOS_KEY, JSON.stringify([]));
+        return [];
+      }
+      localStorage.setItem(TRABALHISTA_ENVIOS_KEY, JSON.stringify(INITIAL_TRABALHISTA_ENVIOS));
+      return INITIAL_TRABALHISTA_ENVIOS;
+    }
+    const parsed = JSON.parse(raw);
+    if (parsed.length === 0 && !isProd) {
+      localStorage.setItem(TRABALHISTA_ENVIOS_KEY, JSON.stringify(INITIAL_TRABALHISTA_ENVIOS));
+      return INITIAL_TRABALHISTA_ENVIOS;
+    }
+    return parsed;
+  } catch (e) {
+    console.error('Erro ao ler envios trabalhistas:', e);
+    return [];
+  }
+}
+
+export function saveStoredTrabalhistaEnvios(envios: TrabalhistaEnvio[]) {
+  try {
+    localStorage.setItem(TRABALHISTA_ENVIOS_KEY, JSON.stringify(envios));
+  } catch (e) {
+    console.error('Erro ao salvar envios trabalhistas:', e);
+  }
+}
+
+const MESES_NOMES: Record<string, string> = {
+  '01': 'Janeiro',
+  '02': 'Fevereiro',
+  '03': 'Março',
+  '04': 'Abril',
+  '05': 'Maio',
+  '06': 'Junho',
+  '07': 'Julho',
+  '08': 'Agosto',
+  '09': 'Setembro',
+  '10': 'Outubro',
+  '11': 'Novembro',
+  '12': 'Dezembro',
+};
+
+/**
+ * Regra do Balizador por Mês:
+ * Tendo pelo menos 1 envio 'Validado' no mês, a competência é considerada VALIDADA / EM DIA!
+ */
+export function getTrabalhistaMesesConsolidados(envios: TrabalhistaEnvio[]): TrabalhistaMesConsolidado[] {
+  const map = new Map<string, TrabalhistaEnvio[]>();
+
+  // Agrupa por Chave Ano-Mês
+  envios.forEach((env) => {
+    const key = `${env.ano}-${env.mes.padStart(2, '0')}`;
+    if (!map.has(key)) {
+      map.set(key, []);
+    }
+    map.get(key)!.push(env);
+  });
+
+  const consolidados: TrabalhistaMesConsolidado[] = [];
+
+  map.forEach((lista, key) => {
+    const [anoStr, mesStr] = key.split('-');
+    const ano = parseInt(anoStr, 10);
+    const mes = mesStr;
+    const mesNome = MESES_NOMES[mes] || `Mês ${mes}`;
+
+    const totalEnvios = lista.length;
+    const totalValidados = lista.filter((e) => e.status === 'Validado').length;
+    const totalReprovados = lista.filter((e) => e.status === 'Reprovado').length;
+
+    // Regra do Usuário: Tendo um validado significa que tá válido
+    const isValidado = totalValidados > 0;
+    const statusConsolidado = isValidado
+      ? 'VALIDADO'
+      : totalReprovados > 0
+      ? 'REPROVADO'
+      : 'PENDENTE';
+
+    // Ordenar pelo envio mais recente
+    const sorted = [...lista].sort((a, b) => b.dataEnvio.localeCompare(a.dataEnvio));
+
+    consolidados.push({
+      mes,
+      mesNome,
+      ano,
+      totalEnvios,
+      totalValidados,
+      totalReprovados,
+      isValidado,
+      statusConsolidado,
+      ultimoEnvio: sorted[0],
+    });
+  });
+
+  // Ordenar competências da mais recente para a mais antiga (ex: 06/2026, 05/2026, 04/2026...)
+  return consolidados.sort((a, b) => {
+    if (b.ano !== a.ano) return b.ano - a.ano;
+    return parseInt(b.mes, 10) - parseInt(a.mes, 10);
+  });
+}
+
 
 export function clearDatabaseForProduction(options: {
   wipeEmployees?: boolean;

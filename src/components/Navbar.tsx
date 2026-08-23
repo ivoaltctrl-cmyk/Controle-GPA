@@ -16,6 +16,7 @@ import {
   LogOut,
   ShieldCheck,
   FileCheck,
+  FileText,
   KeyRound,
   Shield,
 } from 'lucide-react';
@@ -31,8 +32,8 @@ interface NavbarProps {
   onAdminLogout: () => void;
   onOpenAdminLogin: () => void;
   onOpenChangePassword: () => void;
-  activeTab: 'dashboard' | 'employees' | 'areas' | 'contracts' | 'demands' | 'reports';
-  setActiveTab: (tab: 'dashboard' | 'employees' | 'areas' | 'contracts' | 'demands' | 'reports') => void;
+  activeTab: 'dashboard' | 'employees' | 'trabalhista' | 'areas' | 'contracts' | 'demands' | 'reports';
+  setActiveTab: (tab: 'dashboard' | 'employees' | 'trabalhista' | 'areas' | 'contracts' | 'demands' | 'reports') => void;
   onOpenOcrScanner: () => void;
   onOpenNewEmployee: () => void;
   onExportExcel: () => void;
@@ -261,10 +262,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
-                <span>Colaboradores</span>
+                <span>Colaboradores SST</span>
                 {totalEmployees > 0 && (
                   <span className="text-[10px] opacity-80">({totalEmployees})</span>
                 )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('trabalhista')}
+                style={activeTab === 'trabalhista' ? { backgroundColor: '#1d4ed8', color: '#ffffff' } : {}}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'trabalhista'
+                    ? 'shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Trabalhista Mensal</span>
               </button>
 
               <button

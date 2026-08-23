@@ -1,3 +1,33 @@
+export interface TrabalhistaEnvio {
+  id: string;
+  mes: string; // "01" a "12"
+  mesNome?: string; // "Janeiro", "Fevereiro", ...
+  ano: number; // 2026, 2025...
+  dataEnvio: string; // "27/07/2026 12:14:48"
+  status: 'Validado' | 'Reprovado' | 'Em Análise';
+  contratoId?: string;
+  contratoNome?: string;
+  empresa?: string;
+  motivoReprovacao?: string;
+  documentosAnexados?: string[];
+  observacoes?: string;
+  usuarioEnvio?: string;
+  validadoPor?: string;
+  dataValidacao?: string;
+}
+
+export interface TrabalhistaMesConsolidado {
+  mes: string;
+  mesNome: string;
+  ano: number;
+  totalEnvios: number;
+  totalValidados: number;
+  totalReprovados: number;
+  isValidado: boolean;
+  statusConsolidado: 'VALIDADO' | 'REPROVADO' | 'PENDENTE';
+  ultimoEnvio?: TrabalhistaEnvio;
+}
+
 export type ThemePaletteId =
   | 'wfs-red'
   | 'gpa-corporate'
