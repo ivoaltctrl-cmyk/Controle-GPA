@@ -206,7 +206,12 @@ export function getStoredContracts(): Contract[] {
       localStorage.setItem(CONTRACTS_KEY, JSON.stringify(INITIAL_CONTRACTS));
       return INITIAL_CONTRACTS;
     }
-    return JSON.parse(raw);
+    const parsed: Contract[] = JSON.parse(raw);
+    if (!isProd && (!parsed.length || !parsed.some(c => c.numero === '4600001229' || c.numero === 'GRU020320180103'))) {
+      localStorage.setItem(CONTRACTS_KEY, JSON.stringify(INITIAL_CONTRACTS));
+      return INITIAL_CONTRACTS;
+    }
+    return parsed;
   } catch (e) {
     console.error('Erro ao ler contratos:', e);
     return [];

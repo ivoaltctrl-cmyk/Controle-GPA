@@ -132,6 +132,16 @@ export interface Employee {
   imagemOrigemUrl?: string;
 }
 
+export interface ContractDocumentItem {
+  id: string;
+  nome: string;
+  tipo: string;
+  status: 'Validado' | 'Reprovado' | 'Em Análise';
+  motivoReprovacao?: string;
+  dataUpload?: string;
+  obrigatorio?: boolean;
+}
+
 export interface Contract {
   id: string;
   numero: string;
@@ -148,6 +158,16 @@ export interface Contract {
   status: 'ATIVO' | 'ALERTA' | 'BLOQUEADO' | 'ENCERRADO';
   limiteBloqueioConformidade: number; // e.g. 80%
   observacoes?: string;
+  // Campos detalhados para controle de contratos e auditoria
+  cnpjPrestador?: string;
+  empresaPrestador?: string;
+  objeto?: string;
+  categoria?: string;
+  dataInicio?: string; // Formato DD/MM/AAAA
+  dataTermino?: string; // Formato DD/MM/AAAA
+  statusVigencia?: 'Vigente' | 'Vencido';
+  statusDocumentos?: 'Validado' | 'Em Análise' | 'Reprovado';
+  documentosContrato?: ContractDocumentItem[];
 }
 
 export interface DemandLog {

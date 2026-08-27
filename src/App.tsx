@@ -58,6 +58,7 @@ import { AuditReportModal } from './components/AuditReportModal.tsx';
 import { ManualEmployeeModal } from './components/ManualEmployeeModal.tsx';
 import { ProductionResetModal } from './components/ProductionResetModal.tsx';
 import { BrandSettingsModal } from './components/BrandSettingsModal.tsx';
+import { GoogleSheetsSyncModal } from './components/GoogleSheetsSyncModal.tsx';
 import confetti from 'canvas-confetti';
 import {
   FileScan,
@@ -117,6 +118,7 @@ export default function App() {
   const [demandEmployee, setDemandEmployee] = useState<Employee | null>(null);
   const [demandContract, setDemandContract] = useState<Contract | null>(null);
   const [isAuditReportOpen, setIsAuditReportOpen] = useState(false);
+  const [isSheetsSyncOpen, setIsSheetsSyncOpen] = useState(false);
 
   // Initialize data from localStorage on mount
   useEffect(() => {
@@ -415,6 +417,7 @@ export default function App() {
         onAdminLogout={handleAdminLogout}
         onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
         onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+        onOpenGoogleSheetsSync={() => setIsSheetsSyncOpen(true)}
         activeTab={activeTab}
         setActiveTab={(tab) => setActiveTab(tab)}
         onOpenOcrScanner={() => setIsOcrOpen(true)}
@@ -450,6 +453,8 @@ export default function App() {
             areas={areas}
             brand={brand}
             onSaveEmployee={handleSaveEmployee}
+            onSaveContract={handleSaveContract}
+            onDeleteContract={handleDeleteContract}
             onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
             isAdminLoggedIn={isAdminLoggedIn}
             onSwitchToAdminTab={() => setPortalMode('admin')}
@@ -798,6 +803,22 @@ export default function App() {
           brand={brand}
         />
       )}
+
+      <GoogleSheetsSyncModal
+        isOpen={isSheetsSyncOpen}
+        onClose={() => setIsSheetsSyncOpen(false)}
+        employees={employees}
+        contracts={contracts}
+        trabalhistas={trabalhistaEnvios}
+        areas={areas}
+        onApplyImportedData={(data) => {
+          if (data.employees) updateEmployees(data.employees);
+          if (data.contracts) updateContracts(data.contracts);
+          if (data.trabalhistas) updateTrabalhistaEnvios(data.trabalhistas);
+          if (data.areas) updateAreas(data.areas);
+        }}
+        brand={brand}
+      />
     </div>
   );
 }

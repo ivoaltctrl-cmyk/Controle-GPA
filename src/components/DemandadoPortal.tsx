@@ -33,6 +33,7 @@ import {
 import { Employee, Contract, AreaResponsavel, DocType, DocStatus, BrandConfig, PendingDoc, TrabalhistaEnvio } from '../types/index.ts';
 import { updateEmployeeCalculatedFields } from '../utils/storage.ts';
 import { TrabalhistaModule } from './TrabalhistaModule.tsx';
+import { ContractsModule } from './ContractsModule.tsx';
 import * as XLSX from 'xlsx';
 import confetti from 'canvas-confetti';
 
@@ -42,6 +43,8 @@ interface DemandadoPortalProps {
   areas: AreaResponsavel[];
   brand: BrandConfig;
   onSaveEmployee: (employee: Employee) => void;
+  onSaveContract?: (contract: Contract) => void;
+  onDeleteContract?: (contractId: string) => void;
   onOpenAdminLogin: () => void;
   isAdminLoggedIn: boolean;
   onSwitchToAdminTab: () => void;
@@ -60,6 +63,8 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   areas,
   brand,
   onSaveEmployee,
+  onSaveContract,
+  onDeleteContract,
   onOpenAdminLogin,
   isAdminLoggedIn,
   onSwitchToAdminTab,
@@ -615,22 +620,17 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
           isAdmin={isAdminLoggedIn}
         />
       ) : selectedCategory === 'DEMAIS' ? (
-        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xs text-center space-y-3">
-          <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center mx-auto">
-            <Layers className="w-6 h-6" />
-          </div>
-          <h3 className="text-lg font-black text-slate-800">Módulo: Pendências Demais Documentações</h3>
-          <p className="text-xs text-slate-600 max-w-xl mx-auto">
-            Pronto para receber as regras e modelos das demais documentações (ex: Certidões, Contratos Sociais, Seguros, Alvarás). Aguardando envio das diretrizes.
-          </p>
-          <div className="pt-2">
-            <button
-              onClick={() => setSelectedCategory('TODOS')}
-              className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-slate-800"
-            >
-              Voltar para Visão Geral
-            </button>
-          </div>
+        <div className="space-y-4">
+          <ContractsModule
+            contracts={contracts}
+            employees={employees}
+            onSelectContractToFilter={() => setSelectedCategory('TODOS')}
+            onSaveContract={onSaveContract || (() => {})}
+            onDeleteContract={onDeleteContract || (() => {})}
+            onDemandContract={() => {}}
+            brand={brand}
+            isAdmin={isAdminLoggedIn}
+          />
         </div>
       ) : (
         <>

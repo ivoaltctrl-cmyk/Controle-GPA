@@ -32,6 +32,7 @@ interface NavbarProps {
   onAdminLogout: () => void;
   onOpenAdminLogin: () => void;
   onOpenChangePassword: () => void;
+  onOpenGoogleSheetsSync?: () => void;
   activeTab: 'dashboard' | 'employees' | 'trabalhista' | 'areas' | 'contracts' | 'demands' | 'reports';
   setActiveTab: (tab: 'dashboard' | 'employees' | 'trabalhista' | 'areas' | 'contracts' | 'demands' | 'reports') => void;
   onOpenOcrScanner: () => void;
@@ -59,6 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onAdminLogout,
   onOpenAdminLogin,
   onOpenChangePassword,
+  onOpenGoogleSheetsSync,
   activeTab,
   setActiveTab,
   onOpenOcrScanner,
@@ -189,6 +191,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   <KeyRound className="w-4 h-4 text-slate-600" />
                 </button>
+
+                {/* Google Sheets GPA_BD Sync Button */}
+                {onOpenGoogleSheetsSync && (
+                  <button
+                    onClick={onOpenGoogleSheetsSync}
+                    title="Sincronizar Banco de Dados com Google Sheets GPA_BD"
+                    className="px-3 py-2 rounded-xl text-xs font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                    <span className="hidden sm:inline">GPA_BD Sheets</span>
+                  </button>
+                )}
 
                 {/* Brand/Theme Config Button */}
                 <button
