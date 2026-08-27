@@ -52,6 +52,7 @@ interface DemandadoPortalProps {
   blinkingAlerts?: boolean;
   trabalhistaEnvios?: TrabalhistaEnvio[];
   onSaveTrabalhistaEnvios?: (envios: TrabalhistaEnvio[]) => void;
+  onOpenGoogleSheetsSync?: () => void;
 }
 
 type SortField = 'matricula' | 'cpf' | 'nome' | 'cargo' | 'setor' | 'os' | 'aso' | 'epi' | 'radio' | 'statusGeral';
@@ -72,6 +73,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   blinkingAlerts = true,
   trabalhistaEnvios = [],
   onSaveTrabalhistaEnvios,
+  onOpenGoogleSheetsSync,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContractId, setSelectedContractId] = useState('');
@@ -539,6 +541,17 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onOpenGoogleSheetsSync && (
+            <button
+              onClick={onOpenGoogleSheetsSync}
+              className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs flex items-center gap-2 cursor-pointer transition-all hover:scale-102"
+              title="Sincronizar dados bidirecionalmente com o Google Sheets GPA_BD"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
+              <span>Sincronizar GPA_BD (Sheets)</span>
+            </button>
+          )}
+
           <button
             onClick={handleExportExcel}
             className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 shadow-2xs flex items-center gap-2 cursor-pointer transition-all"

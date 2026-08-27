@@ -462,6 +462,7 @@ export default function App() {
             blinkingAlerts={blinkingAlerts}
             trabalhistaEnvios={trabalhistaEnvios}
             onSaveTrabalhistaEnvios={updateTrabalhistaEnvios}
+            onOpenGoogleSheetsSync={() => setIsSheetsSyncOpen(true)}
           />
         )}
 

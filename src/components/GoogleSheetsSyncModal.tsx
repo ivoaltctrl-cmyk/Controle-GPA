@@ -3,7 +3,6 @@ import {
   FileSpreadsheet,
   RefreshCw,
   UploadCloud,
-  DownloadCloud,
   CheckCircle2,
   AlertCircle,
   ExternalLink,
@@ -14,14 +13,16 @@ import {
   Database,
   GitMerge,
   HelpCircle,
+  UserCheck,
 } from 'lucide-react';
 import {
   DEFAULT_SPREADSHEET_ID,
   getStoredSpreadsheetId,
   saveStoredSpreadsheetId,
   getStoredGoogleToken,
-  removeStoredGoogleToken,
   requestGoogleAccessToken,
+  disconnectGoogleAccount,
+  getCachedGoogleUser,
   setupSpreadsheetTabs,
   pushAllToSheets,
   pullAllFromSheets,
@@ -57,12 +58,14 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
 }) => {
   const [spreadsheetId, setSpreadsheetId] = useState(getStoredSpreadsheetId());
   const [hasToken, setHasToken] = useState(!!getStoredGoogleToken());
+  const [currentUser, setCurrentUser] = useState(getCachedGoogleUser());
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [activeTabPreview, setActiveTabPreview] = useState<'sst' | 'trabalhistas' | 'contratuais'>('sst');
 
   useEffect(() => {
     setHasToken(!!getStoredGoogleToken());
+    setCurrentUser(getCachedGoogleUser());
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -71,23 +74,28 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
     setLoadingAction('connect');
     setStatusMessage(null);
     try {
-      await requestGoogleAccessToken(true);
+      const res = await requestGoogleAccessToken();
       setHasToken(true);
-      setStatusMessage({ type: 'success', text: 'Conta Google autorizada e conectada com sucesso!' });
+      setCurrentUser(res.user);
+      setStatusMessage({
+        type: 'success',
+        text: `Conta Google (${res.user.email || 'Conectada'}) autorizada com sucesso!`,
+      });
     } catch (err: any) {
       console.error(err);
       setStatusMessage({
         type: 'error',
-        text: err.message || 'Não foi possível autorizar o acesso ao Google Sheets. Verifique pop-ups do navegador.',
+        text: err.message || 'Não foi possível autorizar o acesso ao Google Sheets.',
       });
     } finally {
       setLoadingAction(null);
     }
   };
 
-  const handleDisconnectGoogle = () => {
-    removeStoredGoogleToken();
+  const handleDisconnectGoogle = async () => {
+    await disconnectGoogleAccount();
     setHasToken(false);
+    setCurrentUser(null);
     setStatusMessage({ type: 'info', text: 'Conta Google desconectada.' });
   };
 
@@ -102,8 +110,10 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
     try {
       let token = getStoredGoogleToken();
       if (!token) {
-        token = await requestGoogleAccessToken();
+        const authRes = await requestGoogleAccessToken();
+        token = authRes.token;
         setHasToken(true);
+        setCurrentUser(authRes.user);
       }
       await setupSpreadsheetTabs(spreadsheetId, token);
       setStatusMessage({
@@ -123,8 +133,10 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
     try {
       let token = getStoredGoogleToken();
       if (!token) {
-        token = await requestGoogleAccessToken();
+        const authRes = await requestGoogleAccessToken();
+        token = authRes.token;
         setHasToken(true);
+        setCurrentUser(authRes.user);
       }
 
       saveStoredSpreadsheetId(spreadsheetId);
@@ -155,8 +167,10 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
     try {
       let token = getStoredGoogleToken();
       if (!token) {
-        token = await requestGoogleAccessToken();
+        const authRes = await requestGoogleAccessToken();
+        token = authRes.token;
         setHasToken(true);
+        setCurrentUser(authRes.user);
       }
 
       const imported = await pullAllFromSheets(spreadsheetId, token);
@@ -241,14 +255,14 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
           </div>
         )}
 
-        {/* Resolução de Conflitos Explicada */}
+        {/* Informação sobre acesso livre */}
         <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-950 space-y-1">
           <div className="flex items-center gap-1.5 font-bold text-amber-900">
             <HelpCircle className="w-4 h-4 text-amber-700" />
-            <span>Como funciona o lançamento manual na planilha sem gerar conflitos?</span>
+            <span>Sincronização Direta sem Senha de Administrador</span>
           </div>
           <p className="text-[11px] text-amber-800 leading-relaxed">
-            O sistema usa <strong>Chaves Únicas</strong> (o número do <strong>Documento/CPF</strong> para colaboradores, e o <strong>Número de Contrato</strong> para contratos). Se você digitar uma nova linha manualmente na planilha, ao clicar em <strong>"Importar e Mesclar Dados"</strong> o sistema adiciona o novo colaborador sem apagar ou conflitar com os dados já existentes no painel.
+            Qualquer operador ou demandado pode sincronizar os dados clicando no botão <strong>"GPA_BD Sheets"</strong> no topo da página. Basta conectar a conta Google autorizada para ler ou salvar alterações na planilha oficial.
           </p>
         </div>
 
@@ -261,15 +275,17 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
                 <span>Autenticação Google Workspace</span>
               </span>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Conexão direta e segura com o Google Drive do usuário.
+                {currentUser?.email
+                  ? `Conectado como ${currentUser.email}`
+                  : 'Conexão segura com sua conta Google.'}
               </p>
             </div>
 
-            {hasToken ? (
+            {hasToken || currentUser ? (
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Conectado
+                  <UserCheck className="w-3.5 h-3.5" />
+                  {currentUser?.email ? currentUser.email.split('@')[0] : 'Conectado'}
                 </span>
                 <button
                   onClick={handleDisconnectGoogle}

@@ -8,12 +8,14 @@
  * 3. "Pendências Contratuais" (Contrato, Objeto do Contrato, Categoria, Início, Término, Status, Documentos)
  */
 
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import firebaseConfig from '../../firebase-applet-config.json';
 import { Employee, Contract, TrabalhistaEnvio, AreaResponsavel, PendingDoc } from '../types/index.ts';
 
 export const DEFAULT_SPREADSHEET_ID = '1eiiiADFvTgdKFp37zwWU5r5iJktZSdsr5BlFVAXZKIc';
 const SPREADSHEET_ID_KEY = 'sst_gpa_spreadsheet_id_v1';
-const GOOGLE_ACCESS_TOKEN_KEY = 'sst_gpa_google_access_token_v1';
-const GOOGLE_TOKEN_EXPIRY_KEY = 'sst_gpa_google_token_expiry_v1';
+const WEBHOOK_URL_KEY = 'sst_gpa_webhook_url_v1';
 const AUTO_SYNC_KEY = 'sst_gpa_auto_sync_sheets_v1';
 
 export const SHEET_TABS = {
@@ -22,9 +24,26 @@ export const SHEET_TABS = {
   CONTRATUAIS: 'Pendências Contratuais',
 };
 
-// Client ID configured for this Google Cloud project
-export const GOOGLE_CLIENT_ID = '1041731892466-h6hsp2eakc0fpt901q08h1h364k731q5.apps.googleusercontent.com';
-export const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+// Initialize Firebase App
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+export const auth = getAuth(app);
+
+// Configure Google Auth Provider with Google Sheets and Drive scopes
+const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
+googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
+
+// In-memory token cache
+let cachedAccessToken: string | null = null;
+let cachedUser: User | null = null;
+
+// Listen for auth state changes
+onAuthStateChanged(auth, (user) => {
+  cachedUser = user;
+  if (!user) {
+    cachedAccessToken = null;
+  }
+});
 
 export function getStoredSpreadsheetId(): string {
   try {
@@ -42,35 +61,19 @@ export function saveStoredSpreadsheetId(id: string) {
   }
 }
 
-export function getStoredGoogleToken(): string | null {
+export function getStoredWebhookUrl(): string {
   try {
-    const expiry = localStorage.getItem(GOOGLE_TOKEN_EXPIRY_KEY);
-    if (expiry && Date.now() > Number(expiry)) {
-      localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
-      localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
-      return null;
-    }
-    return localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
+    return localStorage.getItem(WEBHOOK_URL_KEY) || '';
   } catch {
-    return null;
+    return '';
   }
 }
 
-export function saveStoredGoogleToken(token: string, expiresInSeconds: number = 3500) {
+export function saveStoredWebhookUrl(url: string) {
   try {
-    localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, token);
-    localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, String(Date.now() + expiresInSeconds * 1000));
+    localStorage.setItem(WEBHOOK_URL_KEY, url.trim());
   } catch (e) {
-    console.error('Erro ao salvar token Google:', e);
-  }
-}
-
-export function removeStoredGoogleToken() {
-  try {
-    localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
-    localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
-  } catch (e) {
-    console.error('Erro ao remover token Google:', e);
+    console.error('Erro ao salvar Webhook URL:', e);
   }
 }
 
@@ -90,40 +93,49 @@ export function setAutoSyncEnabled(enabled: boolean) {
   }
 }
 
-// Request Token using Google Identity Services (GSI) Token Client
-export function requestGoogleAccessToken(promptConsent = false): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === 'undefined' || !(window as any).google?.accounts?.oauth2) {
-      reject(new Error('Google Identity Services SDK não carregado. Verifique sua conexão com a internet.'));
-      return;
+export function getCachedGoogleUser(): User | null {
+  return cachedUser;
+}
+
+export function getStoredGoogleToken(): string | null {
+  return cachedAccessToken;
+}
+
+/**
+ * Conexão com Conta Google via Firebase Auth Popup
+ */
+export async function requestGoogleAccessToken(): Promise<{ token: string; user: User }> {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const accessToken = credential?.accessToken;
+
+    if (!accessToken) {
+      throw new Error('Não foi possível obter o token de acesso da conta Google.');
     }
 
-    try {
-      const client = (window as any).google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: GOOGLE_SCOPES,
-        prompt: promptConsent ? 'consent' : '',
-        callback: (tokenResponse: any) => {
-          if (tokenResponse.error) {
-            console.error('Erro na autenticação OAuth:', tokenResponse);
-            reject(new Error(tokenResponse.error_description || tokenResponse.error));
-            return;
-          }
-          if (tokenResponse.access_token) {
-            saveStoredGoogleToken(tokenResponse.access_token, tokenResponse.expires_in || 3599);
-            resolve(tokenResponse.access_token);
-          } else {
-            reject(new Error('Token não retornado pelo Google.'));
-          }
-        },
-      });
-
-      client.requestAccessToken();
-    } catch (err: any) {
-      console.error('Falha ao instanciar tokenClient:', err);
-      reject(err);
+    cachedAccessToken = accessToken;
+    cachedUser = result.user;
+    return { token: accessToken, user: result.user };
+  } catch (err: any) {
+    console.error('Erro ao autenticar com o Google via Firebase:', err);
+    if (err.code === 'auth/popup-closed-by-user') {
+      throw new Error('A janela de autenticação do Google foi fechada antes de concluir.');
+    } else if (err.code === 'auth/popup-blocked') {
+      throw new Error('O navegador bloqueou a janela pop-up do Google. Por favor, permita pop-ups para este site.');
     }
-  });
+    throw new Error(err.message || 'Falha na autenticação Google.');
+  }
+}
+
+export async function disconnectGoogleAccount(): Promise<void> {
+  try {
+    await signOut(auth);
+    cachedAccessToken = null;
+    cachedUser = null;
+  } catch (e) {
+    console.error('Erro ao desconectar conta Google:', e);
+  }
 }
 
 // Execute Google Sheets API calls
@@ -133,9 +145,11 @@ async function callSheetsApi(
   body?: any,
   token?: string
 ) {
-  const activeToken = token || getStoredGoogleToken();
+  let activeToken = token || cachedAccessToken;
   if (!activeToken) {
-    throw new Error('Usuário não autenticado no Google Sheets. Por favor, conecte sua conta Google.');
+    // Tenta obter novo token
+    const authRes = await requestGoogleAccessToken();
+    activeToken = authRes.token;
   }
 
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${endpoint}`, {
@@ -150,8 +164,8 @@ async function callSheetsApi(
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     if (response.status === 401) {
-      removeStoredGoogleToken();
-      throw new Error('Sessão Google expirada. Por favor, reconecte sua conta.');
+      cachedAccessToken = null;
+      throw new Error('Sessão Google expirada ou sem permissão. Por favor, clique em Conectar Conta Google.');
     }
     throw new Error(
       errorData.error?.message || `Erro na requisição Google Sheets (${response.status}): ${response.statusText}`
@@ -189,7 +203,7 @@ export async function setupSpreadsheetTabs(spreadsheetId = getStoredSpreadsheetI
       await callSheetsApi(`${spreadsheetId}:batchUpdate`, 'POST', { requests: requestsToAdd }, token);
     }
 
-    // Inicializa os cabeçalhos exatamente iguais às suas imagens
+    // Inicializa os cabeçalhos exatamente iguais aos layouts definidos
     await initializeHeaders(spreadsheetId, token);
 
     return { success: true, message: 'Planilha GPA_BD estruturada com as colunas oficiais!' };
@@ -272,8 +286,7 @@ export async function initializeHeaders(spreadsheetId: string, token?: string) {
 }
 
 /**
- * 2. EXPORTA/SINCRONIZA dados do aplicativo para a planilha Google Sheets
- * Utiliza o layout exato das 3 abas
+ * 2. EXPORTA dados do aplicativo para a planilha Google Sheets
  */
 export async function pushAllToSheets(
   data: {
@@ -341,7 +354,7 @@ export async function pushAllToSheets(
       c.statusDocumentos || 'Validado', // Col G: Documentos
     ]);
 
-    // Limpa linhas existentes (preservando linha 1 de cabeçalhos)
+    // Limpa linhas existentes
     await callSheetsApi(
       `${spreadsheetId}/values:batchClear`,
       'POST',
@@ -400,7 +413,7 @@ export async function pushAllToSheets(
 }
 
 /**
- * 3. IMPORTA dados da planilha Google Sheets exatamente conforme as colunas criadas
+ * 3. IMPORTA dados da planilha Google Sheets
  */
 export async function pullAllFromSheets(
   spreadsheetId = getStoredSpreadsheetId(),
@@ -430,7 +443,6 @@ export async function pullAllFromSheets(
     const contractValues: any[][] = valueRanges[2]?.values || [];
 
     // Converter Aba 3: "Pendências Contratuais"
-    // Col A: Contrato | Col B: Objeto | Col C: Categoria | Col D: Início | Col E: Término | Col F: Status | Col G: Documentos
     const contracts: Contract[] = contractValues
       .filter((row) => row && row[0] && String(row[0]).trim().length > 0)
       .map((row, idx) => {
@@ -467,7 +479,6 @@ export async function pullAllFromSheets(
       });
 
     // Converter Aba 2: "Pendências trabalhistas"
-    // Col A: Mês | Col B: Ano | Col C: Envio | Col D: Status
     const mesesNomes: Record<number, string> = {
       1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
       5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
@@ -504,7 +515,6 @@ export async function pullAllFromSheets(
       });
 
     // Converter Aba 1: "Pendências SST"
-    // Col A: Documento | Col B: Nome | Col C: Cargo | Col D: Setor | Col E: STATUS | Col F: Contrato | Col G: CNPJ | Col H: OS | Col I: Val OS | Col J: ASO | Col K: Val ASO | Col L: EPI | Col M: Val EPI | Col N: Treinamentos | Col O: Val Treinamento | Col P: Obs
     const employees: Employee[] = sstValues
       .filter((row) => row && (row[0] || row[1]))
       .map((row, idx) => {
@@ -557,7 +567,6 @@ export async function pullAllFromSheets(
         const totalValid = pendencias.filter((p) => p.status === 'EM_DIA' || p.status === 'NAO_APLICAVEL').length;
         const indicadorPercentual = Math.round((totalValid / pendencias.length) * 100);
 
-        // Formatação CPF/Matrícula
         const isCpf = rawDoc.replace(/\D/g, '').length === 11;
         const formattedCpf = isCpf
           ? rawDoc.replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
@@ -592,7 +601,6 @@ export async function pullAllFromSheets(
 
 /**
  * 4. MESCLAGEM INTELIGENTE (Smart Merge / Upsert Sem Conflito)
- * Combina registros manuais inseridos na planilha com os registros do painel usando Chaves Únicas (Documento/CPF, Contrato, Envio)
  */
 export function smartMergeData(
   current: {
@@ -633,7 +641,6 @@ export function smartMergeData(
   imported.employees.forEach((impEmp) => {
     const key = (impEmp.cpf || impEmp.matricula || impEmp.nome).replace(/\D/g, '') || impEmp.nome.toLowerCase().trim();
     if (empMap.has(key)) {
-      // Atualiza com dados mais recentes da planilha mantendo IDs
       const existing = empMap.get(key)!;
       empMap.set(key, {
         ...existing,

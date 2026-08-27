@@ -167,6 +167,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Header Controls */}
           <div className="flex items-center gap-2">
+            {/* Google Sheets GPA_BD Sync Button (Sempre acessível sem precisar de login ADM) */}
+            {onOpenGoogleSheetsSync && (
+              <button
+                onClick={onOpenGoogleSheetsSync}
+                title="Sincronizar Banco de Dados com Google Sheets GPA_BD"
+                className="px-3 py-2 rounded-xl text-xs font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <span className="hidden sm:inline">GPA_BD Sheets</span>
+              </button>
+            )}
+
             {portalMode === 'admin' && isAdminLoggedIn ? (
               <>
                 {/* Admin Quick Action: OCR Scanner */}
@@ -191,18 +203,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   <KeyRound className="w-4 h-4 text-slate-600" />
                 </button>
-
-                {/* Google Sheets GPA_BD Sync Button */}
-                {onOpenGoogleSheetsSync && (
-                  <button
-                    onClick={onOpenGoogleSheetsSync}
-                    title="Sincronizar Banco de Dados com Google Sheets GPA_BD"
-                    className="px-3 py-2 rounded-xl text-xs font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
-                  >
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                    <span className="hidden sm:inline">GPA_BD Sheets</span>
-                  </button>
-                )}
 
                 {/* Brand/Theme Config Button */}
                 <button
@@ -234,7 +234,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               </>
             ) : (
-              /* Portal Demandado Header Action (Sem botão duplicado de ADM) */
+              /* Portal Demandado Header Action */
               <div className="flex items-center gap-2">
                 <button
                   onClick={onOpenAuditReport}
