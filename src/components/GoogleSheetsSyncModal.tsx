@@ -13,20 +13,25 @@ import {
   Database,
   GitMerge,
   HelpCircle,
-  UserCheck,
+  Copy,
+  Code2,
+  FileText,
+  Upload,
 } from 'lucide-react';
 import {
   DEFAULT_SPREADSHEET_ID,
   getStoredSpreadsheetId,
   saveStoredSpreadsheetId,
-  getStoredGoogleToken,
-  requestGoogleAccessToken,
-  disconnectGoogleAccount,
-  getCachedGoogleUser,
-  setupSpreadsheetTabs,
-  pushAllToSheets,
+  getStoredWebhookUrl,
+  saveStoredWebhookUrl,
   pullAllFromSheets,
+  pushAllToSheets,
   smartMergeData,
+  parseCsvRows,
+  convertSstRowsToEmployees,
+  convertTrabRowsToTrabalhistas,
+  convertContractRowsToContracts,
+  APPS_SCRIPT_CODE_TEMPLATE,
   SHEET_TABS,
 } from '../services/googleSheetsService.ts';
 import { Employee, Contract, TrabalhistaEnvio, AreaResponsavel, BrandConfig } from '../types/index.ts';
@@ -57,133 +62,53 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
   onApplyImportedData,
 }) => {
   const [spreadsheetId, setSpreadsheetId] = useState(getStoredSpreadsheetId());
-  const [hasToken, setHasToken] = useState(!!getStoredGoogleToken());
-  const [currentUser, setCurrentUser] = useState(getCachedGoogleUser());
+  const [webhookUrl, setWebhookUrl] = useState(getStoredWebhookUrl());
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [activeTabPreview, setActiveTabPreview] = useState<'sst' | 'trabalhistas' | 'contratuais'>('sst');
+  const [showAppsScriptGuide, setShowAppsScriptGuide] = useState(false);
+  const [copiedScript, setCopiedScript] = useState(false);
 
   useEffect(() => {
-    setHasToken(!!getStoredGoogleToken());
-    setCurrentUser(getCachedGoogleUser());
+    setSpreadsheetId(getStoredSpreadsheetId());
+    setWebhookUrl(getStoredWebhookUrl());
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleConnectGoogle = async () => {
-    setLoadingAction('connect');
-    setStatusMessage(null);
-    try {
-      const res = await requestGoogleAccessToken();
-      setHasToken(true);
-      setCurrentUser(res.user);
-      setStatusMessage({
-        type: 'success',
-        text: `Conta Google (${res.user.email || 'Conectada'}) autorizada com sucesso!`,
-      });
-    } catch (err: any) {
-      console.error(err);
-      setStatusMessage({
-        type: 'error',
-        text: err.message || 'Não foi possível autorizar o acesso ao Google Sheets.',
-      });
-    } finally {
-      setLoadingAction(null);
-    }
-  };
-
-  const handleDisconnectGoogle = async () => {
-    await disconnectGoogleAccount();
-    setHasToken(false);
-    setCurrentUser(null);
-    setStatusMessage({ type: 'info', text: 'Conta Google desconectada.' });
-  };
-
-  const handleSaveSpreadsheetId = () => {
+  const handleSaveConfig = () => {
     saveStoredSpreadsheetId(spreadsheetId);
-    setStatusMessage({ type: 'success', text: 'ID da Planilha GPA_BD salvo com sucesso!' });
+    saveStoredWebhookUrl(webhookUrl);
+    setStatusMessage({ type: 'success', text: 'Configurações de conexão salvas com sucesso!' });
   };
 
-  const handleSetupStructure = async () => {
-    setLoadingAction('setup');
-    setStatusMessage(null);
-    try {
-      let token = getStoredGoogleToken();
-      if (!token) {
-        const authRes = await requestGoogleAccessToken();
-        token = authRes.token;
-        setHasToken(true);
-        setCurrentUser(authRes.user);
-      }
-      await setupSpreadsheetTabs(spreadsheetId, token);
-      setStatusMessage({
-        type: 'success',
-        text: 'Estrutura das abas ("Pendências SST", "Pendências trabalhistas", "Pendências Contratuais") atualizada e formatada!',
-      });
-    } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err.message || 'Erro ao estruturar planilha.' });
-    } finally {
-      setLoadingAction(null);
-    }
+  const handleCopyScript = () => {
+    navigator.clipboard.writeText(APPS_SCRIPT_CODE_TEMPLATE);
+    setCopiedScript(true);
+    setTimeout(() => setCopiedScript(false), 3000);
   };
 
-  const handleExportToSheets = async () => {
-    setLoadingAction('export');
-    setStatusMessage(null);
-    try {
-      let token = getStoredGoogleToken();
-      if (!token) {
-        const authRes = await requestGoogleAccessToken();
-        token = authRes.token;
-        setHasToken(true);
-        setCurrentUser(authRes.user);
-      }
-
-      saveStoredSpreadsheetId(spreadsheetId);
-      const res = await pushAllToSheets(
-        {
-          employees,
-          trabalhistas,
-          contracts,
-        },
-        spreadsheetId,
-        token
-      );
-
-      setStatusMessage({
-        type: 'success',
-        text: `Exportação concluída! ${res.updatedCells} células sincronizadas nas abas oficiais da planilha GPA_BD.`,
-      });
-    } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err.message || 'Erro ao enviar dados para a planilha.' });
-    } finally {
-      setLoadingAction(null);
-    }
-  };
-
+  /**
+   * Importação e Mesclagem Inteligente (Sem popup de login e sem erro de domínio)
+   */
   const handleImportMergeFromSheets = async () => {
     setLoadingAction('merge');
     setStatusMessage(null);
     try {
-      let token = getStoredGoogleToken();
-      if (!token) {
-        const authRes = await requestGoogleAccessToken();
-        token = authRes.token;
-        setHasToken(true);
-        setCurrentUser(authRes.user);
-      }
+      saveStoredSpreadsheetId(spreadsheetId);
+      saveStoredWebhookUrl(webhookUrl);
 
-      const imported = await pullAllFromSheets(spreadsheetId, token);
+      const imported = await pullAllFromSheets(spreadsheetId, undefined, webhookUrl);
 
       if (imported.employees.length === 0 && imported.contracts.length === 0 && imported.trabalhistas.length === 0) {
         setStatusMessage({
           type: 'info',
-          text: 'A planilha ainda não possui registros preenchidos abaixo dos cabeçalhos. Clique em "Enviar Dados Atuais para a Planilha" para popular!',
+          text: 'A planilha foi conectada, mas não possui registros de colaboradores preenchidos abaixo dos cabeçalhos.',
         });
         return;
       }
 
-      // Mesclagem Inteligente (Sem Conflito)
+      // Mesclagem Inteligente (Sem Conflito de IDs / Upsert)
       const merged = smartMergeData(
         { employees, trabalhistas, contracts },
         imported
@@ -195,15 +120,116 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
         trabalhistas: merged.trabalhistas,
       });
 
+      const sourceLabel =
+        imported.source === 'direct_link'
+          ? 'Link Oficial da Planilha (GViz)'
+          : imported.source === 'apps_script'
+          ? 'Webhook Google Apps Script'
+          : 'API Google Sheets';
+
       setStatusMessage({
         type: 'success',
-        text: `Sincronização sem conflitos concluída: ${merged.stats.newEmployees} novos colaboradores adicionados, ${merged.stats.updatedEmployees} atualizados, ${merged.stats.newContracts} contratos e ${merged.stats.newTrabalhistas} envios trabalhistas mesclados!`,
+        text: `Sincronização concluída via ${sourceLabel}! +${merged.stats.newEmployees} novos colaboradores, ${merged.stats.updatedEmployees} atualizados, ${merged.stats.newContracts} contratos e ${merged.stats.newTrabalhistas} envios trabalhistas mesclados sem perdas!`,
       });
     } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err.message || 'Erro ao ler dados da planilha.' });
+      console.error(err);
+      setStatusMessage({
+        type: 'error',
+        text: err.message || 'Erro ao importar dados da planilha.',
+      });
     } finally {
       setLoadingAction(null);
     }
+  };
+
+  /**
+   * Exportar dados do aplicativo para o Google Sheets
+   */
+  const handleExportToSheets = async () => {
+    setLoadingAction('export');
+    setStatusMessage(null);
+    try {
+      saveStoredSpreadsheetId(spreadsheetId);
+      saveStoredWebhookUrl(webhookUrl);
+
+      if (!webhookUrl) {
+        setStatusMessage({
+          type: 'info',
+          text: 'Para gravar dados diretamente na planilha sem erro de login/domínio, configure o Webhook do Google Apps Script abaixo (leva 30 segundos) ou clique em "Exportar CSV/Excel" no portal.',
+        });
+        setShowAppsScriptGuide(true);
+        return;
+      }
+
+      const res = await pushAllToSheets(
+        { employees, trabalhistas, contracts },
+        spreadsheetId,
+        undefined,
+        webhookUrl
+      );
+
+      setStatusMessage({
+        type: 'success',
+        text: `Exportação concluída com sucesso! ${res.updatedCells} dados atualizados nas abas oficiais da planilha GPA_BD.`,
+      });
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err.message || 'Erro ao enviar dados para a planilha.' });
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  /**
+   * Importação Manual por Arquivo CSV (Fallback 100% offline/local)
+   */
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = String(event.target?.result || '');
+        const rows = parseCsvRows(text);
+
+        if (rows.length < 2) {
+          setStatusMessage({ type: 'error', text: 'O arquivo CSV selecionado está vazio ou sem linhas de dados.' });
+          return;
+        }
+
+        // Tenta detectar o tipo pelo cabeçalho
+        const headerStr = rows[0].join(' ').toLowerCase();
+        if (headerStr.includes('nome') || headerStr.includes('aso') || headerStr.includes('epi') || headerStr.includes('documento')) {
+          const importedEmps = convertSstRowsToEmployees(rows);
+          const merged = smartMergeData({ employees, trabalhistas, contracts }, { employees: importedEmps, trabalhistas: [], contracts: [] });
+          onApplyImportedData({ employees: merged.employees });
+          setStatusMessage({
+            type: 'success',
+            text: `Arquivo CSV de SST importado com sucesso! ${importedEmps.length} colaboradores processados.`,
+          });
+        } else if (headerStr.includes('contrato') || headerStr.includes('objeto')) {
+          const importedCtrs = convertContractRowsToContracts(rows);
+          const merged = smartMergeData({ employees, trabalhistas, contracts }, { employees: [], trabalhistas: [], contracts: importedCtrs });
+          onApplyImportedData({ contracts: merged.contracts });
+          setStatusMessage({
+            type: 'success',
+            text: `Arquivo CSV de Contratos importado com sucesso! ${importedCtrs.length} contratos processados.`,
+          });
+        } else {
+          // Trata como SST por padrão
+          const importedEmps = convertSstRowsToEmployees(rows);
+          const merged = smartMergeData({ employees, trabalhistas, contracts }, { employees: importedEmps, trabalhistas: [], contracts: [] });
+          onApplyImportedData({ employees: merged.employees });
+          setStatusMessage({
+            type: 'success',
+            text: `CSV importado: ${importedEmps.length} colaboradores mesclados com sucesso!`,
+          });
+        }
+      } catch (err: any) {
+        setStatusMessage({ type: 'error', text: `Erro ao processar CSV: ${err.message}` });
+      }
+    };
+    reader.readAsText(file);
   };
 
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
@@ -220,12 +246,12 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                  Backend Oficial Google Sheets
+                  Backend GPA_BD
                 </span>
-                <span className="text-[10px] font-mono text-slate-400">GPA_BD</span>
+                <span className="text-[10px] font-mono text-slate-400">Google Sheets Sync</span>
               </div>
               <h2 className="text-lg font-black text-slate-900 tracking-tight mt-0.5">
-                Sincronização Bidirecional com Planilha GPA_BD
+                Sincronização com Planilha GPA_BD
               </h2>
             </div>
           </div>
@@ -255,107 +281,110 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
           </div>
         )}
 
-        {/* Informação sobre acesso livre */}
-        <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-950 space-y-1">
-          <div className="flex items-center gap-1.5 font-bold text-amber-900">
-            <HelpCircle className="w-4 h-4 text-amber-700" />
-            <span>Sincronização Direta sem Senha de Administrador</span>
+        {/* 1. Spreadsheet Connection Box */}
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>Identificação da Planilha Google (ID)</span>
+            </span>
+            <a
+              href={sheetUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] font-bold text-emerald-700 hover:underline flex items-center gap-1"
+            >
+              <span>Abrir no Google Sheets</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
-          <p className="text-[11px] text-amber-800 leading-relaxed">
-            Qualquer operador ou demandado pode sincronizar os dados clicando no botão <strong>"GPA_BD Sheets"</strong> no topo da página. Basta conectar a conta Google autorizada para ler ou salvar alterações na planilha oficial.
-          </p>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={spreadsheetId}
+              onChange={(e) => setSpreadsheetId(e.target.value)}
+              placeholder="ID da Planilha Google (Ex: 1eiiiADFvTgdKFp37zwWU5r5iJktZSdsr5BlFVAXZKIc)"
+              className="flex-1 px-3.5 py-2 text-xs font-mono bg-white border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-emerald-600 shadow-2xs"
+            />
+            <button
+              onClick={handleSaveConfig}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl cursor-pointer transition-colors shadow-2xs shrink-0"
+            >
+              Salvar
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+            <span>Para leitura direta com 1 clique, certifique-se de que a planilha possui <strong>compartilhamento por link</strong> ativado.</span>
+          </div>
         </div>
 
-        {/* 1. Connection Card */}
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Autenticação Google Workspace</span>
-              </span>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                {currentUser?.email
-                  ? `Conectado como ${currentUser.email}`
-                  : 'Conexão segura com sua conta Google.'}
-              </p>
-            </div>
+        {/* 2. Webhook Apps Script Option */}
+        <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-amber-500" />
+              <span>Webhook Apps Script (Opcional - Para gravação bidirecional direta)</span>
+            </span>
+            <button
+              onClick={() => setShowAppsScriptGuide(!showAppsScriptGuide)}
+              className="text-[11px] font-bold text-emerald-800 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              <span>{showAppsScriptGuide ? 'Ocultar Código' : 'Ver Código do Webhook'}</span>
+            </button>
+          </div>
 
-            {hasToken || currentUser ? (
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  {currentUser?.email ? currentUser.email.split('@')[0] : 'Conectado'}
-                </span>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+              placeholder="URL do Webhook (https://script.google.com/macros/s/.../exec)"
+              className="flex-1 px-3.5 py-2 text-xs font-mono bg-white border border-emerald-200 rounded-xl text-slate-800 focus:outline-none focus:border-emerald-600 shadow-2xs"
+            />
+            <button
+              onClick={handleSaveConfig}
+              className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl cursor-pointer transition-colors shadow-2xs shrink-0"
+            >
+              Salvar URL
+            </button>
+          </div>
+
+          {/* Apps Script Guide Accordion */}
+          {showAppsScriptGuide && (
+            <div className="mt-3 p-3.5 rounded-xl bg-white border border-emerald-200 space-y-2.5 text-xs text-slate-700">
+              <div className="flex items-center justify-between font-bold text-slate-900">
+                <span>Instruções em 3 passos (leva 30 segundos):</span>
                 <button
-                  onClick={handleDisconnectGoogle}
-                  className="text-[11px] font-bold text-slate-500 hover:text-rose-600 underline cursor-pointer"
+                  onClick={handleCopyScript}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
                 >
-                  Desconectar
+                  <Copy className="w-3 h-3" />
+                  <span>{copiedScript ? 'Copiado!' : 'Copiar Código'}</span>
                 </button>
               </div>
-            ) : (
-              <button
-                onClick={handleConnectGoogle}
-                disabled={loadingAction === 'connect'}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
-              >
-                {loadingAction === 'connect' ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                )}
-                <span>Conectar Conta Google</span>
-              </button>
-            )}
-          </div>
-
-          {/* Spreadsheet link & ID input */}
-          <div className="pt-2 border-t border-slate-200/80 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-bold text-slate-700 uppercase">
-                Planilha Vinculada
-              </label>
-              <a
-                href={sheetUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] font-bold text-blue-700 hover:underline flex items-center gap-1"
-              >
-                <span>Abrir Planilha GPA_BD no Google Sheets</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
+              <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-600 leading-relaxed">
+                <li>Na sua planilha GPA_BD, vá em <strong>Extensões → Apps Script</strong>.</li>
+                <li>Cole o código copiado e clique em <strong>Salvar (Ícone de disquete)</strong>.</li>
+                <li>Clique em <strong>Implantar → Nova Implantação → Tipo: Aplicativo da Web</strong> (Executar como: <em>Eu</em> | Quem tem acesso: <em>Qualquer pessoa</em>) e cole a URL gerada acima!</li>
+              </ol>
             </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={spreadsheetId}
-                onChange={(e) => setSpreadsheetId(e.target.value)}
-                placeholder="ID da Planilha Google"
-                className="flex-1 px-3 py-2 text-xs font-mono bg-white border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-emerald-600"
-              />
-              <button
-                onClick={handleSaveSpreadsheetId}
-                className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-xl cursor-pointer transition-colors"
-              >
-                Salvar ID
-              </button>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* 2. Structured Tabs Guide */}
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+        {/* 3. Structured Tabs Preview */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5">
           <div className="flex items-center justify-between">
             <h4 className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
               <Layers className="w-4 h-4 text-emerald-700" />
-              <span>Abas e Colunas Oficiais Mapeadas:</span>
+              <span>Abas Oficiais da Planilha GPA_BD:</span>
             </h4>
             <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-xl">
               <button
                 onClick={() => setActiveTabPreview('sst')}
-                className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
                   activeTabPreview === 'sst' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
                 }`}
               >
@@ -363,7 +392,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
               </button>
               <button
                 onClick={() => setActiveTabPreview('trabalhistas')}
-                className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
                   activeTabPreview === 'trabalhistas' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
                 }`}
               >
@@ -371,7 +400,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
               </button>
               <button
                 onClick={() => setActiveTabPreview('contratuais')}
-                className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
                   activeTabPreview === 'contratuais' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
                 }`}
               >
@@ -381,17 +410,17 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
           </div>
 
           {activeTabPreview === 'sst' && (
-            <div className="text-[11px] text-slate-600 bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-              <span className="font-bold text-emerald-900 block">Colunas da Aba "Pendências SST":</span>
+            <div className="text-[11px] text-slate-600 bg-white p-3 rounded-xl border border-slate-200">
+              <span className="font-bold text-emerald-900 block mb-0.5">Colunas da Aba "Pendências SST":</span>
               <p className="font-mono text-[10px] text-slate-500 leading-relaxed">
-                A: Documento | B: Nome do Colaborador * | C: Cargo / Função * | D: Área / Setor * | E: STATUS | F: Contrato | G: CNPJ | H: Ordem de Serviço (NR-01) | I: Validade OS | J: ASO Ocupacional (NR-07) | K: Validade ASO | L: Ficha de EPI (NR-06) | M: Validade Ficha EPI | N: Treinamento / Certificação Técnica | O: Validade Certificado | P: Observações
+                A: Documento | B: Nome do Colaborador * | C: Cargo / Função * | D: Área / Setor * | E: STATUS | F: Contrato | G: CNPJ | H: Ordem de Serviço | I: Validade OS | J: ASO | K: Validade ASO | L: EPI | M: Validade EPI | N: Treinamento | O: Validade Certificado | P: Observações
               </p>
             </div>
           )}
 
           {activeTabPreview === 'trabalhistas' && (
-            <div className="text-[11px] text-slate-600 bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-              <span className="font-bold text-emerald-900 block">Colunas da Aba "Pendências trabalhistas":</span>
+            <div className="text-[11px] text-slate-600 bg-white p-3 rounded-xl border border-slate-200">
+              <span className="font-bold text-emerald-900 block mb-0.5">Colunas da Aba "Pendências trabalhistas":</span>
               <p className="font-mono text-[10px] text-slate-500 leading-relaxed">
                 A: Mês | B: Ano | C: Envio (Data e Hora) | D: Status (Validado / Reprovado / Em Análise)
               </p>
@@ -399,8 +428,8 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
           )}
 
           {activeTabPreview === 'contratuais' && (
-            <div className="text-[11px] text-slate-600 bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-              <span className="font-bold text-emerald-900 block">Colunas da Aba "Pendências Contratuais":</span>
+            <div className="text-[11px] text-slate-600 bg-white p-3 rounded-xl border border-slate-200">
+              <span className="font-bold text-emerald-900 block mb-0.5">Colunas da Aba "Pendências Contratuais":</span>
               <p className="font-mono text-[10px] text-slate-500 leading-relaxed">
                 A: Contrato | B: Objeto do Contrato | C: Categoria | D: Início | E: Término | F: Status | G: Documentos
               </p>
@@ -408,32 +437,14 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
           )}
         </div>
 
-        {/* 3. Sync Action Buttons */}
+        {/* 4. Action Buttons */}
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Push to sheets */}
-            <button
-              onClick={handleExportToSheets}
-              disabled={loadingAction === 'export'}
-              className="p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex flex-col items-start justify-between gap-3 shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
-            >
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-2">
-                  <UploadCloud className="w-5 h-5 text-emerald-200" />
-                  <span className="text-sm font-black">Enviar para a Planilha</span>
-                </div>
-                {loadingAction === 'export' && <RefreshCw className="w-4 h-4 animate-spin text-white" />}
-              </div>
-              <p className="text-[11px] text-emerald-100 font-normal text-left">
-                Exporta dados do aplicativo para o Google Sheets GPA_BD ({employees.length} SST, {contracts.length} Contratos, {trabalhistas.length} Trabalhistas).
-              </p>
-            </button>
-
-            {/* Smart Merge Pull from sheets */}
+            {/* Import / Merge from Sheets */}
             <button
               onClick={handleImportMergeFromSheets}
               disabled={loadingAction === 'merge'}
-              className="p-4 rounded-2xl bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs flex flex-col items-start justify-between gap-3 shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
+              className="p-4 rounded-2xl bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs flex flex-col items-start justify-between gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2">
@@ -443,24 +454,45 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
                 {loadingAction === 'merge' && <RefreshCw className="w-4 h-4 animate-spin text-white" />}
               </div>
               <p className="text-[11px] text-blue-100 font-normal text-left">
-                Lê a planilha GPA_BD, importa novos lançamentos manuais e atualiza o painel sem conflito de dados.
+                Lê a planilha GPA_BD instantaneamente e mescla colaboradores e contratos sem conflito e sem perdas.
+              </p>
+            </button>
+
+            {/* Push to sheets */}
+            <button
+              onClick={handleExportToSheets}
+              disabled={loadingAction === 'export'}
+              className="p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex flex-col items-start justify-between gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
+            >
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <UploadCloud className="w-5 h-5 text-emerald-200" />
+                  <span className="text-sm font-black">Enviar para a Planilha</span>
+                </div>
+                {loadingAction === 'export' && <RefreshCw className="w-4 h-4 animate-spin text-white" />}
+              </div>
+              <p className="text-[11px] text-emerald-100 font-normal text-left">
+                Exporta dados do aplicativo para o Google Sheets GPA_BD ({employees.length} SST, {contracts.length} Contratos).
               </p>
             </button>
           </div>
 
-          <div className="flex items-center justify-between pt-2">
-            <button
-              onClick={handleSetupStructure}
-              disabled={loadingAction === 'setup'}
-              className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer underline"
-            >
-              {loadingAction === 'setup' ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Settings2 className="w-3.5 h-3.5" />}
-              <span>Ajustar / Formatar Cabeçalhos na Planilha</span>
-            </button>
+          {/* Secondary Options: File Upload Fallback & Close */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-slate-100">
+            <label className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer">
+              <Upload className="w-3.5 h-3.5 text-slate-500" />
+              <span>Importar Arquivo CSV Local (.csv)</span>
+              <input
+                type="file"
+                accept=".csv,.txt"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
 
             <button
               onClick={onClose}
-              className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs cursor-pointer transition-colors"
+              className="w-full sm:w-auto px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs cursor-pointer transition-colors"
             >
               Fechar
             </button>

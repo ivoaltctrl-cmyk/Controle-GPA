@@ -51,6 +51,12 @@ interface NavbarProps {
   totalAVencer: number;
   blinkingAlerts?: boolean;
   onToggleBlinkingAlerts?: () => void;
+  syncStatus?: {
+    status: 'idle' | 'syncing' | 'synced' | 'error';
+    lastSynced?: string;
+    message?: string;
+  };
+  onRefreshSheets?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -79,6 +85,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   totalAVencer,
   blinkingAlerts = true,
   onToggleBlinkingAlerts,
+  syncStatus,
+  onRefreshSheets,
 }) => {
   const primaryColor = brand?.primaryColor || '#E21B23';
   const accentColor = brand?.accentColor || '#1E293B';
@@ -167,16 +175,35 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Header Controls */}
           <div className="flex items-center gap-2">
-            {/* Google Sheets GPA_BD Sync Button (Sempre acessível sem precisar de login ADM) */}
+            {/* Google Sheets GPA_BD Sync Status & Button */}
             {onOpenGoogleSheetsSync && (
-              <button
-                onClick={onOpenGoogleSheetsSync}
-                title="Sincronizar Banco de Dados com Google Sheets GPA_BD"
-                className="px-3 py-2 rounded-xl text-xs font-black text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                <span className="hidden sm:inline">GPA_BD Sheets</span>
-              </button>
+              <div className="flex items-center bg-emerald-50/90 border border-emerald-300/80 rounded-xl p-0.5 shadow-2xs">
+                <button
+                  onClick={onOpenGoogleSheetsSync}
+                  title="Abrir Central de Sincronização GPA_BD Sheets"
+                  className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-black text-emerald-900 hover:bg-emerald-100/80 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                  <span className="hidden md:inline">GPA_BD Nuvem</span>
+                  {syncStatus?.lastSynced && (
+                    <span className="text-[10px] font-mono text-emerald-700 bg-emerald-100/90 px-1.5 py-0.2 rounded hidden lg:inline">
+                      {syncStatus.lastSynced}
+                    </span>
+                  )}
+                </button>
+                {onRefreshSheets && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRefreshSheets();
+                    }}
+                    title="Atualizar dados da planilha agora"
+                    className="p-1.5 rounded-lg text-emerald-700 hover:text-emerald-950 hover:bg-emerald-200/80 transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${syncStatus?.status === 'syncing' ? 'animate-spin text-emerald-800' : ''}`} />
+                  </button>
+                )}
+              </div>
             )}
 
             {portalMode === 'admin' && isAdminLoggedIn ? (

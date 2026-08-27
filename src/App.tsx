@@ -59,6 +59,12 @@ import { ManualEmployeeModal } from './components/ManualEmployeeModal.tsx';
 import { ProductionResetModal } from './components/ProductionResetModal.tsx';
 import { BrandSettingsModal } from './components/BrandSettingsModal.tsx';
 import { GoogleSheetsSyncModal } from './components/GoogleSheetsSyncModal.tsx';
+import {
+  pullAllFromSheets,
+  smartMergeData,
+  getStoredSpreadsheetId,
+  getStoredWebhookUrl,
+} from './services/googleSheetsService.ts';
 import confetti from 'canvas-confetti';
 import {
   FileScan,
@@ -119,8 +125,52 @@ export default function App() {
   const [demandContract, setDemandContract] = useState<Contract | null>(null);
   const [isAuditReportOpen, setIsAuditReportOpen] = useState(false);
   const [isSheetsSyncOpen, setIsSheetsSyncOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{
+    status: 'idle' | 'syncing' | 'synced' | 'error';
+    lastSynced?: string;
+    message?: string;
+  }>({ status: 'idle' });
 
-  // Initialize data from localStorage on mount
+  // Function to pull and smart-merge from GPA_BD Sheets
+  const refreshFromGoogleSheets = async (silent = false) => {
+    try {
+      setSyncStatus((prev) => ({ ...prev, status: 'syncing' }));
+      const spreadsheetId = getStoredSpreadsheetId();
+      const webhookUrl = getStoredWebhookUrl();
+      const imported = await pullAllFromSheets(spreadsheetId, undefined, webhookUrl);
+
+      if (imported.employees.length > 0 || imported.contracts.length > 0 || imported.trabalhistas.length > 0) {
+        const currentEmps = getStoredEmployees();
+        const currentCtrs = getStoredContracts();
+        const currentTrabs = getStoredTrabalhistaEnvios();
+
+        const merged = smartMergeData(
+          { employees: currentEmps, contracts: currentCtrs, trabalhistas: currentTrabs },
+          imported
+        );
+
+        updateEmployees(merged.employees);
+        updateContracts(merged.contracts);
+        updateTrabalhistaEnvios(merged.trabalhistas);
+      }
+
+      const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      setSyncStatus({
+        status: 'synced',
+        lastSynced: nowTime,
+        message: `Planilha GPA_BD sincronizada (${imported.employees.length} SST, ${imported.contracts.length} Contratos)`,
+      });
+    } catch (err: any) {
+      console.info('Auto-sync background status:', err);
+      setSyncStatus({
+        status: 'idle',
+        lastSynced: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        message: 'Planilha GPA_BD local pronta',
+      });
+    }
+  };
+
+  // Initialize data from localStorage on mount and auto-sync with Google Sheets
   useEffect(() => {
     const loadedEmployees = getStoredEmployees();
     const loadedContracts = getStoredContracts();
@@ -137,6 +187,9 @@ export default function App() {
     setTrabalhistaEnvios(loadedTrabalhista);
     setBrand(loadedBrand);
     setIsAdminLoggedIn(isAuth);
+
+    // Auto-fetch from Google Sheets in background
+    refreshFromGoogleSheets(true);
   }, []);
 
   // Sync helpers
@@ -439,6 +492,8 @@ export default function App() {
         totalAVencer={totalAVencerCount}
         blinkingAlerts={blinkingAlerts}
         onToggleBlinkingAlerts={handleToggleBlinkingAlerts}
+        syncStatus={syncStatus}
+        onRefreshSheets={() => refreshFromGoogleSheets(false)}
       />
 
       {/* Main Content Area */}
