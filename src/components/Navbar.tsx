@@ -19,11 +19,21 @@ import {
   FileText,
   KeyRound,
   Shield,
+  Settings,
 } from 'lucide-react';
 import { WfsLogo } from './WfsLogo.tsx';
 import { BrandConfig } from '../types/index.ts';
 
-export type MainPortalMode = 'demandados' | 'admin';
+export type MainPortalMode = 'demandados' | 'admin' | 'settings';
+
+export type AdminTabType =
+  | 'dashboard'
+  | 'employees'
+  | 'trabalhista'
+  | 'areas'
+  | 'contracts'
+  | 'demands'
+  | 'reports';
 
 interface NavbarProps {
   portalMode: MainPortalMode;
@@ -33,8 +43,8 @@ interface NavbarProps {
   onOpenAdminLogin: () => void;
   onOpenChangePassword: () => void;
   onOpenGoogleSheetsSync?: () => void;
-  activeTab: 'dashboard' | 'employees' | 'trabalhista' | 'areas' | 'contracts' | 'demands' | 'reports';
-  setActiveTab: (tab: 'dashboard' | 'employees' | 'trabalhista' | 'areas' | 'contracts' | 'demands' | 'reports') => void;
+  activeTab: AdminTabType;
+  setActiveTab: (tab: AdminTabType) => void;
   onOpenOcrScanner: () => void;
   onOpenNewEmployee: () => void;
   onExportExcel: () => void;
@@ -90,52 +100,70 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const primaryColor = brand?.primaryColor || '#E21B23';
   const accentColor = brand?.accentColor || '#1E293B';
-  const accentTextColor = brand?.accentTextColor || '#ffffff';
+  const companyName = brand?.companyName || 'GPA';
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200/90 shadow-xs">
+    <header className="sticky top-0 z-40 bg-white border-b border-slate-200/90 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Top Tier: Brand, Master Mode Switcher, and User Session */}
-        <div className="flex items-center justify-between h-16 gap-3">
-          {/* Brand Logo */}
-          <div className="flex items-center">
-            <WfsLogo
-              brand={brand}
-              size="md"
-              onClickCustomize={isAdminLoggedIn ? onOpenBrandSettings : undefined}
-            />
+        {/* Top Tier: Logo & Primary Portals */}
+        <div className="flex items-center justify-between h-16 sm:h-18">
+          {/* Logo & Brand */}
+          <div className="flex items-center space-x-3.5 sm:space-x-4">
+            <div className="flex items-center">
+              <WfsLogo
+                brand={brand}
+                className="h-9 sm:h-10 w-auto object-contain transition-transform hover:scale-105"
+              />
+            </div>
+            <div className="hidden sm:block border-l border-slate-200 pl-3.5">
+              <div className="flex items-center gap-1.5">
+                <span
+                  style={{
+                    backgroundColor: primaryColor,
+                    color: '#ffffff',
+                  }}
+                  className="text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded shadow-2xs"
+                >
+                  {companyName}
+                </span>
+                <span className="text-[11px] font-black text-slate-800 tracking-tight">
+                  GESTÃO & AUDITORIA DE TERCEIROS
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Controle Integrado de SST, Trabalhista & Contratos
+              </p>
+            </div>
           </div>
 
-          {/* Master Mode Switcher: 2 Main Tabs (Portal Demandados vs Painel ADM) */}
-          <div className="flex items-center p-1 bg-slate-100/95 rounded-2xl border border-slate-200/90 shadow-inner">
+          {/* Center Mode Switcher (Portal Demandado vs Painel ADM vs Configuração) */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/80 shadow-inner">
             <button
               onClick={() => setPortalMode('demandados')}
               style={
                 portalMode === 'demandados'
-                  ? { backgroundColor: primaryColor, color: '#ffffff' }
+                  ? { backgroundColor: '#ffffff', color: primaryColor }
                   : {}
               }
               className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 portalMode === 'demandados'
-                  ? 'shadow-xs'
+                  ? 'shadow-xs font-black'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <FileCheck className="w-4 h-4" style={{ color: portalMode === 'demandados' ? accentColor : undefined }} />
-              <span>Portal do Demandado</span>
+              <FileCheck className="w-4 h-4" />
+              <span>Portal Demandado</span>
               {totalPending > 0 && (
                 <span
-                  style={{
-                    backgroundColor: portalMode === 'demandados' ? accentColor : '#fef3c7',
-                    color: portalMode === 'demandados' ? accentTextColor : '#92400e',
-                  }}
-                  className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1 shadow-2xs"
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    blinkingAlerts ? 'animate-pulse' : ''
+                  } ${
+                    portalMode === 'demandados'
+                      ? 'bg-rose-100 text-rose-800'
+                      : 'bg-rose-200 text-rose-900'
+                  }`}
                 >
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500 animate-pulse" />
-                  </span>
-                  <span>{totalPending}</span>
+                  {totalPending}
                 </span>
               )}
             </button>
@@ -171,84 +199,41 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               )}
             </button>
+
+            {/* Configuração (Sem exigência de senha - Visão Gestão & Parâmetros) */}
+            <button
+              onClick={() => setPortalMode('settings')}
+              style={
+                portalMode === 'settings'
+                  ? { backgroundColor: '#ffffff', color: '#0f172a' }
+                  : {}
+              }
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                portalMode === 'settings'
+                  ? 'shadow-xs text-slate-900 font-black'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Settings className="w-4 h-4 text-amber-500" />
+              <span>Configuração</span>
+            </button>
           </div>
 
           {/* Right Header Controls */}
           <div className="flex items-center gap-2">
-            {/* Google Sheets GPA_BD Sync Status & Button */}
-            {onOpenGoogleSheetsSync && (
-              <div className="flex items-center bg-emerald-50/90 border border-emerald-300/80 rounded-xl p-0.5 shadow-2xs">
-                <button
-                  onClick={onOpenGoogleSheetsSync}
-                  title="Abrir Central de Sincronização GPA_BD Sheets"
-                  className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-black text-emerald-900 hover:bg-emerald-100/80 transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-                  <span className="hidden md:inline">GPA_BD Nuvem</span>
-                  {syncStatus?.lastSynced && (
-                    <span className="text-[10px] font-mono text-emerald-700 bg-emerald-100/90 px-1.5 py-0.2 rounded hidden lg:inline">
-                      {syncStatus.lastSynced}
-                    </span>
-                  )}
-                </button>
-                {onRefreshSheets && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRefreshSheets();
-                    }}
-                    title="Atualizar dados da planilha agora"
-                    className="p-1.5 rounded-lg text-emerald-700 hover:text-emerald-950 hover:bg-emerald-200/80 transition-colors cursor-pointer"
-                  >
-                    <RotateCcw className={`w-3.5 h-3.5 ${syncStatus?.status === 'syncing' ? 'animate-spin text-emerald-800' : ''}`} />
-                  </button>
-                )}
-              </div>
-            )}
-
             {portalMode === 'admin' && isAdminLoggedIn ? (
               <>
-                {/* Admin Quick Action: OCR Scanner */}
-                <button
-                  onClick={onOpenOcrScanner}
-                  style={{
-                    backgroundColor: primaryColor,
-                    color: '#ffffff',
-                  }}
-                  className="group relative inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold shadow-xs hover:opacity-95 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                >
-                  <FileScan className="w-4 h-4" style={{ color: accentColor }} />
-                  <span className="hidden sm:inline">Lançar Print (OCR)</span>
-                  <span className="sm:hidden">OCR</span>
-                </button>
-
-                {/* Password Change Button */}
-                <button
-                  onClick={onOpenChangePassword}
-                  title="Alterar Senha do Administrador"
-                  className="p-2 rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-colors hidden md:flex items-center gap-1.5 text-xs font-bold cursor-pointer"
-                >
-                  <KeyRound className="w-4 h-4 text-slate-600" />
-                </button>
-
-                {/* Brand/Theme Config Button */}
-                <button
-                  onClick={onOpenBrandSettings}
-                  title="Personalizar Identidade Visual e Cores"
-                  className="p-2 rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-colors hidden md:flex items-center gap-1.5 text-xs font-bold cursor-pointer"
-                >
-                  <Palette className="w-4 h-4 text-slate-600" />
-                </button>
-
-                {/* Production Clear Button */}
-                <button
-                  onClick={onOpenProductionReset}
-                  title="Zerar dados simulados para iniciar em produção"
-                  className="px-2.5 py-2 rounded-xl text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors hidden lg:flex items-center gap-1.5 text-xs font-bold cursor-pointer shrink-0"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Zerar p/ Produção</span>
-                </button>
+                {/* Status da Nuvem no ADM */}
+                {syncStatus?.lastSynced && (
+                  <button
+                    onClick={() => setActiveTab('settings')}
+                    title="Ver status de sincronização na Guia de Configuração"
+                    className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-[11px] font-bold cursor-pointer"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Sincronizado {syncStatus.lastSynced}</span>
+                  </button>
+                )}
 
                 {/* Logout Button */}
                 <button
@@ -376,32 +361,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </nav>
 
             <div className="flex items-center gap-2">
-              {/* Alertas ON/OFF Toggle na barra do ADM */}
-              {onToggleBlinkingAlerts && (
-                <button
-                  onClick={onToggleBlinkingAlerts}
-                  title="Ativar/Desativar efeito piscante de alertas de urgência em todo o sistema"
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 cursor-pointer transition-all ${
-                    blinkingAlerts
-                      ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
-                      : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
-                  }`}
-                >
-                  <span className="relative flex h-2 w-2">
-                    {blinkingAlerts && (
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                    )}
-                    <span
-                      className={`relative inline-flex rounded-full h-2 w-2 ${
-                        blinkingAlerts ? 'bg-amber-500' : 'bg-slate-400'
-                      }`}
-                    />
-                  </span>
-                  <span className="hidden sm:inline">Alertas:</span>
-                  <strong>{blinkingAlerts ? 'ON' : 'OFF'}</strong>
-                </button>
-              )}
-
               <button
                 onClick={onExportExcel}
                 title="Exportar Base Completa para Excel (.xlsx)"
@@ -415,13 +374,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
               >
                 <Printer className="w-4 h-4" />
-              </button>
-              <button
-                onClick={onResetData}
-                title="Restaurar dados de exemplo da base"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50 border border-slate-200 transition-colors cursor-pointer"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
