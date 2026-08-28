@@ -637,7 +637,10 @@ export default function App() {
         }}
         employee={officialGuideEmployee}
         employees={employees}
+        contracts={contracts}
+        areas={areas}
         brand={brand}
+        onOpenDemandCenter={(emp) => setDemandEmployee(emp)}
       />
 
       <AdminLoginModal
@@ -689,7 +692,7 @@ export default function App() {
         isOpen={!!demandEmployee}
         onClose={() => setDemandEmployee(null)}
         employee={demandEmployee}
-        brand={brand}
+        contracts={contracts}
         onSaveDemandLog={handleSaveDemandLog}
       />
 
@@ -697,13 +700,8 @@ export default function App() {
         isOpen={!!detailEmployee}
         onClose={() => setDetailEmployee(null)}
         employee={detailEmployee}
-        onQuickToggleDoc={handleQuickToggleDoc}
-        onEdit={(emp) => {
-          setEditingEmployee(emp);
-          setIsManualEmployeeOpen(true);
-        }}
-        onDemand={(emp) => setDemandEmployee(emp)}
-        brand={brand}
+        onSaveEmployee={handleSaveEmployee}
+        onOpenDemand={(emp) => setDemandEmployee(emp)}
       />
 
       <AuditReportModal
@@ -712,7 +710,6 @@ export default function App() {
         stats={stats}
         employees={employees}
         contracts={contracts}
-        areas={areas}
         brand={brand}
       />
 
@@ -720,7 +717,9 @@ export default function App() {
         isOpen={isProductionResetOpen}
         onClose={() => setIsProductionResetOpen(false)}
         onConfirmReset={handleExecuteProductionReset}
-        brand={brand}
+        onExportExcel={() => exportEmployeesToExcel(employees, contracts, areas)}
+        totalEmployees={employees.length}
+        totalContracts={contracts.length}
       />
 
       <BrandSettingsModal
@@ -736,17 +735,19 @@ export default function App() {
         employees={employees}
         contracts={contracts}
         trabalhistas={trabalhistaEnvios}
-        onImportEmployees={handleBulkImportEmployees}
-        onImportContracts={(cts) => updateContracts(cts)}
-        onImportTrabalhistas={(tbs) => updateTrabalhistaEnvios(tbs)}
-        brand={brand}
-        onSyncDone={(msg) => {
+        areas={areas}
+        onApplyImportedData={({ employees: emps, contracts: cts, trabalhistas: tbs, areas: ars }) => {
+          if (emps) handleBulkImportEmployees(emps);
+          if (cts) updateContracts(cts);
+          if (tbs) updateTrabalhistaEnvios(tbs);
+          if (ars) updateAreas(ars);
           setSyncStatus({
             status: 'synced',
             lastSynced: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            message: msg,
+            message: 'Dados do Google Sheets integrados com sucesso.',
           });
         }}
+        brand={brand}
       />
     </div>
   );

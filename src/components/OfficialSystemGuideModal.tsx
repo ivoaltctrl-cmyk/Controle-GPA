@@ -21,10 +21,11 @@ interface OfficialSystemGuideModalProps {
   isOpen: boolean;
   onClose: () => void;
   employee?: Employee | null;
-  employeesWithPending: Employee[];
-  contracts: Contract[];
-  areas: AreaResponsavel[];
-  brand: BrandConfig;
+  employees?: Employee[];
+  employeesWithPending?: Employee[];
+  contracts?: Contract[];
+  areas?: AreaResponsavel[];
+  brand?: BrandConfig;
   officialSystemUrl?: string;
   onOpenDemandCenter?: (emp: Employee) => void;
 }
@@ -33,22 +34,24 @@ export const OfficialSystemGuideModal: React.FC<OfficialSystemGuideModalProps> =
   isOpen,
   onClose,
   employee,
+  employees = [],
   employeesWithPending,
-  contracts,
-  areas,
+  contracts = [],
+  areas = [],
   brand,
   officialSystemUrl = 'https://sistema.terceiros.gpa.com.br',
   onOpenDemandCenter,
 }) => {
+  const pendingList = employeesWithPending || employees.filter((e) => e.pendencias?.some((p) => p.status === 'PENDENTE' || p.status === 'VENCIDO' || p.status === 'A_VENCER'));
   const [copiedType, setCopiedType] = useState<string | null>(null);
-  const [selectedEmpId, setSelectedEmpId] = useState<string>(employee?.id || (employeesWithPending[0]?.id || ''));
+  const [selectedEmpId, setSelectedEmpId] = useState<string>(employee?.id || pendingList[0]?.id || employees[0]?.id || '');
 
   if (!isOpen) return null;
 
-  const currentEmp = employee || employeesWithPending.find((e) => e.id === selectedEmpId) || employeesWithPending[0];
+  const currentEmp = employee || pendingList.find((e) => e.id === selectedEmpId) || employees.find((e) => e.id === selectedEmpId) || pendingList[0] || employees[0];
   const primaryColor = brand?.primaryColor || '#E21B23';
 
-  const pendingDocs = currentEmp?.pendencias.filter((p) => p.status === 'PENDENTE' || p.status === 'VENCIDO' || p.status === 'A_VENCER') || [];
+  const pendingDocs = currentEmp?.pendencias ? currentEmp.pendencias.filter((p) => p.status === 'PENDENTE' || p.status === 'VENCIDO' || p.status === 'A_VENCER') : [];
 
   const handleCopy = (text: string, type: string) => {
     navigator.clipboard.writeText(text);
@@ -59,10 +62,10 @@ export const OfficialSystemGuideModal: React.FC<OfficialSystemGuideModalProps> =
   const getFormattedSummary = () => {
     if (!currentEmp) return '';
     const docsStr = pendingDocs
-      .map((p) => `- ${p.tipo}: ${p.status} (Vencimento: ${p.dataVencimento || 'Não informado'})`)
+      .map((p) => `- ${p.nomeDocumento || p.tipo}: ${p.status} (Vencimento: ${p.dataVencimento || 'Não informado'})`)
       .join('\n');
 
-    return `[SANEAMENTO NO SISTEMA OFICIAL]\nColaborador: ${currentEmp.nome}\nCPF: ${currentEmp.cpf}\nMatrícula: ${currentEmp.matricula}\nEmpresa: ${currentEmp.razaoSocial || currentEmp.empresa}\nFunção: ${currentEmp.funcao}\nContrato: ${currentEmp.contratoId || 'N/A'}\n\nPENDÊNCIAS IDENTIFICADAS:\n${docsStr}\n\nFavor regularizar e anexar a documentação comprobatória no sistema oficial.`;
+    return `[SANEAMENTO NO SISTEMA OFICIAL]\nColaborador: ${currentEmp.nome}\nCPF: ${currentEmp.cpf || 'N/A'}\nMatrícula: ${currentEmp.matricula}\nEmpresa: ${currentEmp.empresa}\nFunção/Cargo: ${currentEmp.cargo}\nContrato: ${currentEmp.contratoId || 'N/A'}\n\nPENDÊNCIAS IDENTIFICADAS:\n${docsStr}\n\nFavor regularizar e anexar a documentação comprobatória no sistema oficial.`;
   };
 
   return (
@@ -111,7 +114,7 @@ export const OfficialSystemGuideModal: React.FC<OfficialSystemGuideModalProps> =
           </div>
 
           {/* Employee Selector if no specific employee was passed */}
-          {!employee && employeesWithPending.length > 0 && (
+          {!employee && pendingList.length > 0 && (
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Selecione o Colaborador com Pendência:
@@ -121,11 +124,14 @@ export const OfficialSystemGuideModal: React.FC<OfficialSystemGuideModalProps> =
                 onChange={(e) => setSelectedEmpId(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:outline-hidden"
               >
-                {employeesWithPending.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.nome} ({emp.cpf}) - {emp.empresa} - {emp.totalPendencias} pendência(s)
-                  </option>
-                ))}
+                {pendingList.map((emp) => {
+                  const pCount = emp.pendencias?.filter((p) => p.status === 'PENDENTE' || p.status === 'VENCIDO').length || 0;
+                  return (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.nome} ({emp.cpf || emp.matricula}) - {emp.empresa} - {pCount} pendência(s)
+                    </option>
+                  );
+                })}
               </select>
             </div>
           )}
@@ -141,7 +147,7 @@ export const OfficialSystemGuideModal: React.FC<OfficialSystemGuideModalProps> =
                   <div>
                     <h4 className="text-sm font-black text-slate-900">{currentEmp.nome}</h4>
                     <p className="text-xs text-slate-500 font-medium">
-                      {currentEmp.funcao} • {currentEmp.empresa}
+                      {currentEmp.cargo} • {currentEmp.empresa}
                     </p>
                   </div>
                 </div>
