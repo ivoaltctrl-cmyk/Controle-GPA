@@ -89,7 +89,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContractId, setSelectedContractId] = useState('');
   const [selectedAreaId, setSelectedAreaId] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<'SST' | 'TRABALHISTA' | 'DEMAIS'>('SST');
+  const [selectedCategory, setSelectedCategory] = useState<'CADIM' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('CADIM');
   const [filterStatus, setFilterStatus] = useState<'TODOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA'>('TODOS');
   
   // Selection for bulk actions
@@ -292,8 +292,8 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Controle SST WFS');
-    XLSX.writeFile(workbook, `WFS_Controle_SST_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Controle CADIM WFS');
+    XLSX.writeFile(workbook, `WFS_Controle_CADIM_${new Date().toISOString().split('T')[0]}.xlsx`);
     showToast('Planilha Excel baixada com sucesso!');
   };
 
@@ -552,6 +552,17 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <a
+            href="https://gpa.gru.com.br/Login"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 rounded-xl text-xs font-black bg-[#E21B23] text-white hover:bg-[#c4161d] shadow-xs flex items-center gap-2 cursor-pointer transition-all hover:scale-102"
+            title="Acessar o sistema oficial GPA para saneamento de pendências documentais"
+          >
+            <ExternalLink className="w-4 h-4 text-white" />
+            <span>Sanar no GPA Oficial</span>
+          </a>
+
           {onOpenOfficialGuide && (
             <button
               onClick={() => onOpenOfficialGuide()}
@@ -559,7 +570,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
               title="Ver passo a passo de como sanar no sistema oficial de cadastro"
             >
               <HelpCircle className="w-4 h-4 text-amber-100" />
-              <span>Guia do Sistema Oficial</span>
+              <span>Guia do Sistema</span>
             </button>
           )}
 
@@ -588,17 +599,17 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
       <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 flex flex-wrap items-center gap-1.5 shadow-inner">
         <button
           onClick={() => {
-            setSelectedCategory('SST');
+            setSelectedCategory('CADIM');
             setCurrentPage(1);
           }}
           className={`flex-1 min-w-[180px] px-3.5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
-            selectedCategory === 'SST'
+            selectedCategory === 'CADIM' || selectedCategory === 'SST'
               ? 'bg-emerald-700 text-white shadow-xs'
               : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
           }`}
         >
           <ShieldCheck className="w-4 h-4" />
-          <span>Pendências Documentações de SST</span>
+          <span>Pendências Documentações de CADIM</span>
         </button>
 
         <button
@@ -646,7 +657,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
           <ContractsModule
             contracts={contracts}
             employees={employees}
-            onSelectContractToFilter={() => setSelectedCategory('SST')}
+            onSelectContractToFilter={() => setSelectedCategory('CADIM')}
             onSaveContract={onSaveContract || (() => {})}
             onDeleteContract={onDeleteContract || (() => {})}
             onDemandContract={() => {}}

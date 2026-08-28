@@ -43,7 +43,7 @@ interface NavbarProps {
   setPortalMode: (mode: MainPortalMode) => void;
   isAdminLoggedIn: boolean;
   onAdminLogout: () => void;
-  onOpenAdminLogin: () => void;
+  onOpenAdminLogin: (target?: MainPortalMode) => void;
   onOpenChangePassword: () => void;
   onOpenGoogleSheetsSync?: () => void;
   onOpenOfficialGuide?: () => void;
@@ -116,13 +116,14 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200/90 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Main Navbar Tier */}
-        <div className="flex items-center justify-between h-16 sm:h-18">
+        <div className="flex items-center justify-between h-18 sm:h-20">
           {/* Left: Logo & Brand */}
-          <div className="flex items-center space-x-3.5 sm:space-x-4">
-            <div className="flex items-center">
+          <div className="flex items-center space-x-3.5 sm:space-x-4 shrink-0">
+            <div className="flex items-center py-1">
               <WfsLogo
                 brand={brand}
-                className="h-9 sm:h-10 w-auto object-contain transition-transform hover:scale-105"
+                size="lg"
+                className="transition-transform hover:scale-105"
               />
             </div>
             <div className="hidden md:block border-l border-slate-200 pl-3.5">
@@ -132,11 +133,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                     backgroundColor: primaryColor,
                     color: '#ffffff',
                   }}
-                  className="text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded shadow-2xs"
+                  className="text-[10px] sm:text-[11px] font-black tracking-widest uppercase px-2 py-0.5 rounded shadow-2xs"
                 >
                   {companyName}
                 </span>
-                <span className="text-[11px] font-black text-slate-800 tracking-tight">
+                <span className="text-xs sm:text-[13px] font-black text-slate-800 tracking-tight">
                   GESTÃO & AUDITORIA DE TERCEIROS
                 </span>
               </div>
@@ -179,7 +180,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* 2. Áreas & Gestores */}
+            {/* 2. Resumo (Áreas & Gestores) */}
             <button
               onClick={() => setPortalMode('areas')}
               style={
@@ -194,12 +195,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <Building2 className="w-4 h-4" />
-              <span>Áreas & Gestores</span>
+              <span>Resumo</span>
             </button>
 
-            {/* 3. Auditoria & Disparos */}
+            {/* 3. Gestão GRU (Protegida por senha) */}
             <button
-              onClick={() => setPortalMode('demands')}
+              onClick={() => {
+                if (isAdminLoggedIn) {
+                  setPortalMode('demands');
+                } else {
+                  onOpenAdminLogin('demands');
+                }
+              }}
               style={
                 currentMode === 'demands'
                   ? { backgroundColor: '#ffffff', color: primaryColor }
@@ -211,8 +218,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <Send className="w-4 h-4" />
-              <span>Auditoria & Disparos</span>
+              {isAdminLoggedIn ? (
+                <Send className="w-4 h-4" />
+              ) : (
+                <Lock className="w-4 h-4 text-amber-500" />
+              )}
+              <span>Gestão GRU</span>
+              {!isAdminLoggedIn && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 uppercase font-black tracking-wider hidden lg:inline">
+                  Senha
+                </span>
+              )}
             </button>
 
             {/* 4. Configuração (Protegida por senha) */}
@@ -221,7 +237,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 if (isAdminLoggedIn) {
                   setPortalMode('settings');
                 } else {
-                  onOpenAdminLogin();
+                  onOpenAdminLogin('settings');
                 }
               }}
               style={

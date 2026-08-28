@@ -89,6 +89,7 @@ export default function App() {
 
   // Master Portal Mode: 'pendencias', 'areas', 'demands', 'settings'
   const [portalMode, setPortalMode] = useState<MainPortalMode>('pendencias');
+  const [targetAdminMode, setTargetAdminMode] = useState<MainPortalMode>('demands');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState<boolean>(false);
@@ -100,6 +101,11 @@ export default function App() {
       saveStoredBlinkingAlerts(next);
       return next;
     });
+  };
+
+  const handleOpenAdminLoginForTarget = (target: MainPortalMode = 'demands') => {
+    setTargetAdminMode(target);
+    setIsAdminLoginOpen(true);
   };
 
   // Admin Sub Navigation & Filtering
@@ -164,7 +170,7 @@ export default function App() {
       setSyncStatus({
         status: 'synced',
         lastSynced: nowTime,
-        message: `Planilha GPA_BD sincronizada (${imported.employees.length} SST, ${imported.contracts.length} Contratos)`,
+        message: `Planilha GPA_BD sincronizada (${imported.employees.length} CADIM, ${imported.contracts.length} Contratos)`,
       });
     } catch (err: any) {
       console.info('Auto-sync background status:', err);
@@ -274,7 +280,7 @@ export default function App() {
     setIsAdminLoggedIn(true);
     setStoredAdminAuthenticated(true);
     setIsAdminLoginOpen(false);
-    setPortalMode('settings');
+    setPortalMode(targetAdminMode || 'demands');
     try {
       confetti({
         particleCount: 50,
@@ -287,7 +293,9 @@ export default function App() {
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
     setStoredAdminAuthenticated(false);
-    setPortalMode('demandados');
+    if (portalMode === 'demands' || portalMode === 'settings') {
+      setPortalMode('pendencias');
+    }
   };
 
   // Handlers for Employees
@@ -487,15 +495,15 @@ export default function App() {
       <Navbar
         portalMode={portalMode}
         setPortalMode={(mode) => {
-          if (mode === 'settings' && !isAdminLoggedIn) {
-            setIsAdminLoginOpen(true);
+          if ((mode === 'settings' || mode === 'demands') && !isAdminLoggedIn) {
+            handleOpenAdminLoginForTarget(mode);
           } else {
             setPortalMode(mode);
           }
         }}
         isAdminLoggedIn={isAdminLoggedIn}
         onAdminLogout={handleAdminLogout}
-        onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+        onOpenAdminLogin={(target) => handleOpenAdminLoginForTarget(target || 'demands')}
         onOpenChangePassword={() => setIsChangePasswordOpen(true)}
         onOpenOfficialGuide={() => {
           setOfficialGuideEmployee(null);
@@ -541,7 +549,7 @@ export default function App() {
             onSaveEmployee={handleSaveEmployee}
             onSaveContract={handleSaveContract}
             onDeleteContract={handleDeleteContract}
-            onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+            onOpenAdminLogin={() => handleOpenAdminLoginForTarget('demands')}
             isAdminLoggedIn={isAdminLoggedIn}
             onResetData={handleResetData}
             blinkingAlerts={blinkingAlerts}
@@ -558,17 +566,24 @@ export default function App() {
         )}
 
         {/* ========================================================================= */}
-        {/* 2. ÁREAS & GESTORES                                                       */}
+        {/* 2. ÁREAS & GESTORES (ABA RESUMO)                                          */}
         {/* ========================================================================= */}
         {portalMode === 'areas' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <AreasModule
               areas={areas}
               employees={employees}
+              contracts={contracts}
+              trabalhistaEnvios={trabalhistaEnvios}
+              stats={stats}
               onSaveArea={handleSaveArea}
               onDeleteArea={handleDeleteArea}
               onSelectAreaForDispatch={(area) => {
-                setPortalMode('demands');
+                if (!isAdminLoggedIn) {
+                  handleOpenAdminLoginForTarget('demands');
+                } else {
+                  setPortalMode('demands');
+                }
               }}
               brand={brand}
             />
@@ -576,33 +591,63 @@ export default function App() {
         )}
 
         {/* ========================================================================= */}
-        {/* 3. AUDITORIA & DISPAROS                                                   */}
+        {/* 3. AUDITORIA & DISPAROS (PROTEGIDA POR SENHA)                             */}
         {/* ========================================================================= */}
         {portalMode === 'demands' && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            <AuditDispatchesTab
-              employees={employees}
-              contracts={contracts}
-              areas={areas}
-              stats={stats}
-              onExportExcel={() => exportEmployeesToExcel(employees, contracts, areas)}
-              onExportCsv={() => exportEmployeesToCsv(employees)}
-              onOpenAuditReportModal={() => setIsAuditReportOpen(true)}
-              onMassDispatch={handleMassDispatch}
-              brand={brand}
-            />
+          isAdminLoggedIn ? (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <AuditDispatchesTab
+                employees={employees}
+                contracts={contracts}
+                areas={areas}
+                stats={stats}
+                onExportExcel={() => exportEmployeesToExcel(employees, contracts, areas)}
+                onExportCsv={() => exportEmployeesToCsv(employees)}
+                onOpenAuditReportModal={() => setIsAuditReportOpen(true)}
+                onMassDispatch={handleMassDispatch}
+                brand={brand}
+                onLockGestao={handleAdminLogout}
+              />
 
-            <DemandHistory
-              logs={demandLogs}
-              onUpdateLogStatus={handleUpdateLogStatus}
-              onDeleteLog={handleDeleteLog}
-              onOpenNewDemand={() => {
-                if (employees.length > 0) {
-                  setDemandEmployee(employees[0]);
-                }
-              }}
-            />
-          </div>
+              <DemandHistory
+                logs={demandLogs}
+                onUpdateLogStatus={handleUpdateLogStatus}
+                onDeleteLog={handleDeleteLog}
+                onOpenNewDemand={() => {
+                  if (employees.length > 0) {
+                    setDemandEmployee(employees[0]);
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <div className="max-w-md mx-auto my-12 bg-white rounded-3xl border border-slate-200 p-8 text-center shadow-lg space-y-5 animate-in fade-in duration-200">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-600 shadow-inner">
+                <Lock className="w-8 h-8" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Acesso Restrito: Gestão GRU</h3>
+                <p className="text-xs text-slate-500 mt-2">
+                  Esta aba de auditoria, disparos em massa e histórico é restrita. Digite a senha para desbloquear.
+                </p>
+              </div>
+              <div className="pt-2 flex flex-col gap-2">
+                <button
+                  onClick={() => handleOpenAdminLoginForTarget('demands')}
+                  style={{ backgroundColor: primaryColor }}
+                  className="w-full py-3 px-4 rounded-xl text-white font-bold text-sm shadow-md hover:opacity-90 transition-all cursor-pointer"
+                >
+                  Entrar com Senha
+                </button>
+                <button
+                  onClick={() => setPortalMode('pendencias')}
+                  className="w-full py-2.5 px-4 rounded-xl text-slate-600 bg-slate-100 hover:bg-slate-200 font-semibold text-xs transition-all cursor-pointer"
+                >
+                  Voltar ao Painel de Pendências
+                </button>
+              </div>
+            </div>
+          )
         )}
 
         {/* ========================================================================= */}

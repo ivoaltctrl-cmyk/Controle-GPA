@@ -197,7 +197,7 @@ export const ContractsModule: React.FC<ContractsModuleProps> = ({
       documentosContrato: [
         { id: `d_${Date.now()}_1`, nome: 'Contrato Social e Procuração', tipo: 'Jurídico', status: 'Validado' },
         { id: `d_${Date.now()}_2`, nome: 'Apólice de Seguro de Responsabilidade Civil', tipo: 'Seguros', status: 'Validado' },
-        { id: `d_${Date.now()}_3`, nome: 'PGR e PCMSO Específico', tipo: 'SST', status: 'Validado' },
+        { id: `d_${Date.now()}_3`, nome: 'PGR e PCMSO Específico', tipo: 'CADIM', status: 'Validado' },
       ],
     });
     setIsFormOpen(true);

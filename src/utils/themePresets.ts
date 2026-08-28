@@ -48,9 +48,9 @@ export const THEME_PALETTES: PalettePreset[] = [
   },
   {
     id: 'safety-orange',
-    name: 'Carvão & Laranja Segurança SST',
-    category: 'Segurança do Trabalho (NRs)',
-    description: 'Preto carvão com laranja sinalizador padrão normas de segurança e fiscalização.',
+    name: 'Carvão & Laranja Segurança CADIM',
+    category: 'Segurança Operacional CADIM',
+    description: 'Preto carvão com laranja sinalizador padrão normas regulamentadoras e controle CADIM.',
     primaryColor: '#18181b', // zinc-900
     primaryHoverColor: '#09090b', // zinc-950
     accentColor: '#ea580c', // orange-600
@@ -59,7 +59,7 @@ export const THEME_PALETTES: PalettePreset[] = [
   },
   {
     id: 'hse-emerald',
-    name: 'Verde Esmeralda HSE & Floresta',
+    name: 'Verde Esmeralda CADIM & Floresta',
     category: 'Saúde & Meio Ambiente',
     description: 'Combinação clássica de conformidade, saúde ocupacional e sustentabilidade.',
     primaryColor: '#064e3b', // emerald-900
@@ -95,7 +95,7 @@ export const THEME_PALETTES: PalettePreset[] = [
 export const DEFAULT_BRAND_CONFIG: BrandConfig = {
   companyName: 'WFS',
   companySubtitle: 'A SATS COMPANY',
-  badgeText: 'SST & CONFORMIDADE OPERACIONAL',
+  badgeText: 'CADIM & CONFORMIDADE OPERACIONAL',
   logoType: 'styled_wfs',
   paletteId: 'wfs-red',
   primaryColor: '#E21B23', // Vermelho Oficial WFS

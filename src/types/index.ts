@@ -51,7 +51,7 @@ export interface BrandConfig {
   accentTextColor: string;
 }
 
-export type DocCategory = 'SST' | 'TRABALHISTA' | 'DEMAIS';
+export type DocCategory = 'CADIM' | 'SST' | 'TRABALHISTA' | 'DEMAIS';
 
 export type DocType =
   | 'ORDEM_DE_SERVICO'
@@ -197,7 +197,7 @@ export interface SystemStats {
   totalCriticos: number;
   totalBloqueados: number;
   taxaConformidadeGeral: number;
-  // Stats by core SST document
+  // Stats by core CADIM document
   ordemServico: {
     total: number;
     emDia: number;

@@ -39,7 +39,7 @@ export const OfficialSystemGuideModal: React.FC<OfficialSystemGuideModalProps> =
   contracts = [],
   areas = [],
   brand,
-  officialSystemUrl = 'https://sistema.terceiros.gpa.com.br',
+  officialSystemUrl = 'https://gpa.gru.com.br/Login',
   onOpenDemandCenter,
 }) => {
   const pendingList = employeesWithPending || employees.filter((e) => e.pendencias?.some((p) => p.status === 'PENDENTE' || p.status === 'VENCIDO' || p.status === 'A_VENCER'));
@@ -241,7 +241,7 @@ export const OfficialSystemGuideModal: React.FC<OfficialSystemGuideModalProps> =
                 </span>
                 <h5 className="text-xs font-bold text-slate-900">Acesse o Sistema Oficial</h5>
                 <p className="text-[11px] text-slate-500 mt-1 leading-normal">
-                  Entre no portal oficial de gestão de terceiros/SST com suas credenciais.
+                  Entre no portal oficial de gestão <strong>gpa.gru.com.br/Login</strong> com suas credenciais.
                 </p>
               </div>
 
@@ -261,9 +261,40 @@ export const OfficialSystemGuideModal: React.FC<OfficialSystemGuideModalProps> =
                 </span>
                 <h5 className="text-xs font-bold text-slate-900">Anexe e Atualize</h5>
                 <p className="text-[11px] text-slate-500 mt-1 leading-normal">
-                  Faça o upload do documento válido. O painel sincronizará automaticamente.
+                  Faça o upload do documento válido no portal oficial GPA. O painel sincronizará automaticamente.
                 </p>
               </div>
+            </div>
+
+            {/* Official Link Banner */}
+            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  GPA
+                </div>
+                <div>
+                  <span className="text-xs font-black text-emerald-900 block">
+                    Link Oficial de Acesso:
+                  </span>
+                  <a
+                    href="https://gpa.gru.com.br/Login"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-mono text-emerald-700 hover:text-emerald-900 underline flex items-center gap-1 font-bold"
+                  >
+                    <span>https://gpa.gru.com.br/Login</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy('https://gpa.gru.com.br/Login', 'gpa-url')}
+                className="px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                {copiedType === 'gpa-url' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedType === 'gpa-url' ? 'Copiado!' : 'Copiar Link'}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -299,13 +330,13 @@ export const OfficialSystemGuideModal: React.FC<OfficialSystemGuideModalProps> =
             )}
 
             <a
-              href={officialSystemUrl}
+              href={officialSystemUrl || 'https://gpa.gru.com.br/Login'}
               target="_blank"
               rel="noopener noreferrer"
               style={{ backgroundColor: primaryColor }}
               className="px-4 py-2 rounded-xl text-xs font-black text-white shadow-xs hover:opacity-95 transition-opacity flex items-center gap-2 cursor-pointer"
             >
-              <span>Abrir Sistema Oficial</span>
+              <span>Acessar GPA Oficial (Login)</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>

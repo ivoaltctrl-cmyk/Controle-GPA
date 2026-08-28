@@ -79,7 +79,7 @@ export const INITIAL_CONTRACTS: Contract[] = [
     documentosContrato: [
       { id: 'doc-1', nome: 'Contrato Social e Procuração', tipo: 'Jurídico', status: 'Validado', dataUpload: '01/10/2017' },
       { id: 'doc-2', nome: 'Apólice de Seguro de Responsabilidade Civil', tipo: 'Seguros', status: 'Validado', dataUpload: '01/10/2017' },
-      { id: 'doc-3', nome: 'PGR e PCMSO do Contrato', tipo: 'SST', status: 'Validado', dataUpload: '01/10/2017' },
+      { id: 'doc-3', nome: 'PGR e PCMSO do Contrato', tipo: 'CADIM', status: 'Validado', dataUpload: '01/10/2017' },
       { id: 'doc-4', nome: 'Certidão Negativa de Débitos Trabalhistas (CNDT)', tipo: 'Trabalhista', status: 'Validado', dataUpload: '15/03/2021' },
     ],
   },
@@ -127,7 +127,7 @@ export const INITIAL_CONTRACTS: Contract[] = [
     status: 'ENCERRADO',
     limiteBloqueioConformidade: 85,
     documentosContrato: [
-      { id: 'doc-104-1', nome: 'Laudo de Higienização e Sanitização', tipo: 'SST/Sanitário', status: 'Validado' },
+      { id: 'doc-104-1', nome: 'Laudo de Higienização e Sanitização', tipo: 'CADIM/Sanitário', status: 'Validado' },
       { id: 'doc-104-2', nome: 'Seguro do Espaço Físico', tipo: 'Seguros', status: 'Validado' },
     ],
   },
@@ -156,7 +156,7 @@ export const INITIAL_CONTRACTS: Contract[] = [
     documentosContrato: [
       { id: 'doc-72-1', nome: 'Certificado de Homologação ANAC / AVSEC', tipo: 'Regulatório', status: 'Validado' },
       { id: 'doc-72-2', nome: 'Apólice de Seguro de Cargas e Bagagens', tipo: 'Seguros', status: 'Em Análise', motivoReprovacao: 'Aguardando validação do endosso pela seguradora' },
-      { id: 'doc-72-3', nome: 'PGR / PCMSO Específico Guarda Internacional', tipo: 'SST', status: 'Validado' },
+      { id: 'doc-72-3', nome: 'PGR / PCMSO Específico Guarda Internacional', tipo: 'CADIM', status: 'Validado' },
       { id: 'doc-72-4', nome: 'Certidões Negativas Tributárias e Trabalhistas', tipo: 'Fiscal/Trabalhista', status: 'Validado' },
     ],
   },
@@ -263,7 +263,7 @@ export const INITIAL_CONTRACTS: Contract[] = [
     limiteBloqueioConformidade: 85,
     documentosContrato: [
       { id: 'doc-1409-1', nome: 'Homologação DAVSEC nº 04-21', tipo: 'Regulatório/AVSEC', status: 'Validado' },
-      { id: 'doc-1409-2', nome: 'PGR / PCMSO / LTCAT Radioproteção', tipo: 'SST', status: 'Validado' },
+      { id: 'doc-1409-2', nome: 'PGR / PCMSO / LTCAT Radioproteção', tipo: 'CADIM', status: 'Validado' },
       { id: 'doc-1409-3', nome: 'Certificado de Calibração Equipamentos Raio-X', tipo: 'Técnico', status: 'Validado' },
       { id: 'doc-1409-4', nome: 'Apólice Global de Seguros Aeroportuários', tipo: 'Seguros', status: 'Validado' },
     ],
@@ -354,7 +354,7 @@ export const INITIAL_CONTRACTS: Contract[] = [
       { id: 'doc-50-1', nome: 'Homologação AVSEC / ANAC', tipo: 'Regulatório', status: 'Validado' },
       { id: 'doc-50-2', nome: 'Apólice de Seguro de Responsabilidade Civil Aeroportuária', tipo: 'Seguros', status: 'Reprovado', motivoReprovacao: 'Valor da apólice abaixo do limite mínimo exigido em cláusula 8.2 do contrato.' },
       { id: 'doc-50-3', nome: 'Certidão Negativa de Débitos Estaduais (CND)', tipo: 'Fiscal', status: 'Reprovado', motivoReprovacao: 'Certidão vencida em 10/08/2026. Necessário emissão de nova via atualizada.' },
-      { id: 'doc-50-4', nome: 'PGR e PCMSO da Equipe de Operações', tipo: 'SST', status: 'Validado' },
+      { id: 'doc-50-4', nome: 'PGR e PCMSO da Equipe de Operações', tipo: 'CADIM', status: 'Validado' },
     ],
   },
   {

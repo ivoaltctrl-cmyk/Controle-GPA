@@ -175,7 +175,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
       setTimeout(() => setCopiedData(false), 4000);
       setStatusMessage({
         type: 'success',
-        text: `Copiado com sucesso! Agora basta abrir sua planilha GPA_BD na aba "Pendências SST", clicar na célula A2 e apertar Ctrl + V.`,
+        text: `Copiado com sucesso! Agora basta abrir sua planilha GPA_BD na aba "Pendências CADIM" (ou SST), clicar na célula A2 e apertar Ctrl + V.`,
       });
     } catch (e: any) {
       setStatusMessage({ type: 'error', text: `Erro ao copiar: ${e.message}` });
@@ -400,7 +400,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
           </div>
 
           <p className="text-xs text-blue-800 leading-relaxed">
-            Lê diretamente as 3 abas da planilha GPA_BD (SST, Trabalhistas e Contratos) e atualiza o painel instantaneamente:
+            Lê diretamente as 3 abas da planilha GPA_BD (CADIM, Trabalhistas e Contratos) e atualiza o painel instantaneamente:
           </p>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -485,7 +485,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
                   activeTabPreview === 'sst' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
                 }`}
               >
-                Pendências SST
+                Pendências CADIM
               </button>
               <button
                 onClick={() => setActiveTabPreview('trabalhistas')}
@@ -508,7 +508,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
 
           {activeTabPreview === 'sst' && (
             <div className="text-[11px] text-slate-600 bg-white p-3 rounded-xl border border-slate-200">
-              <span className="font-bold text-emerald-900 block mb-0.5">Colunas da Aba "Pendências SST":</span>
+              <span className="font-bold text-emerald-900 block mb-0.5">Colunas da Aba "Pendências CADIM" (ou SST):</span>
               <p className="font-mono text-[10px] text-slate-500 leading-relaxed">
                 A: Documento | B: Nome do Colaborador * | C: Cargo / Função * | D: Área / Setor * | E: STATUS | F: Contrato | G: CNPJ | H: Ordem de Serviço | I: Validade OS | J: ASO | K: Validade ASO | L: EPI | M: Validade EPI | N: Treinamento | O: Validade Certificado | P: Observações
               </p>

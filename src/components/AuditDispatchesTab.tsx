@@ -19,6 +19,8 @@ import {
   Check,
   Clock,
   UserCheck,
+  ExternalLink,
+  Lock,
 } from 'lucide-react';
 import {
   Employee,
@@ -41,6 +43,7 @@ interface AuditDispatchesTabProps {
   onOpenAuditReportModal: () => void;
   onMassDispatch: (logs: DemandLog[]) => void;
   brand: BrandConfig;
+  onLockGestao?: () => void;
 }
 
 export const AuditDispatchesTab: React.FC<AuditDispatchesTabProps> = ({
@@ -53,6 +56,7 @@ export const AuditDispatchesTab: React.FC<AuditDispatchesTabProps> = ({
   onOpenAuditReportModal,
   onMassDispatch,
   brand,
+  onLockGestao,
 }) => {
   const [selectedScope, setSelectedScope] = useState<'areas' | 'contracts' | 'individuals'>('areas');
   const [filterSeverity, setFilterSeverity] = useState<'all_pending' | 'vencidos_only' | 'a_vencer_30'>('all_pending');
@@ -140,6 +144,7 @@ export const AuditDispatchesTab: React.FC<AuditDispatchesTabProps> = ({
       `Identificamos pendências de conformidade documental em *${irregularList.length} colaboradores* sob sua responsabilidade:\n\n` +
       `${listSummary}${moreText}\n\n` +
       `⚠️ *Atenção:* Documentos vencidos ou a vencer em menos de 30 dias podem acarretar bloqueio de acesso nas portarias e unidades operacionais.\n` +
+      `🔗 *Portal Oficial GPA para Regularização:* https://gpa.gru.com.br/Login\n` +
       `Favor providenciar a regularização imediata com os prestadores.\n\n` +
       `_Sistema de Gestão de Contratos e Conformidade ${companyName}_`;
   };
@@ -161,6 +166,7 @@ export const AuditDispatchesTab: React.FC<AuditDispatchesTabProps> = ({
       `Gestor: *${contract.gestorResponsavel}*\n\n` +
       `Constam *${irregularList.length} colaboradores* com pendências documentais que impactam o índice de conformidade deste contrato.\n\n` +
       `${listSummary}\n\n` +
+      `🔗 *Portal Oficial GPA para Regularização:* https://gpa.gru.com.br/Login\n` +
       `Solicitamos a regularização das pendências para evitar suspensão de faturamento ou bloqueio em portarias.`;
   };
 
@@ -248,23 +254,34 @@ export const AuditDispatchesTab: React.FC<AuditDispatchesTabProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                  Auditoria de Conformidade & Disparos para Envolvidos
+                  Gestão GRU - Auditoria de Conformidade & Disparos
                 </h2>
                 <span
                   style={{ backgroundColor: `${accentColor}20`, color: primaryColor }}
                   className="px-2 py-0.5 rounded text-xs font-black uppercase"
                 >
-                  Central de Cobranças
+                  Gestão GRU
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1 max-w-3xl">
-                Emita relatórios formais de auditoria e realize disparos em massa automáticos via WhatsApp e E-mail para os responsáveis de cada área e gestores de contrato com pendências ou itens a vencer em menos de 30 dias.
+                Painel restrito de auditoria CADIM e disparos para os responsáveis de cada área e gestores de contrato com pendências ou itens a vencer em menos de 30 dias.
               </p>
             </div>
           </div>
 
           {/* Quick Action Export Buttons */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <a
+              href="https://gpa.gru.com.br/Login"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2.5 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Acessar Sistema Oficial GPA para Sanar Pendências"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Acessar GPA Oficial</span>
+            </a>
+
             <button
               onClick={onOpenAuditReportModal}
               style={{ backgroundColor: primaryColor }}
@@ -279,8 +296,19 @@ export const AuditDispatchesTab: React.FC<AuditDispatchesTabProps> = ({
               className="px-3.5 py-2.5 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span className="hidden sm:inline">Exportar Excel (.xlsx)</span>
+              <span className="hidden sm:inline">Exportar Excel</span>
             </button>
+
+            {onLockGestao && (
+              <button
+                onClick={onLockGestao}
+                className="px-3 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:text-rose-700 bg-slate-100 hover:bg-rose-50 border border-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                title="Bloquear e proteger a aba Gestão GRU com senha"
+              >
+                <Lock className="w-3.5 h-3.5 text-amber-600" />
+                <span>Bloquear Aba</span>
+              </button>
+            )}
           </div>
         </div>
 

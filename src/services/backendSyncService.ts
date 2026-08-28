@@ -70,3 +70,27 @@ export async function syncCollectionToBackend(collectionName: string, data: any)
     return false;
   }
 }
+
+export async function checkBackendHealth(): Promise<{
+  status: string;
+  backend?: string;
+  counts?: {
+    employees: number;
+    contracts: number;
+    areas: number;
+    trabalhistas: number;
+    demandLogs: number;
+  };
+  lastUpdated?: string;
+} | null> {
+  try {
+    const res = await fetch('/api/health');
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.info('Backend health check skipped:', e);
+    return null;
+  }
+}
+
+

@@ -96,11 +96,11 @@ export const DemandCenterModal: React.FC<DemandCenterModalProps> = ({
     const deadlineFormatted = deadlineDate.toLocaleDateString('pt-BR');
 
     if (targetChannel === 'whatsapp') {
-      const text = `*⚠️ WFS SST - NOTIFICAÇÃO DE REGULARIZAÇÃO DOCUMENTAL*
+      const text = `*⚠️ WFS CADIM - NOTIFICAÇÃO DE REGULARIZAÇÃO DOCUMENTAL*
 
 Olá, *${recipientName || 'Gestor / Encarregado'}*,
 
-Identificamos pendências documentais obrigatórias de SST para o colaborador abaixo vinculado ao contrato *${contractName}*:
+Identificamos pendências documentais obrigatórias de CADIM para o colaborador abaixo vinculado ao contrato *${contractName}*:
 
 👤 *Colaborador:* ${employee.nome}
 📋 *Matrícula:* ${employee.matricula} | *Cargo:* ${employee.cargo}
@@ -117,21 +117,22 @@ ${pending
   .join('\n')}
 
 ⏳ *PRAZO PARA REGULARIZAÇÃO:* até *${deadlineFormatted}* (${prazoDias} dias úteis).
+🔗 *Portal Oficial GPA para Sanar Pendências:* https://gpa.gru.com.br/Login
 ⚠️ *Impacto:* Risco de bloqueio do colaborador na portaria e paralisação dos serviços.
 
-Favor providenciar e enviar os documentos regularizados em PDF respondendo a esta mensagem.`;
+Favor regularizar no portal oficial ou enviar os documentos em PDF respondendo a esta mensagem.`;
 
       setMessageText(text);
       setSubject('');
     } else if (targetChannel === 'email') {
-      const emailSubject = `[URGENTE SST WFS] Regularização de Pendências - ${employee.nome} (${contractName})`;
+      const emailSubject = `[URGENTE CADIM WFS] Regularização de Pendências - ${employee.nome} (${contractName})`;
       setSubject(emailSubject);
 
       const text = `Prezado(a) ${recipientName || 'Gestor Responsável'},
 
 Esperamos que este e-mail o encontre bem.
 
-Informamos que, após auditoria de conformidade documental de Segurança e Saúde no Trabalho (SST), foram constatadas pendências ativas referentes ao colaborador abaixo, vinculado ao contrato ${contractName}:
+Informamos que, após auditoria de conformidade documental realizada pela área de CADIM, foram constatadas pendências ativas referentes ao colaborador abaixo, vinculado ao contrato ${contractName}:
 
 DADOS DO COLABORADOR:
 • Nome: ${employee.nome}
@@ -151,24 +152,27 @@ ${pending
   )
   .join('\n')}
 
+PORTAL OFICIAL PARA SANEAMENTO:
+https://gpa.gru.com.br/Login
+
 PRAZO DE REGULARIZAÇÃO:
 Solicitamos a gentileza de providenciar e nos encaminhar os respectivos comprovantes/certificados até o dia ${deadlineFormatted} (${prazoDias} dias úteis).
 
-Ressaltamos que a não regularização dentro do prazo poderá acarretar o bloqueio de acesso do colaborador à unidade operacional, conforme as normas de segurança e exigências contratuais.
+Ressaltamos que a não regularização dentro do prazo poderá acarretar o bloqueio de acesso do colaborador à unidade operacional, conforme as normas de conformidade e exigências contratuais.
 
 Ficamos à disposição para quaisquer esclarecimentos.
 
 Atenciosamente,
-Coordenação de Segurança e Saúde no Trabalho (SST) & Gestão de Terceiros - WFS`;
+Coordenação CADIM & Gestão de Terceiros - WFS`;
 
       setMessageText(text);
     } else {
       // Chamado Técnico
-      const ticketSubject = `CHAMADO SST WFS - Pendência Documental Colaborador ${employee.nome}`;
+      const ticketSubject = `CHAMADO CADIM WFS - Pendência Documental Colaborador ${employee.nome}`;
       setSubject(ticketSubject);
 
       const text = `========================================================
-CHAMADO DE REGULARIZAÇÃO DE SST / GESTÃO DE CONTRATOS - WFS
+CHAMADO DE REGULARIZAÇÃO DE CADIM / GESTÃO DE CONTRATOS - WFS
 ========================================================
 PRIORIDADE: ALTA
 CONTRATO: ${contractName}

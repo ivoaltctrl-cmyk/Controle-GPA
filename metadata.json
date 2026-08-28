@@ -1,6 +1,7 @@
 {
-  "name": "Gestão e Leitor de Pendências SST & Contratos",
-  "description": "Sistema inteligente de leitura OCR via IA para captura de fichas de funcionários (OS, ASO, EPI, Radioproteção), dashboard de conformidade, cobrança de responsáveis e monitoramento de contratos.",
+  "name": "Gestão e Leitor de Pendências CADIM & Contratos",
+  "description": "Sistema inteligente de leitura e gestão de pendências documentais CADIM, Trabalhistas e Contratuais, guia de saneamento e auditoria de terceiros WFS.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
+

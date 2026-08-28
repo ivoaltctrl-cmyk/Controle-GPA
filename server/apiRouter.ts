@@ -1,14 +1,15 @@
 import type { IncomingMessage, ServerResponse } from "http";
 import { extractPendingFromImage, generateDemandMessage } from "./geminiService.ts";
+import { readDb, saveDb } from "./dbStore.ts";
 
 function parseJsonBody(req: IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
     let body = "";
     req.on("data", (chunk) => {
       body += chunk;
-      // Protect against overly huge uploads (15MB limit for images)
-      if (body.length > 20 * 1024 * 1024) {
-        reject(new Error("Arquivo muito grande (limite de 20MB)"));
+      // Protect against overly huge uploads (25MB limit for images)
+      if (body.length > 25 * 1024 * 1024) {
+        reject(new Error("Arquivo muito grande (limite de 25MB)"));
       }
     });
     req.on("end", () => {
@@ -24,71 +25,163 @@ function parseJsonBody(req: IncomingMessage): Promise<any> {
   });
 }
 
+function sendJson(res: ServerResponse, statusCode: number, data: any) {
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  });
+  res.end(JSON.stringify(data));
+}
+
 export async function handleApiRequest(
   req: IncomingMessage,
   res: ServerResponse,
   next: () => void
 ) {
-  const url = req.url || "";
+  const fullUrl = req.url || "";
+  const [pathname] = fullUrl.split("?");
 
-  if (!url.startsWith("/api/")) {
+  if (!pathname.startsWith("/api/")) {
     return next();
   }
 
-  // Health check
-  if (url === "/api/health" && req.method === "GET") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok", timestamp: new Date().toISOString() }));
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    });
+    res.end();
     return;
   }
 
-  // Scan screenshot / image endpoint
-  if (url === "/api/scan-pending" && req.method === "POST") {
+  // 1. Health & Backend Status Check
+  if (pathname === "/api/health" && req.method === "GET") {
+    const db = readDb();
+    return sendJson(res, 200, {
+      status: "ok",
+      backend: "active",
+      timestamp: new Date().toISOString(),
+      counts: {
+        employees: db.employees.length,
+        contracts: db.contracts.length,
+        areas: db.areas.length,
+        trabalhistas: db.trabalhistas.length,
+        demandLogs: db.demandLogs.length,
+      },
+      lastUpdated: db.lastUpdated,
+    });
+  }
+
+  // 2. Read full backend database: GET /api/data
+  if (pathname === "/api/data" && req.method === "GET") {
+    try {
+      const db = readDb();
+      return sendJson(res, 200, {
+        success: true,
+        ...db,
+      });
+    } catch (error: any) {
+      console.error("[Backend API] Erro ao ler dados:", error);
+      return sendJson(res, 500, { success: false, error: error.message || "Erro ao ler banco de dados" });
+    }
+  }
+
+  // 3. Write / Merge full backend database: POST /api/data
+  if (pathname === "/api/data" && req.method === "POST") {
     try {
       const body = await parseJsonBody(req);
-      const { imageBase64, mimeType = "image/png" } = body;
+      let payloadToSave = body;
+      if (body && typeof body.collection === "string" && body.data !== undefined) {
+        payloadToSave = { [body.collection]: body.data };
+      }
+      const updated = saveDb(payloadToSave);
+      return sendJson(res, 200, {
+        success: true,
+        lastUpdated: updated.lastUpdated,
+      });
+    } catch (error: any) {
+      console.error("[Backend API] Erro ao salvar dados:", error);
+      return sendJson(res, 500, { success: false, error: error.message || "Erro ao salvar banco de dados" });
+    }
+  }
+
+  // 4. Update specific collection: POST /api/data/:collection
+  if (pathname.startsWith("/api/data/") && req.method === "POST") {
+    try {
+      const collection = pathname.replace("/api/data/", "").trim();
+      const body = await parseJsonBody(req);
+      const data = body.data !== undefined ? body.data : body;
+
+      if (!collection) {
+        return sendJson(res, 400, { success: false, error: "Nome de coleção inválido" });
+      }
+
+      const current = readDb();
+      if (collection in current) {
+        const updated = saveDb({ [collection]: data });
+        return sendJson(res, 200, {
+          success: true,
+          collection,
+          count: Array.isArray(data) ? data.length : 1,
+          lastUpdated: updated.lastUpdated,
+        });
+      }
+
+      // If valid generic key, save as well
+      const updated = saveDb({ [collection]: data } as any);
+      return sendJson(res, 200, {
+        success: true,
+        collection,
+        lastUpdated: updated.lastUpdated,
+      });
+    } catch (error: any) {
+      console.error("[Backend API] Erro ao salvar coleção:", error);
+      return sendJson(res, 500, { success: false, error: error.message || "Erro ao atualizar coleção" });
+    }
+  }
+
+  // 5. OCR Scanner for SST Print: POST /api/parse-sst-image OR POST /api/scan-pending
+  if ((pathname === "/api/parse-sst-image" || pathname === "/api/scan-pending") && req.method === "POST") {
+    try {
+      const body = await parseJsonBody(req);
+      const imageBase64 = body.image || body.imageBase64;
+      const mimeType = body.mimeType || "image/png";
 
       if (!imageBase64) {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Imagem base64 não fornecida." }));
-        return;
+        return sendJson(res, 400, { success: false, error: "Imagem base64 não fornecida." });
       }
 
       const extracted = await extractPendingFromImage(imageBase64, mimeType);
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: true, data: extracted }));
+      return sendJson(res, 200, { success: true, data: extracted });
     } catch (error: any) {
-      console.error("Erro no OCR Gemini:", error);
-      res.writeHead(500, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          error: error.message || "Erro ao processar imagem com IA",
-        })
-      );
+      console.error("[Backend API] Erro no OCR Gemini:", error);
+      return sendJson(res, 500, {
+        success: false,
+        error: error.message || "Erro ao processar imagem via IA Gemini",
+      });
     }
-    return;
   }
 
-  // Generate demand message
-  if (url === "/api/generate-demand-message" && req.method === "POST") {
+  // 6. Generate demand message: POST /api/generate-demand-message
+  if (pathname === "/api/generate-demand-message" && req.method === "POST") {
     try {
       const body = await parseJsonBody(req);
       const result = await generateDemandMessage(body);
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: true, data: result }));
+      return sendJson(res, 200, { success: true, data: result });
     } catch (error: any) {
-      console.error("Erro ao gerar demanda:", error);
-      res.writeHead(500, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          error: error.message || "Erro ao gerar mensagem de cobrança",
-        })
-      );
+      console.error("[Backend API] Erro ao gerar demanda:", error);
+      return sendJson(res, 500, {
+        success: false,
+        error: error.message || "Erro ao gerar mensagem de cobrança",
+      });
     }
-    return;
   }
 
-  // Not found
-  res.writeHead(404, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ error: "Endpoint não encontrado" }));
+  // 404 Fallback for unhandled /api/*
+  return sendJson(res, 404, { success: false, error: `Endpoint não encontrado: ${pathname}` });
 }
+

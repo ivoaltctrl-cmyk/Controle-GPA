@@ -196,7 +196,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
-                <span className="text-[11px] text-slate-500 block font-medium">Colaboradores SST</span>
+                <span className="text-[11px] text-slate-500 block font-medium">Colaboradores CADIM</span>
                 <span className="text-xl font-black text-slate-900 mt-0.5 block">{employees.length}</span>
               </div>
               <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">

@@ -19,6 +19,7 @@ const WEBHOOK_URL_KEY = 'sst_gpa_webhook_url_v1';
 const AUTO_SYNC_KEY = 'sst_gpa_auto_sync_sheets_v1';
 
 export const SHEET_TABS = {
+  CADIM: 'Pendências CADIM',
   SST: 'Pendências SST',
   TRABALHISTAS: 'Pendências trabalhistas',
   CONTRATUAIS: 'Pendências Contratuais',
@@ -269,7 +270,7 @@ export function convertSstRowsToEmployees(rows: string[][]): Employee[] {
           nomeDocumento: nomeDoc,
           status,
           obrigatorio: true,
-          categoria: 'SST',
+          categoria: 'CADIM',
           dataVencimento: validadeCell?.trim() || '2027-01-01',
         };
       };
@@ -707,8 +708,11 @@ export async function pullAllFromSheets(
 }> {
   // Estratégia 1: Leitura Direta Instantânea via Google Visualization CSV (Zero popup, Zero login)
   try {
-    const [sstRows, trabRows, contractRows] = await Promise.all([
-      fetchTabCsvDirectly(spreadsheetId, SHEET_TABS.SST).catch(() => []),
+    let sstRows = await fetchTabCsvDirectly(spreadsheetId, SHEET_TABS.CADIM).catch(() => []);
+    if (!sstRows || sstRows.length === 0) {
+      sstRows = await fetchTabCsvDirectly(spreadsheetId, SHEET_TABS.SST).catch(() => []);
+    }
+    const [trabRows, contractRows] = await Promise.all([
       fetchTabCsvDirectly(spreadsheetId, SHEET_TABS.TRABALHISTAS).catch(() => []),
       fetchTabCsvDirectly(spreadsheetId, SHEET_TABS.CONTRATUAIS).catch(() => []),
     ]);

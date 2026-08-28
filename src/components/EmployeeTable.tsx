@@ -75,7 +75,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   readOnly = false,
   onGoToDemandado,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<'SST' | 'TRABALHISTA' | 'DEMAIS'>('SST');
+  const [selectedCategory, setSelectedCategory] = useState<'CADIM' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('CADIM');
   const primaryColor = brand?.primaryColor || '#006837';
   const accentColor = brand?.accentColor || '#f59e0b';
 
@@ -309,18 +309,18 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
           </div>
         )}
 
-        {/* Categories Bar (SST, Trabalhista, Demais - 3 Categorias) */}
+        {/* Categories Bar (CADIM, Trabalhista, Demais - 3 Categorias) */}
         <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex flex-wrap items-center gap-1">
           <button
-            onClick={() => setSelectedCategory('SST')}
+            onClick={() => setSelectedCategory('CADIM')}
             className={`flex-1 min-w-[170px] px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
-              selectedCategory === 'SST'
+              selectedCategory === 'CADIM' || selectedCategory === 'SST'
                 ? 'bg-emerald-700 text-white shadow-xs'
                 : 'bg-transparent text-slate-700 hover:bg-slate-200'
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Pendências Documentações de SST</span>
+            <span>Pendências Documentações de CADIM</span>
           </button>
           <button
             onClick={() => setSelectedCategory('TRABALHISTA')}
