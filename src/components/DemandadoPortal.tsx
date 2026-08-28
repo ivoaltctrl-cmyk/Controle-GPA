@@ -29,6 +29,11 @@ import {
   SlidersHorizontal,
   FileSpreadsheet,
   Layers,
+  ExternalLink,
+  HelpCircle,
+  Eye,
+  Send,
+  Copy,
 } from 'lucide-react';
 import { Employee, Contract, AreaResponsavel, DocType, DocStatus, BrandConfig, PendingDoc, TrabalhistaEnvio } from '../types/index.ts';
 import { updateEmployeeCalculatedFields } from '../utils/storage.ts';
@@ -47,12 +52,15 @@ interface DemandadoPortalProps {
   onDeleteContract?: (contractId: string) => void;
   onOpenAdminLogin: () => void;
   isAdminLoggedIn: boolean;
-  onSwitchToAdminTab: () => void;
+  onSwitchToAdminTab?: () => void;
   onResetData?: () => void;
   blinkingAlerts?: boolean;
   trabalhistaEnvios?: TrabalhistaEnvio[];
   onSaveTrabalhistaEnvios?: (envios: TrabalhistaEnvio[]) => void;
   onOpenGoogleSheetsSync?: () => void;
+  onOpenOfficialGuide?: (employee?: Employee) => void;
+  onOpenEmployeeDetail?: (employee: Employee) => void;
+  onOpenDemandCenter?: (employee: Employee) => void;
 }
 
 type SortField = 'matricula' | 'cpf' | 'nome' | 'cargo' | 'setor' | 'os' | 'aso' | 'epi' | 'radio' | 'statusGeral';
@@ -74,11 +82,14 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   trabalhistaEnvios = [],
   onSaveTrabalhistaEnvios,
   onOpenGoogleSheetsSync,
+  onOpenOfficialGuide,
+  onOpenEmployeeDetail,
+  onOpenDemandCenter,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContractId, setSelectedContractId] = useState('');
   const [selectedAreaId, setSelectedAreaId] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<'TODOS' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('TODOS');
+  const [selectedCategory, setSelectedCategory] = useState<'SST' | 'TRABALHISTA' | 'DEMAIS'>('SST');
   const [filterStatus, setFilterStatus] = useState<'TODOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA'>('TODOS');
   
   // Selection for bulk actions
@@ -525,22 +536,33 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
       )}
 
-      {/* Header Discreto - Portal de Pendências dos Contratos GPA */}
+      {/* Header - Portal Unificado de Pendências e Conformidade GPA */}
       <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200 border-l-4 border-l-[#E21B23] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md text-[11px] font-black bg-[#E21B23]/10 text-[#E21B23] uppercase tracking-wider border border-[#E21B23]/20">
             <span className="w-2 h-2 rounded-full bg-[#E21B23]" />
-            <span>PORTAL DE PENDÊNCIAS DOS CONTRATOS GPA • WFS</span>
+            <span>PORTAL DE PENDÊNCIAS & CONFORMIDADE • GPA</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Controle Pendências Documentais
+            Consulta & Regularização de Pendências
           </h2>
           <p className="text-xs text-slate-600 font-medium max-w-2xl">
-            Visualize a lista geral de colaboradores e clique diretamente no texto da pendência para saná-la com 1 clique.
+            Consulte as pendências documentais dos terceiros e realize a regularização diretamente no sistema oficial da empresa.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onOpenOfficialGuide && (
+            <button
+              onClick={() => onOpenOfficialGuide()}
+              className="px-4 py-2 rounded-xl text-xs font-black bg-amber-500 text-white hover:bg-amber-600 shadow-xs flex items-center gap-2 cursor-pointer transition-all hover:scale-102"
+              title="Ver passo a passo de como sanar no sistema oficial de cadastro"
+            >
+              <HelpCircle className="w-4 h-4 text-amber-100" />
+              <span>Guia do Sistema Oficial</span>
+            </button>
+          )}
+
           {onOpenGoogleSheetsSync && (
             <button
               onClick={onOpenGoogleSheetsSync}
@@ -548,48 +570,34 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
               title="Sincronizar dados bidirecionalmente com o Google Sheets GPA_BD"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
-              <span>Sincronizar GPA_BD (Sheets)</span>
+              <span>Sincronizar GPA_BD</span>
             </button>
           )}
 
           <button
             onClick={handleExportExcel}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 shadow-2xs flex items-center gap-2 cursor-pointer transition-all"
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 shadow-2xs flex items-center gap-2 cursor-pointer transition-all"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            <span>Exportar Excel (.xlsx)</span>
+            <span>Exportar Excel</span>
           </button>
         </div>
       </div>
 
-      {/* Seletor de Categorias de Controle Documental GPA */}
+      {/* Seletor de Categorias de Controle Documental GPA (3 Categorias) */}
       <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 flex flex-wrap items-center gap-1.5 shadow-inner">
-        <button
-          onClick={() => {
-            setSelectedCategory('TODOS');
-            setCurrentPage(1);
-          }}
-          className={`flex-1 min-w-[140px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-            selectedCategory === 'TODOS'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
-          }`}
-        >
-          <span>Todos os Documentos</span>
-        </button>
-
         <button
           onClick={() => {
             setSelectedCategory('SST');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[180px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[180px] px-3.5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
             selectedCategory === 'SST'
               ? 'bg-emerald-700 text-white shadow-xs'
               : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
           }`}
         >
-          <ShieldCheck className="w-3.5 h-3.5" />
+          <ShieldCheck className="w-4 h-4" />
           <span>Pendências Documentações de SST</span>
         </button>
 
@@ -598,13 +606,13 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setSelectedCategory('TRABALHISTA');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[180px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[180px] px-3.5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
             selectedCategory === 'TRABALHISTA'
               ? 'bg-blue-700 text-white shadow-xs'
               : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
           }`}
         >
-          <FileText className="w-3.5 h-3.5" />
+          <FileText className="w-4 h-4" />
           <span>Pendências Documentações Trabalhistas</span>
         </button>
 
@@ -613,13 +621,13 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setSelectedCategory('DEMAIS');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[180px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[180px] px-3.5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
             selectedCategory === 'DEMAIS'
               ? 'bg-purple-700 text-white shadow-xs'
               : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
           }`}
         >
-          <Layers className="w-3.5 h-3.5" />
+          <Layers className="w-4 h-4" />
           <span>Pendências Demais Documentações</span>
         </button>
       </div>
@@ -631,13 +639,14 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
           onSaveEnvios={onSaveTrabalhistaEnvios || (() => {})}
           brand={brand}
           isAdmin={isAdminLoggedIn}
+          blinkingAlerts={blinkingAlerts}
         />
       ) : selectedCategory === 'DEMAIS' ? (
         <div className="space-y-4">
           <ContractsModule
             contracts={contracts}
             employees={employees}
-            onSelectContractToFilter={() => setSelectedCategory('TODOS')}
+            onSelectContractToFilter={() => setSelectedCategory('SST')}
             onSaveContract={onSaveContract || (() => {})}
             onDeleteContract={onDeleteContract || (() => {})}
             onDemandContract={() => {}}
@@ -1167,20 +1176,53 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
 
                       {/* Ações Rápidas */}
                       <td className="py-2 px-1.5 text-center">
-                        {!isAllEmDia ? (
-                          <button
-                            onClick={(e) => handleSanarEmployeeAll(emp, e)}
-                            title="Regularizar todas as pendências deste colaborador com 1 clique"
-                            className="w-full px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] cursor-pointer transition-all shadow-2xs truncate"
-                          >
-                            Sanar Tudo
-                          </button>
-                        ) : (
-                          <span className="inline-flex items-center justify-center gap-0.5 text-[10px] font-bold text-emerald-700">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                            <span className="truncate">Regular</span>
-                          </span>
-                        )}
+                        <div className="flex items-center justify-center gap-1">
+                          {!isAllEmDia ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  if (onOpenOfficialGuide) {
+                                    onOpenOfficialGuide(emp);
+                                  } else {
+                                    handleSanarEmployeeAll(emp);
+                                  }
+                                }}
+                                title="Ver orientações para sanar pendências no sistema oficial"
+                                className="px-1.5 py-1 rounded bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] cursor-pointer transition-all shadow-2xs flex items-center gap-1 shrink-0"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                <span className="hidden xl:inline">Saneamento Oficial</span>
+                                <span className="xl:hidden">Sanar</span>
+                              </button>
+
+                              {onOpenEmployeeDetail && (
+                                <button
+                                  onClick={() => onOpenEmployeeDetail(emp)}
+                                  title="Visualizar ficha cadastral e histórico completo"
+                                  className="p-1 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer shrink-0"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="inline-flex items-center justify-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>Regular</span>
+                              </span>
+                              {onOpenEmployeeDetail && (
+                                <button
+                                  onClick={() => onOpenEmployeeDetail(emp)}
+                                  title="Visualizar ficha cadastral completa"
+                                  className="p-1 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer shrink-0"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

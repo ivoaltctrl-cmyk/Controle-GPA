@@ -52,6 +52,7 @@ import { BrandSettingsModal } from './components/BrandSettingsModal.tsx';
 import { GoogleSheetsSyncModal } from './components/GoogleSheetsSyncModal.tsx';
 import { AdminLoginModal } from './components/AdminLoginModal.tsx';
 import { AdminPasswordModal } from './components/AdminPasswordModal.tsx';
+import { OfficialSystemGuideModal } from './components/OfficialSystemGuideModal.tsx';
 import {
   pullAllFromSheets,
   smartMergeData,
@@ -86,8 +87,8 @@ export default function App() {
   const [trabalhistaEnvios, setTrabalhistaEnvios] = useState<TrabalhistaEnvio[]>([]);
   const [brand, setBrand] = useState<BrandConfig>(getStoredBrandConfig());
 
-  // Master Portal Mode: 'demandados' or 'admin'
-  const [portalMode, setPortalMode] = useState<MainPortalMode>('demandados');
+  // Master Portal Mode: 'pendencias', 'areas', 'demands', 'settings'
+  const [portalMode, setPortalMode] = useState<MainPortalMode>('pendencias');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState<boolean>(false);
@@ -109,6 +110,8 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Modals
+  const [isOfficialGuideOpen, setIsOfficialGuideOpen] = useState(false);
+  const [officialGuideEmployee, setOfficialGuideEmployee] = useState<Employee | null>(null);
   const [isOcrOpen, setIsOcrOpen] = useState(false);
   const [isExcelImportOpen, setIsExcelImportOpen] = useState(false);
   const [isManualEmployeeOpen, setIsManualEmployeeOpen] = useState(false);
@@ -271,7 +274,7 @@ export default function App() {
     setIsAdminLoggedIn(true);
     setStoredAdminAuthenticated(true);
     setIsAdminLoginOpen(false);
-    setPortalMode('admin');
+    setPortalMode('settings');
     try {
       confetti({
         particleCount: 50,
@@ -484,7 +487,7 @@ export default function App() {
       <Navbar
         portalMode={portalMode}
         setPortalMode={(mode) => {
-          if (mode === 'admin' && !isAdminLoggedIn) {
+          if (mode === 'settings' && !isAdminLoggedIn) {
             setIsAdminLoginOpen(true);
           } else {
             setPortalMode(mode);
@@ -494,6 +497,10 @@ export default function App() {
         onAdminLogout={handleAdminLogout}
         onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
         onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+        onOpenOfficialGuide={() => {
+          setOfficialGuideEmployee(null);
+          setIsOfficialGuideOpen(true);
+        }}
         onOpenGoogleSheetsSync={() => setIsSheetsSyncOpen(true)}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -520,12 +527,12 @@ export default function App() {
         onRefreshSheets={() => refreshFromGoogleSheets(false)}
       />
 
-      {/* MAIN BODY: PORTAL DEMANDADO VS PAINEL ADM */}
+      {/* MAIN BODY: PAINEL DE PENDÊNCIAS UNIFICADO | ÁREAS & GESTORES | AUDITORIA | CONFIGURAÇÃO */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* ========================================================================= */}
-        {/* MODE 1: PORTAL DO DEMANDADO (Visão Externa Limpa & Focada em Regularização) */}
+        {/* 1. PAINEL DE PENDÊNCIAS & CONFORMIDADE (Hub Unificado de Consulta)        */}
         {/* ========================================================================= */}
-        {portalMode === 'demandados' && (
+        {(portalMode === 'pendencias' || portalMode === 'demandados' || portalMode === 'admin') && (
           <DemandadoPortal
             employees={employees}
             contracts={contracts}
@@ -536,177 +543,70 @@ export default function App() {
             onDeleteContract={handleDeleteContract}
             onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
             isAdminLoggedIn={isAdminLoggedIn}
-            onSwitchToAdminTab={() => setPortalMode('admin')}
+            onResetData={handleResetData}
             blinkingAlerts={blinkingAlerts}
             trabalhistaEnvios={trabalhistaEnvios}
             onSaveTrabalhistaEnvios={updateTrabalhistaEnvios}
             onOpenGoogleSheetsSync={() => setIsSheetsSyncOpen(true)}
+            onOpenOfficialGuide={(emp) => {
+              setOfficialGuideEmployee(emp || null);
+              setIsOfficialGuideOpen(true);
+            }}
+            onOpenEmployeeDetail={(emp) => setDetailEmployee(emp)}
+            onOpenDemandCenter={(emp) => setDemandEmployee(emp)}
           />
         )}
 
         {/* ========================================================================= */}
-        {/* MODE 2: PAINEL ADMINISTRADOR (Gestão Completa de SST, Contratos e Auditoria) */}
+        {/* 2. ÁREAS & GESTORES                                                       */}
         {/* ========================================================================= */}
-        {portalMode === 'admin' && isAdminLoggedIn && (
-          <>
-            {/* Tab 1: Dashboard Analytics */}
-            {activeTab === 'dashboard' && (
-              <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
-                  <div>
-                    <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                      Painel Executivo de Conformidade
-                    </h2>
-                    <p className="text-xs text-slate-500 font-medium">
-                      Auditoria de terceiros, controle de vencimentos e matriz de risco SST
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setIsManualEmployeeOpen(true)}
-                      style={{ backgroundColor: primaryColor }}
-                      className="px-4 py-2 rounded-xl text-white font-bold text-xs shadow-xs hover:opacity-90 transition-all cursor-pointer flex items-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Cadastrar Colaborador</span>
-                    </button>
-                  </div>
-                </div>
-
-                <DashboardStats
-                  stats={stats}
-                  totalContracts={contracts.length}
-                  totalAreas={areas.length}
-                  onFilterClick={(filter) => {
-                    setActiveFilter(filter);
-                    setActiveTab('employees');
-                  }}
-                  currentFilter={activeFilter}
-                  brand={brand}
-                />
-              </div>
-            )}
-
-            {/* Tab 2: Full Employees Module */}
-            {activeTab === 'employees' && (
-              <div className="space-y-4 animate-in fade-in duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                      Base de Colaboradores & Status Documental
-                    </h2>
-                    <p className="text-xs text-slate-500">
-                      Gerencie o quadro de terceiros, vincule às áreas e acompanhe prazos de renovação
-                    </p>
-                  </div>
-                </div>
-
-                <EmployeeTable
-                  employees={employees}
-                  contracts={contracts}
-                  areas={areas}
-                  onOpenDetail={(emp) => setDetailEmployee(emp)}
-                  onOpenDemand={(emp) => setDemandEmployee(emp)}
-                  onEditEmployee={(emp) => {
-                    setEditingEmployee(emp);
-                    setIsManualEmployeeOpen(true);
-                  }}
-                  onDeleteEmployee={handleDeleteEmployee}
-                  onQuickToggleDoc={handleQuickToggleDoc}
-                  onOpenNewEmployee={() => {
-                    setEditingEmployee(null);
-                    setIsManualEmployeeOpen(true);
-                  }}
-                  onOpenExcelImport={() => setIsExcelImportOpen(true)}
-                  activeFilter={activeFilter}
-                  setActiveFilter={setActiveFilter}
-                  selectedContractId={selectedContractId}
-                  setSelectedContractId={setSelectedContractId}
-                  selectedAreaId={selectedAreaId}
-                  setSelectedAreaId={setSelectedAreaId}
-                  searchTerm={searchTerm}
-                  setSearchTerm={setSearchTerm}
-                  brand={brand}
-                />
-              </div>
-            )}
-
-            {/* Tab: Documentação Trabalhista Mensal */}
-            {activeTab === 'trabalhista' && (
-              <TrabalhistaModule
-                envios={trabalhistaEnvios}
-                onSaveEnvios={updateTrabalhistaEnvios}
-                brand={brand}
-                isAdmin={true}
-              />
-            )}
-
-            {/* Tab 3: Areas & Managers Module */}
-            {activeTab === 'areas' && (
-              <AreasModule
-                areas={areas}
-                employees={employees}
-                onSaveArea={handleSaveArea}
-                onDeleteArea={handleDeleteArea}
-                onSelectAreaForDispatch={(area) => {
-                  setActiveTab('reports');
-                }}
-                brand={brand}
-              />
-            )}
-
-            {/* Tab 4: Contracts Module */}
-            {activeTab === 'contracts' && (
-              <ContractsModule
-                contracts={contracts}
-                employees={employees}
-                onSaveContract={handleSaveContract}
-                onDeleteContract={handleDeleteContract}
-                onDemandContract={(contract) => {
-                  setDemandContract(contract);
-                }}
-                onFilterByContract={(contractId) => {
-                  setSelectedContractId(contractId);
-                  setActiveTab('employees');
-                }}
-              />
-            )}
-
-            {/* Tab 5: Demands & Notification History */}
-            {activeTab === 'demands' && (
-              <div className="space-y-4 animate-in fade-in duration-200">
-                <DemandHistory
-                  logs={demandLogs}
-                  onUpdateLogStatus={handleUpdateLogStatus}
-                  onDeleteLog={handleDeleteLog}
-                  onOpenNewDemand={() => {
-                    if (employees.length > 0) {
-                      setDemandEmployee(employees[0]);
-                    }
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Tab 6: Audit & Mass Dispatches */}
-            {activeTab === 'reports' && (
-              <AuditDispatchesTab
-                employees={employees}
-                contracts={contracts}
-                areas={areas}
-                stats={stats}
-                onExportExcel={() => exportEmployeesToExcel(employees, contracts, areas)}
-                onExportCsv={() => exportEmployeesToCsv(employees)}
-                onOpenAuditReportModal={() => setIsAuditReportOpen(true)}
-                onMassDispatch={handleMassDispatch}
-                brand={brand}
-              />
-            )}
-          </>
+        {portalMode === 'areas' && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <AreasModule
+              areas={areas}
+              employees={employees}
+              onSaveArea={handleSaveArea}
+              onDeleteArea={handleDeleteArea}
+              onSelectAreaForDispatch={(area) => {
+                setPortalMode('demands');
+              }}
+              brand={brand}
+            />
+          </div>
         )}
 
         {/* ========================================================================= */}
-        {/* MODE 3: GUIA DE CONFIGURAÇÃO (Acesso Direto, Gestão & Governança) */}
+        {/* 3. AUDITORIA & DISPAROS                                                   */}
+        {/* ========================================================================= */}
+        {portalMode === 'demands' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <AuditDispatchesTab
+              employees={employees}
+              contracts={contracts}
+              areas={areas}
+              stats={stats}
+              onExportExcel={() => exportEmployeesToExcel(employees, contracts, areas)}
+              onExportCsv={() => exportEmployeesToCsv(employees)}
+              onOpenAuditReportModal={() => setIsAuditReportOpen(true)}
+              onMassDispatch={handleMassDispatch}
+              brand={brand}
+            />
+
+            <DemandHistory
+              logs={demandLogs}
+              onUpdateLogStatus={handleUpdateLogStatus}
+              onDeleteLog={handleDeleteLog}
+              onOpenNewDemand={() => {
+                if (employees.length > 0) {
+                  setDemandEmployee(employees[0]);
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* 4. GUIA DE CONFIGURAÇÃO (Protegido com Senha)                             */}
         {/* ========================================================================= */}
         {portalMode === 'settings' && (
           <SettingsModule
@@ -723,12 +623,23 @@ export default function App() {
             areas={areas}
             syncStatus={syncStatus}
             onRefreshSheets={() => refreshFromGoogleSheets(false)}
-            onGoToDemandado={() => setPortalMode('demandados')}
+            onGoToDemandado={() => setPortalMode('pendencias')}
           />
         )}
       </main>
 
       {/* MODALS */}
+      <OfficialSystemGuideModal
+        isOpen={isOfficialGuideOpen}
+        onClose={() => {
+          setIsOfficialGuideOpen(false);
+          setOfficialGuideEmployee(null);
+        }}
+        employee={officialGuideEmployee}
+        employees={employees}
+        brand={brand}
+      />
+
       <AdminLoginModal
         isOpen={isAdminLoginOpen}
         onClose={() => setIsAdminLoginOpen(false)}

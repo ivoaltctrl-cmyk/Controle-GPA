@@ -20,11 +20,14 @@ import {
   KeyRound,
   Shield,
   Settings,
+  ExternalLink,
+  HelpCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { WfsLogo } from './WfsLogo.tsx';
 import { BrandConfig } from '../types/index.ts';
 
-export type MainPortalMode = 'demandados' | 'admin' | 'settings';
+export type MainPortalMode = 'pendencias' | 'areas' | 'demands' | 'settings' | 'demandados' | 'admin';
 
 export type AdminTabType =
   | 'dashboard'
@@ -43,8 +46,9 @@ interface NavbarProps {
   onOpenAdminLogin: () => void;
   onOpenChangePassword: () => void;
   onOpenGoogleSheetsSync?: () => void;
-  activeTab: AdminTabType;
-  setActiveTab: (tab: AdminTabType) => void;
+  onOpenOfficialGuide?: () => void;
+  activeTab?: AdminTabType;
+  setActiveTab?: (tab: AdminTabType) => void;
   onOpenOcrScanner: () => void;
   onOpenNewEmployee: () => void;
   onExportExcel: () => void;
@@ -77,7 +81,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdminLogin,
   onOpenChangePassword,
   onOpenGoogleSheetsSync,
-  activeTab,
+  onOpenOfficialGuide,
+  activeTab = 'dashboard',
   setActiveTab,
   onOpenOcrScanner,
   onOpenNewEmployee,
@@ -99,15 +104,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRefreshSheets,
 }) => {
   const primaryColor = brand?.primaryColor || '#E21B23';
-  const accentColor = brand?.accentColor || '#1E293B';
   const companyName = brand?.companyName || 'GPA';
+
+  // Normalize mode for backward compatibility
+  const currentMode =
+    portalMode === 'demandados' || portalMode === 'admin'
+      ? 'pendencias'
+      : portalMode;
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200/90 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Top Tier: Logo & Primary Portals */}
+        {/* Main Navbar Tier */}
         <div className="flex items-center justify-between h-16 sm:h-18">
-          {/* Logo & Brand */}
+          {/* Left: Logo & Brand */}
           <div className="flex items-center space-x-3.5 sm:space-x-4">
             <div className="flex items-center">
               <WfsLogo
@@ -115,7 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="h-9 sm:h-10 w-auto object-contain transition-transform hover:scale-105"
               />
             </div>
-            <div className="hidden sm:block border-l border-slate-200 pl-3.5">
+            <div className="hidden md:block border-l border-slate-200 pl-3.5">
               <div className="flex items-center gap-1.5">
                 <span
                   style={{
@@ -131,34 +141,35 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium">
-                Controle Integrado de SST, Trabalhista & Contratos
+                Consulta de Pendências & Conformidade
               </p>
             </div>
           </div>
 
-          {/* Center Mode Switcher (Portal Demandado vs Painel ADM vs Configuração) */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/80 shadow-inner">
+          {/* Center Navigation Tabs (Unificado) */}
+          <nav className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/80 shadow-inner overflow-x-auto max-w-[55vw] sm:max-w-none">
+            {/* 1. Painel de Pendências (Unificado) */}
             <button
-              onClick={() => setPortalMode('demandados')}
+              onClick={() => setPortalMode('pendencias')}
               style={
-                portalMode === 'demandados'
+                currentMode === 'pendencias'
                   ? { backgroundColor: '#ffffff', color: primaryColor }
                   : {}
               }
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                portalMode === 'demandados'
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                currentMode === 'pendencias'
                   ? 'shadow-xs font-black'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <FileCheck className="w-4 h-4" />
-              <span>Portal Demandado</span>
+              <ShieldCheck className="w-4 h-4" />
+              <span>Painel de Pendências</span>
               {totalPending > 0 && (
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                     blinkingAlerts ? 'animate-pulse' : ''
                   } ${
-                    portalMode === 'demandados'
+                    currentMode === 'pendencias'
                       ? 'bg-rose-100 text-rose-800'
                       : 'bg-rose-200 text-rose-900'
                   }`}
@@ -168,216 +179,126 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
+            {/* 2. Áreas & Gestores */}
+            <button
+              onClick={() => setPortalMode('areas')}
+              style={
+                currentMode === 'areas'
+                  ? { backgroundColor: '#ffffff', color: primaryColor }
+                  : {}
+              }
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                currentMode === 'areas'
+                  ? 'shadow-xs font-black'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Áreas & Gestores</span>
+            </button>
+
+            {/* 3. Auditoria & Disparos */}
+            <button
+              onClick={() => setPortalMode('demands')}
+              style={
+                currentMode === 'demands'
+                  ? { backgroundColor: '#ffffff', color: primaryColor }
+                  : {}
+              }
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                currentMode === 'demands'
+                  ? 'shadow-xs font-black'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Send className="w-4 h-4" />
+              <span>Auditoria & Disparos</span>
+            </button>
+
+            {/* 4. Configuração (Protegida por senha) */}
             <button
               onClick={() => {
                 if (isAdminLoggedIn) {
-                  setPortalMode('admin');
+                  setPortalMode('settings');
                 } else {
                   onOpenAdminLogin();
                 }
               }}
               style={
-                portalMode === 'admin'
-                  ? { backgroundColor: '#0f172a', color: '#ffffff' }
-                  : {}
-              }
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                portalMode === 'admin'
-                  ? 'shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              {isAdminLoggedIn ? (
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              ) : (
-                <Lock className="w-4 h-4 text-amber-500" />
-              )}
-              <span>Painel ADM</span>
-              {!isAdminLoggedIn && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 uppercase font-black tracking-wider hidden sm:inline">
-                  Login
-                </span>
-              )}
-            </button>
-
-            {/* Configuração (Sem exigência de senha - Visão Gestão & Parâmetros) */}
-            <button
-              onClick={() => setPortalMode('settings')}
-              style={
-                portalMode === 'settings'
+                currentMode === 'settings'
                   ? { backgroundColor: '#ffffff', color: '#0f172a' }
                   : {}
               }
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                portalMode === 'settings'
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                currentMode === 'settings'
                   ? 'shadow-xs text-slate-900 font-black'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <Settings className="w-4 h-4 text-amber-500" />
+              {isAdminLoggedIn ? (
+                <Settings className="w-4 h-4 text-slate-700" />
+              ) : (
+                <Lock className="w-4 h-4 text-amber-500" />
+              )}
               <span>Configuração</span>
+              {!isAdminLoggedIn && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 uppercase font-black tracking-wider hidden lg:inline">
+                  Senha
+                </span>
+              )}
             </button>
-          </div>
+          </nav>
 
-          {/* Right Header Controls */}
+          {/* Right Header Action Items */}
           <div className="flex items-center gap-2">
-            {portalMode === 'admin' && isAdminLoggedIn ? (
-              <>
-                {/* Status da Nuvem no ADM */}
-                {syncStatus?.lastSynced && (
-                  <button
-                    onClick={() => setActiveTab('settings')}
-                    title="Ver status de sincronização na Guia de Configuração"
-                    className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-[11px] font-bold cursor-pointer"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Sincronizado {syncStatus.lastSynced}</span>
-                  </button>
-                )}
+            {/* Guia Sistema Oficial Quick Action */}
+            {onOpenOfficialGuide && (
+              <button
+                onClick={onOpenOfficialGuide}
+                title="Como regularizar pendências no sistema oficial"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 transition-colors cursor-pointer"
+              >
+                <HelpCircle className="w-4 h-4 text-amber-600" />
+                <span className="hidden xl:inline">Saneamento no Sistema Oficial</span>
+                <span className="xl:hidden">Sistema Oficial</span>
+              </button>
+            )}
 
-                {/* Logout Button */}
-                <button
-                  onClick={onAdminLogout}
-                  title="Sair do Modo Administrador"
-                  className="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-rose-700 bg-slate-100 hover:bg-rose-50 border border-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-                >
-                  <LogOut className="w-3.5 h-3.5 text-rose-600" />
-                  <span className="hidden sm:inline">Sair do ADM</span>
-                </button>
-              </>
-            ) : (
-              /* Portal Demandado Header Action */
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={onOpenAuditReport}
-                  title="Visualizar Relatório de Auditoria"
-                  className="px-3 py-2 rounded-xl text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
-                >
-                  <Printer className="w-4 h-4 text-slate-600" />
-                  <span className="hidden sm:inline">Relatório de Auditoria</span>
-                </button>
-              </div>
+            {/* Status Nuvem Google Sheets */}
+            {syncStatus?.lastSynced && (
+              <button
+                onClick={onRefreshSheets}
+                title="Sincronização Google Sheets GPA_BD ativa. Clique para atualizar."
+                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-xl text-[11px] font-bold transition-colors cursor-pointer"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>{syncStatus.lastSynced}</span>
+                <RefreshCw className="w-3 h-3 text-emerald-600 hover:rotate-180 transition-transform" />
+              </button>
+            )}
+
+            {/* Relatório de Auditoria Button */}
+            <button
+              onClick={onOpenAuditReport}
+              title="Visualizar e Imprimir Relatório Executivo de Auditoria"
+              className="px-3 py-2 rounded-xl text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+            >
+              <Printer className="w-4 h-4 text-slate-600" />
+              <span className="hidden md:inline">Relatório</span>
+            </button>
+
+            {/* Admin Logout */}
+            {isAdminLoggedIn && (
+              <button
+                onClick={onAdminLogout}
+                title="Sair do Modo Administrador"
+                className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             )}
           </div>
         </div>
-
-        {/* Second Tier: Admin Sub-Navigation Tabs (Visible only in ADM mode) */}
-        {portalMode === 'admin' && isAdminLoggedIn && (
-          <div className="py-2 border-t border-slate-100 flex items-center justify-between overflow-x-auto gap-2">
-            <nav className="flex items-center space-x-1">
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                style={activeTab === 'dashboard' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'dashboard'
-                    ? 'shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <LayoutDashboard className="w-3.5 h-3.5" />
-                <span>Painel</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('employees')}
-                style={activeTab === 'employees' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'employees'
-                    ? 'shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>Colaboradores SST</span>
-                {totalEmployees > 0 && (
-                  <span className="text-[10px] opacity-80">({totalEmployees})</span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab('trabalhista')}
-                style={activeTab === 'trabalhista' ? { backgroundColor: '#1d4ed8', color: '#ffffff' } : {}}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'trabalhista'
-                    ? 'shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Trabalhista Mensal</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('areas')}
-                style={activeTab === 'areas' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'areas'
-                    ? 'shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Building className="w-3.5 h-3.5" />
-                <span>Áreas & Gestores</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('contracts')}
-                style={activeTab === 'contracts' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'contracts'
-                    ? 'shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5" />
-                <span>Contratos</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('demands')}
-                style={activeTab === 'demands' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'demands'
-                    ? 'shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Demandas</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('reports')}
-                style={activeTab === 'reports' ? { backgroundColor: primaryColor, color: '#ffffff' } : {}}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'reports'
-                    ? 'shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Auditoria & Disparos</span>
-              </button>
-            </nav>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onExportExcel}
-                title="Exportar Base Completa para Excel (.xlsx)"
-                className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 border border-slate-200 transition-colors cursor-pointer"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-              </button>
-              <button
-                onClick={onOpenAuditReport}
-                title="Imprimir / Salvar Relatório Executivo PDF"
-                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
-              >
-                <Printer className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </header>
   );

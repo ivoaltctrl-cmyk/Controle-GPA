@@ -33,6 +33,7 @@ interface TrabalhistaModuleProps {
   onSaveEnvios: (envios: TrabalhistaEnvio[]) => void;
   brand?: BrandConfig;
   isAdmin?: boolean;
+  blinkingAlerts?: boolean;
 }
 
 export const TrabalhistaModule: React.FC<TrabalhistaModuleProps> = ({
@@ -40,6 +41,7 @@ export const TrabalhistaModule: React.FC<TrabalhistaModuleProps> = ({
   onSaveEnvios,
   brand,
   isAdmin = false,
+  blinkingAlerts = true,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMesFilter, setSelectedMesFilter] = useState<string>('TODOS');
@@ -78,16 +80,23 @@ export const TrabalhistaModule: React.FC<TrabalhistaModuleProps> = ({
     const totalEnvios = envios.length;
     const totalValidados = envios.filter((e) => e.status === 'Validado').length;
     const totalReprovados = envios.filter((e) => e.status === 'Reprovado').length;
+    const totalEmAnalise = envios.filter((e) => e.status === 'Em Análise').length;
     const totalMesesValidados = mesesConsolidados.filter((m) => m.isValidado).length;
     const totalMesesPendentes = mesesConsolidados.filter((m) => !m.isValidado).length;
+    const taxaConformidade =
+      mesesConsolidados.length > 0
+        ? Math.round((totalMesesValidados / mesesConsolidados.length) * 100)
+        : 0;
 
     return {
       totalEnvios,
       totalValidados,
       totalReprovados,
+      totalEmAnalise,
       totalMeses: mesesConsolidados.length,
       totalMesesValidados,
       totalMesesPendentes,
+      taxaConformidade,
     };
   }, [envios, mesesConsolidados]);
 
@@ -324,6 +333,116 @@ export const TrabalhistaModule: React.FC<TrabalhistaModuleProps> = ({
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
             <span>Exportar Excel</span>
           </button>
+        </div>
+      </div>
+
+      {/* KPI Cards Indicadores da Seção de Pendências Trabalhistas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Card 1: Total Base */}
+        <div
+          onClick={() => {
+            setSelectedStatusFilter('TODOS');
+            setSelectedMesFilter('TODOS');
+            setCurrentPage(1);
+          }}
+          className={`p-3.5 rounded-2xl bg-white border cursor-pointer transition-all shadow-2xs ${
+            selectedStatusFilter === 'TODOS'
+              ? 'border-blue-600 ring-2 ring-blue-600/15'
+              : 'border-slate-200 hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between text-slate-500 mb-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Total Registrado</span>
+            <FileText className="w-4 h-4 text-slate-400" />
+          </div>
+          <div className="text-xl font-black text-slate-900">{stats.totalEnvios}</div>
+          <span className="text-[10px] text-slate-500 font-medium">
+            {stats.totalMeses} competências monitoradas
+          </span>
+        </div>
+
+        {/* Card 2: 100% Em Dia (Validadas) */}
+        <div
+          onClick={() => {
+            setSelectedStatusFilter('Validado');
+            setCurrentPage(1);
+          }}
+          className={`p-3.5 rounded-2xl bg-white border cursor-pointer transition-all shadow-2xs ${
+            selectedStatusFilter === 'Validado'
+              ? 'border-emerald-600 ring-2 ring-emerald-600/15 bg-emerald-50/20'
+              : 'border-slate-200 hover:border-emerald-200'
+          }`}
+        >
+          <div className="flex items-center justify-between text-emerald-700 mb-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider">100% Em Dia</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-xl font-black text-emerald-700">
+            {stats.totalMesesValidados} <span className="text-xs font-bold text-emerald-600">/ {stats.totalMeses} meses</span>
+          </div>
+          <span className="text-[10px] text-emerald-600 font-medium">
+            {stats.taxaConformidade}% de conformidade ({stats.totalValidados} envios)
+          </span>
+        </div>
+
+        {/* Card 3: Em Análise / A Vencer */}
+        <div
+          onClick={() => {
+            setSelectedStatusFilter('Em Análise');
+            setCurrentPage(1);
+          }}
+          className={`p-3.5 rounded-2xl bg-white border cursor-pointer transition-all shadow-2xs ${
+            selectedStatusFilter === 'Em Análise'
+              ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/20'
+              : 'border-slate-200 hover:border-amber-200'
+          }`}
+        >
+          <div className="flex items-center justify-between text-amber-800 mb-1">
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                {blinkingAlerts && stats.totalEmAnalise > 0 && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                )}
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+              </span>
+              <span className="text-[11px] font-bold uppercase tracking-wider">Em Análise</span>
+            </div>
+            <Clock className="w-4 h-4 text-amber-600" />
+          </div>
+          <div className="text-xl font-black text-amber-800">{stats.totalEmAnalise}</div>
+          <span className="text-[10px] text-amber-700 font-medium">Aguardando parecer de auditoria</span>
+        </div>
+
+        {/* Card 4: Pendentes / Reprovados com Alerta Piscante */}
+        <div
+          onClick={() => {
+            setSelectedStatusFilter('Reprovado');
+            setCurrentPage(1);
+          }}
+          className={`p-3.5 rounded-2xl bg-white border cursor-pointer transition-all shadow-2xs ${
+            selectedStatusFilter === 'Reprovado'
+              ? 'border-rose-600 ring-2 ring-rose-600/20 bg-rose-50/20'
+              : 'border-slate-200 hover:border-rose-200'
+          }`}
+        >
+          <div className="flex items-center justify-between text-rose-700 mb-1">
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                {blinkingAlerts && (stats.totalReprovados > 0 || stats.totalMesesPendentes > 0) && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                )}
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600 animate-pulse" />
+              </span>
+              <span className="text-[11px] font-bold uppercase tracking-wider">Pendências / Reprovados</span>
+            </div>
+            <AlertCircle className="w-4 h-4 text-rose-600" />
+          </div>
+          <div className="text-xl font-black text-rose-700">
+            {stats.totalReprovados} <span className="text-xs font-bold text-rose-600">reprovados</span>
+          </div>
+          <span className="text-[10px] text-rose-600 font-medium">
+            {stats.totalMesesPendentes} competências sem validação
+          </span>
         </div>
       </div>
 
