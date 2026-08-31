@@ -633,11 +633,11 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {/* Botão Principal de Sincronização em Tempo Real (Limpo e Direto) */}
+          {/* Botão Principal de Sincronização em Tempo Real */}
           <button
             onClick={handleQuickSync}
             disabled={isSyncingDirect}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs flex items-center gap-2 cursor-pointer transition-all disabled:opacity-60"
+            className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs flex items-center gap-2 cursor-pointer transition-all disabled:opacity-60"
             title="Sincronizar dados em tempo real com o Google Sheets GPA_BD"
           >
             {isSyncingDirect ? (
@@ -648,56 +648,56 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             <span>{isSyncingDirect ? 'Sincronizando...' : 'Sincronizar GPA_BD'}</span>
           </button>
 
-          {/* Botões Secundários com Visual Corporativo e Elegante */}
+          {/* Botões Secundários com Visual Corporativo e Discreto */}
           <a
             href="https://gpa.gru.com.br/Login"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all"
             title="Acessar o sistema oficial GPA para saneamento de pendências documentais"
           >
-            <ExternalLink className="w-3.5 h-3.5 text-slate-300" />
-            <span>Sanar no GPA Oficial</span>
+            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+            <span>Sistema GPA</span>
           </a>
 
           {onOpenOfficialGuide && (
             <button
               onClick={() => onOpenOfficialGuide()}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all"
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all"
               title="Ver passo a passo de como sanar no sistema oficial de cadastro"
             >
-              <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-              <span>Guia do Sistema</span>
+              <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+              <span>Guia</span>
             </button>
           )}
 
           <button
             onClick={handleExportExcel}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all"
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Exportar Excel</span>
+            <span>Excel</span>
           </button>
         </div>
       </div>
 
       {/* Seletor de Categorias de Pendências com Máximo Destaque e Contadores Nítidos */}
-      <div className="bg-slate-900 p-2 rounded-2xl border border-slate-800 flex flex-wrap items-center gap-2 shadow-sm">
+      <div className="bg-slate-900 p-2 rounded-2xl border border-slate-800 flex flex-wrap items-center gap-2.5 shadow-sm">
         <button
           onClick={() => {
             setSelectedCategory('CADIM');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[220px] px-4 py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
+          className={`flex-1 min-w-[240px] px-4 py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
             selectedCategory === 'CADIM' || selectedCategory === 'SST'
               ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400/40'
-              : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-750 hover:text-white border border-slate-700/60'
           }`}
         >
           <ShieldCheck className={`w-4 h-4 ${selectedCategory === 'CADIM' || selectedCategory === 'SST' ? 'text-white' : 'text-emerald-400'}`} />
-          <span className="tracking-tight">Pendências Documentações de CADIM</span>
+          <span className="tracking-tight uppercase">Pendências de CADIM</span>
           {cadimPendingCount > 0 && (
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-black ${
+            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-black ${
               selectedCategory === 'CADIM' || selectedCategory === 'SST'
                 ? 'bg-white text-emerald-800'
                 : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
@@ -712,16 +712,16 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setSelectedCategory('TRABALHISTA');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[220px] px-4 py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
+          className={`flex-1 min-w-[240px] px-4 py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
             selectedCategory === 'TRABALHISTA'
               ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400/40'
-              : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-750 hover:text-white border border-slate-700/60'
           }`}
         >
           <FileText className={`w-4 h-4 ${selectedCategory === 'TRABALHISTA' ? 'text-white' : 'text-blue-400'}`} />
-          <span className="tracking-tight">Pendências Documentações Trabalhistas</span>
+          <span className="tracking-tight uppercase">Pendências Trabalhistas</span>
           {trabalhistaPendingCount > 0 && (
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-black ${
+            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-black ${
               selectedCategory === 'TRABALHISTA'
                 ? 'bg-white text-blue-800'
                 : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
@@ -736,16 +736,16 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setSelectedCategory('DEMAIS');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[220px] px-4 py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
+          className={`flex-1 min-w-[240px] px-4 py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
             selectedCategory === 'DEMAIS'
               ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-400/40'
-              : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-750 hover:text-white border border-slate-700/60'
           }`}
         >
           <Layers className={`w-4 h-4 ${selectedCategory === 'DEMAIS' ? 'text-white' : 'text-purple-400'}`} />
-          <span className="tracking-tight">Pendências Demais Documentações</span>
+          <span className="tracking-tight uppercase">Demais Pendências</span>
           {demaisPendingCount > 0 && (
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-black ${
+            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-black ${
               selectedCategory === 'DEMAIS'
                 ? 'bg-white text-purple-800'
                 : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'

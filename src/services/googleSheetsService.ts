@@ -23,6 +23,7 @@ export const SHEET_TABS = {
   SST: 'Pendências SST',
   TRABALHISTAS: 'Pendências trabalhistas',
   CONTRATUAIS: 'Pendências Contratuais',
+  AREAS: 'Áreas & Gestores',
 };
 
 /**
@@ -552,6 +553,41 @@ export function convertContractRowsToContracts(rows: string[][]): Contract[] {
     });
 }
 
+export function convertAreaRowsToAreas(rows: string[][]): AreaResponsavel[] {
+  if (!rows || rows.length === 0) return [];
+  const headerIdx = rows.findIndex((r) =>
+    r.some((cell) => {
+      const c = (cell || '').toLowerCase();
+      return c.includes('área') || c.includes('area') || c.includes('responsável') || c.includes('gestor');
+    })
+  );
+
+  const dataRows = headerIdx >= 0 ? rows.slice(headerIdx + 1) : rows;
+
+  return dataRows
+    .filter((row) => row && row[0] && String(row[0]).trim().length > 0)
+    .map((row, idx) => {
+      const nome = String(row[0] || '').trim();
+      const responsavelNome = String(row[1] || '').trim() || 'Gestor Responsável';
+      const responsavelCargo = String(row[2] || 'Responsável de Área').trim();
+      const responsavelEmail = String(row[3] || '').trim();
+      const responsavelTelefone = String(row[4] || '').trim();
+      const unidadeOuLoja = String(row[5] || '').trim();
+      const observacoes = String(row[6] || '').trim();
+
+      return {
+        id: `area-${idx + 1}-${nome.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 20)}`,
+        nome,
+        responsavelNome,
+        responsavelCargo,
+        responsavelEmail,
+        responsavelTelefone,
+        unidadeOuLoja,
+        observacoes,
+      };
+    });
+}
+
 // Execute Google Sheets API calls
 async function callSheetsApi(
   endpoint: string,
@@ -596,7 +632,7 @@ export async function setupSpreadsheetTabs(spreadsheetId = getStoredSpreadsheetI
     const meta = await callSheetsApi(`${spreadsheetId}?fields=sheets.properties`, 'GET', undefined, token);
     const existingTitles: string[] = (meta.sheets || []).map((s: any) => s.properties?.title);
 
-    const neededTabs = [SHEET_TABS.SST, SHEET_TABS.TRABALHISTAS, SHEET_TABS.CONTRATUAIS];
+    const neededTabs = [SHEET_TABS.SST, SHEET_TABS.TRABALHISTAS, SHEET_TABS.CONTRATUAIS, SHEET_TABS.AREAS];
     const requestsToAdd: any[] = [];
 
     neededTabs.forEach((tabTitle) => {
@@ -668,6 +704,17 @@ export async function initializeHeaders(spreadsheetId: string, token?: string) {
         'Documentos',
       ],
     ],
+    [SHEET_TABS.AREAS]: [
+      [
+        'Área / Departamento',
+        'Responsável / Gestor',
+        'Cargo',
+        'E-mail',
+        'Telefone / WhatsApp',
+        'Unidade / Loja',
+        'Observações',
+      ],
+    ],
   };
 
   const valueData = [
@@ -682,6 +729,10 @@ export async function initializeHeaders(spreadsheetId: string, token?: string) {
     {
       range: `'${SHEET_TABS.CONTRATUAIS}'!A1:G1`,
       values: headers[SHEET_TABS.CONTRATUAIS],
+    },
+    {
+      range: `'${SHEET_TABS.AREAS}'!A1:G1`,
+      values: headers[SHEET_TABS.AREAS],
     },
   ];
 
@@ -704,6 +755,7 @@ export async function pushAllToSheets(
     employees: Employee[];
     trabalhistas: TrabalhistaEnvio[];
     contracts: Contract[];
+    areas?: AreaResponsavel[];
   },
   spreadsheetId = getStoredSpreadsheetId(),
   token?: string,
@@ -720,6 +772,7 @@ export async function pushAllToSheets(
           employees: data.employees,
           trabalhistas: data.trabalhistas,
           contracts: data.contracts,
+          areas: data.areas || [],
         }),
       });
       const resJson = await response.json();
@@ -778,6 +831,16 @@ export async function pushAllToSheets(
       c.statusDocumentos || 'Validado',
     ]);
 
+    const areaRows: any[][] = (data.areas || []).map((a) => [
+      a.nome || '',
+      a.responsavelNome || '',
+      a.responsavelCargo || 'Responsável de Área',
+      a.responsavelEmail || '',
+      a.responsavelTelefone || '',
+      a.unidadeOuLoja || '',
+      a.observacoes || '',
+    ]);
+
     await callSheetsApi(
       `${spreadsheetId}/values:batchClear`,
       'POST',
@@ -786,6 +849,7 @@ export async function pushAllToSheets(
           `'${SHEET_TABS.SST}'!A2:P2500`,
           `'${SHEET_TABS.TRABALHISTAS}'!A2:D2000`,
           `'${SHEET_TABS.CONTRATUAIS}'!A2:G1000`,
+          `'${SHEET_TABS.AREAS}'!A2:G1000`,
         ],
       },
       token
@@ -808,6 +872,12 @@ export async function pushAllToSheets(
       updateData.push({
         range: `'${SHEET_TABS.CONTRATUAIS}'!A2:G${contractRows.length + 1}`,
         values: contractRows,
+      });
+    }
+    if (areaRows.length > 0) {
+      updateData.push({
+        range: `'${SHEET_TABS.AREAS}'!A2:G${areaRows.length + 1}`,
+        values: areaRows,
       });
     }
 
@@ -848,6 +918,7 @@ export async function pullAllFromSheets(
   employees: Employee[];
   trabalhistas: TrabalhistaEnvio[];
   contracts: Contract[];
+  areas: AreaResponsavel[];
   source: 'direct_link' | 'apps_script' | 'google_api';
 }> {
   const cleanId = extractSpreadsheetId(spreadsheetId);
@@ -922,15 +993,41 @@ export async function pullAllFromSheets(
       }
     }
 
-    if (sstFound || trabFound || contractFound) {
+    let areaRows: string[][] = [];
+    let areaFound = false;
+    for (const tabName of [
+      SHEET_TABS.AREAS,
+      'Áreas & Gestores',
+      'Areas & Gestores',
+      'Áreas e Gestores',
+      'Areas e Gestores',
+      'Áreas',
+      'Areas',
+      'Gestores',
+    ]) {
+      try {
+        const res = await fetchTabCsvDirectly(cleanId, tabName);
+        if (res && res.length >= 1) {
+          areaRows = res;
+          areaFound = true;
+          break;
+        }
+      } catch {
+        // try next
+      }
+    }
+
+    if (sstFound || trabFound || contractFound || areaFound) {
       const employees = convertSstRowsToEmployees(sstRows);
       const trabalhistas = convertTrabRowsToTrabalhistas(trabRows);
       const contracts = convertContractRowsToContracts(contractRows);
+      const areas = convertAreaRowsToAreas(areaRows);
 
       return {
         employees,
         trabalhistas,
         contracts,
+        areas,
         source: 'direct_link',
       };
     }
@@ -948,6 +1045,7 @@ export async function pullAllFromSheets(
           employees: data.employees || [],
           trabalhistas: data.trabalhistas || [],
           contracts: data.contracts || [],
+          areas: data.areas || [],
           source: 'apps_script',
         };
       }
@@ -962,6 +1060,7 @@ export async function pullAllFromSheets(
       `'${SHEET_TABS.SST}'!A2:P2500`,
       `'${SHEET_TABS.TRABALHISTAS}'!A2:D2000`,
       `'${SHEET_TABS.CONTRATUAIS}'!A2:G1000`,
+      `'${SHEET_TABS.AREAS}'!A2:G1000`,
     ];
 
     const res = await callSheetsApi(
@@ -975,15 +1074,18 @@ export async function pullAllFromSheets(
     const sstValues: any[][] = valueRanges[0]?.values || [];
     const trabValues: any[][] = valueRanges[1]?.values || [];
     const contractValues: any[][] = valueRanges[2]?.values || [];
+    const areaValues: any[][] = valueRanges[3]?.values || [];
 
     const employees = convertSstRowsToEmployees(sstValues);
     const trabalhistas = convertTrabRowsToTrabalhistas(trabValues);
     const contracts = convertContractRowsToContracts(contractValues);
+    const areas = convertAreaRowsToAreas(areaValues);
 
     return {
       employees,
       trabalhistas,
       contracts,
+      areas,
       source: 'google_api',
     };
   } catch (apiErr: any) {
@@ -1002,26 +1104,31 @@ export function smartMergeData(
     employees: Employee[];
     trabalhistas: TrabalhistaEnvio[];
     contracts: Contract[];
+    areas?: AreaResponsavel[];
   },
   imported: {
     employees: Employee[];
     trabalhistas: TrabalhistaEnvio[];
     contracts: Contract[];
+    areas?: AreaResponsavel[];
   }
 ): {
   employees: Employee[];
   trabalhistas: TrabalhistaEnvio[];
   contracts: Contract[];
+  areas: AreaResponsavel[];
   stats: {
     totalEmployees: number;
     ativosEmployees: number;
     desligadosEmployees: number;
     totalContracts: number;
     totalTrabalhistas: number;
+    totalAreas: number;
     newEmployees: number;
     updatedEmployees: number;
     newContracts: number;
     newTrabalhistas: number;
+    newAreas: number;
   };
 } {
   const stats = {
@@ -1030,10 +1137,12 @@ export function smartMergeData(
     desligadosEmployees: 0,
     totalContracts: 0,
     totalTrabalhistas: 0,
+    totalAreas: 0,
     newEmployees: 0,
     updatedEmployees: 0,
     newContracts: 0,
     newTrabalhistas: 0,
+    newAreas: 0,
   };
 
   // 1. Merge Employees (Chave: CPF ou Matrícula ou Nome)
@@ -1094,20 +1203,42 @@ export function smartMergeData(
     }
   });
 
+  // 4. Merge Areas (Chave: Nome da Área)
+  const areaMap = new Map<string, AreaResponsavel>();
+  (current.areas || []).forEach((a) => {
+    areaMap.set(a.nome.trim().toLowerCase(), a);
+  });
+
+  if (imported.areas && imported.areas.length > 0) {
+    imported.areas.forEach((impA) => {
+      const key = impA.nome.trim().toLowerCase();
+      if (!areaMap.has(key)) {
+        areaMap.set(key, impA);
+        stats.newAreas++;
+      } else {
+        const existing = areaMap.get(key)!;
+        areaMap.set(key, { ...existing, ...impA, id: existing.id });
+      }
+    });
+  }
+
   const mergedEmployees = Array.from(empMap.values());
   const mergedContracts = Array.from(contractMap.values());
   const mergedTrabalhistas = Array.from(trabMap.values());
+  const mergedAreas = Array.from(areaMap.values());
 
   stats.totalEmployees = mergedEmployees.length;
   stats.ativosEmployees = mergedEmployees.filter((e) => e.statusGeral !== 'BLOQUEADO' && !e.resumoGeral?.includes('Desligado') && !e.resumoGeral?.includes('Cancelado')).length;
   stats.desligadosEmployees = stats.totalEmployees - stats.ativosEmployees;
   stats.totalContracts = mergedContracts.length;
   stats.totalTrabalhistas = mergedTrabalhistas.length;
+  stats.totalAreas = mergedAreas.length;
 
   return {
     employees: mergedEmployees,
     contracts: mergedContracts,
     trabalhistas: mergedTrabalhistas,
+    areas: mergedAreas,
     stats,
   };
 }

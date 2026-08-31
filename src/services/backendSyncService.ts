@@ -13,6 +13,11 @@ export interface ServerSyncData {
   trabalhistas?: TrabalhistaEnvio[];
   demandLogs?: DemandLog[];
   brandConfig?: BrandConfig;
+  resumoConfig?: {
+    validos: number;
+    pendentes: number;
+    lastUpdated?: string;
+  };
 }
 
 export async function fetchAllDataFromServer(): Promise<{
@@ -22,6 +27,11 @@ export async function fetchAllDataFromServer(): Promise<{
   trabalhistas?: TrabalhistaEnvio[];
   demandLogs?: DemandLog[];
   brandConfig?: BrandConfig;
+  resumoConfig?: {
+    validos: number;
+    pendentes: number;
+    lastUpdated?: string;
+  };
   lastUpdated?: string;
 } | null> {
   try {

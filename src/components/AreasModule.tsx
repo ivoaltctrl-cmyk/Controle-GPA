@@ -42,6 +42,12 @@ interface AreasModuleProps {
   contracts?: Contract[];
   trabalhistaEnvios?: TrabalhistaEnvio[];
   stats?: SystemStats;
+  resumoConfig?: {
+    validos: number;
+    pendentes: number;
+    lastUpdated?: string;
+  } | null;
+  onSaveResumoConfig?: (config: { validos: number; pendentes: number }) => void;
   onSaveArea: (area: AreaResponsavel) => void;
   onDeleteArea: (id: string) => void;
   onSelectAreaForDispatch: (area: AreaResponsavel) => void;
@@ -56,6 +62,8 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
   contracts = [],
   trabalhistaEnvios = [],
   stats,
+  resumoConfig,
+  onSaveResumoConfig,
   onSaveArea,
   onDeleteArea,
   onSelectAreaForDispatch,
@@ -209,6 +217,9 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
 
   // Estados dos dois campos solicitados pelo usuário (Válidos e Pendentes)
   const [validos, setValidos] = useState<number>(() => {
+    if (resumoConfig && typeof resumoConfig.validos === 'number') {
+      return resumoConfig.validos;
+    }
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_CUSTOM_RESUMO);
       if (saved) {
@@ -217,10 +228,13 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
         if (typeof parsed.validados === 'number') return parsed.validados;
       }
     } catch (e) {}
-    return sistemaTotalValidados > 0 ? sistemaTotalValidados : 30;
+    return sistemaTotalValidados > 0 ? sistemaTotalValidados : 4404;
   });
 
   const [pendentes, setPendentes] = useState<number>(() => {
+    if (resumoConfig && typeof resumoConfig.pendentes === 'number') {
+      return resumoConfig.pendentes;
+    }
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_CUSTOM_RESUMO);
       if (saved) {
@@ -228,10 +242,24 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
         if (typeof parsed.pendentes === 'number') return parsed.pendentes;
       }
     } catch (e) {}
-    return sistemaTotalPendentes > 0 ? sistemaTotalPendentes : 70;
+    return sistemaTotalPendentes > 0 ? sistemaTotalPendentes : 2;
   });
 
-  // Salva alterações nos 2 campos no localStorage e atualiza imediatamente
+  // Mantém em sincronia quando o backend ou outro PC atualiza o resumoConfig
+  useEffect(() => {
+    if (resumoConfig && typeof resumoConfig.validos === 'number' && typeof resumoConfig.pendentes === 'number') {
+      setValidos(resumoConfig.validos);
+      setPendentes(resumoConfig.pendentes);
+      try {
+        localStorage.setItem(
+          LOCAL_STORAGE_CUSTOM_RESUMO,
+          JSON.stringify({ validos: resumoConfig.validos, pendentes: resumoConfig.pendentes })
+        );
+      } catch (e) {}
+    }
+  }, [resumoConfig?.validos, resumoConfig?.pendentes, resumoConfig?.lastUpdated]);
+
+  // Salva alterações nos 2 campos no localStorage, no backend central e atualiza imediatamente
   const handleUpdateValidos = (val: number) => {
     const safeVal = Math.max(0, isNaN(val) ? 0 : val);
     setValidos(safeVal);
@@ -241,6 +269,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
         JSON.stringify({ validos: safeVal, pendentes })
       );
     } catch (e) {}
+    onSaveResumoConfig?.({ validos: safeVal, pendentes });
   };
 
   const handleUpdatePendentes = (val: number) => {
@@ -252,6 +281,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
         JSON.stringify({ validos, pendentes: safeVal })
       );
     } catch (e) {}
+    onSaveResumoConfig?.({ validos, pendentes: safeVal });
   };
 
   const handleAutoFillFromSystem = () => {
@@ -265,6 +295,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
         JSON.stringify({ validos: v, pendentes: p })
       );
     } catch (e) {}
+    onSaveResumoConfig?.({ validos: v, pendentes: p });
   };
 
   // Cálculo percentual dinâmico do Resultado Geral (Válidos / (Válidos + Pendentes))

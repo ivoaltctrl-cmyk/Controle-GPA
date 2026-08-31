@@ -86,8 +86,13 @@ export default function App() {
   const [demandLogs, setDemandLogs] = useState<DemandLog[]>([]);
   const [trabalhistaEnvios, setTrabalhistaEnvios] = useState<TrabalhistaEnvio[]>([]);
   const [brand, setBrand] = useState<BrandConfig>(getStoredBrandConfig());
+  const [resumoConfig, setResumoConfig] = useState<{
+    validos: number;
+    pendentes: number;
+    lastUpdated?: string;
+  } | null>(null);
 
-  // Master Portal Mode: 'areas' (Resumo Geral - Primeira Tela Padrão), 'pendencias', 'demands', 'settings'
+  // Master Portal Mode: 'areas' (Resumo Geral - Primeira Tela Padrão), 'pendencias', 'demands'
   const [portalMode, setPortalMode] = useState<MainPortalMode>('areas');
   const [targetAdminMode, setTargetAdminMode] = useState<MainPortalMode>('demands');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
@@ -143,27 +148,33 @@ export default function App() {
       const webhookUrl = getStoredWebhookUrl();
       const imported = await pullAllFromSheets(spreadsheetId, undefined, webhookUrl);
 
-      if (imported && (imported.employees.length > 0 || imported.contracts.length > 0 || imported.trabalhistas.length > 0)) {
+      if (imported && (imported.employees.length > 0 || imported.contracts.length > 0 || imported.trabalhistas.length > 0 || imported.areas.length > 0)) {
         const currentEmployees = getStoredEmployees();
         const currentContracts = getStoredContracts();
         const currentTrabalhistas = getStoredTrabalhistaEnvios();
+        const currentAreas = getStoredAreas();
 
         const merged = smartMergeData(
           {
             employees: currentEmployees,
             contracts: currentContracts,
             trabalhistas: currentTrabalhistas,
+            areas: currentAreas,
           },
           {
             employees: imported.employees,
             contracts: imported.contracts,
             trabalhistas: imported.trabalhistas,
+            areas: imported.areas,
           }
         );
 
         updateEmployees(merged.employees);
         updateContracts(merged.contracts);
         updateTrabalhistaEnvios(merged.trabalhistas);
+        if (merged.areas && merged.areas.length > 0) {
+          updateAreas(merged.areas);
+        }
       }
 
       const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -193,6 +204,9 @@ export default function App() {
       updateEmployees(imported.employees);
       updateContracts(imported.contracts);
       updateTrabalhistaEnvios(imported.trabalhistas);
+      if (imported.areas && imported.areas.length > 0) {
+        updateAreas(imported.areas);
+      }
 
       const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       setSyncStatus({
@@ -251,6 +265,9 @@ export default function App() {
           loadedBrand = serverData.brandConfig;
           saveStoredBrandConfig(loadedBrand);
         }
+        if (serverData.resumoConfig) {
+          setResumoConfig(serverData.resumoConfig);
+        }
       }
 
       setEmployees(loadedEmployees);
@@ -266,6 +283,23 @@ export default function App() {
     }
 
     initData();
+
+    // Sincronização periódica entre múltiplos computadores (polling suave a cada 20 segundos)
+    const syncInterval = setInterval(async () => {
+      const liveData = await fetchAllDataFromServer();
+      if (liveData) {
+        if (liveData.resumoConfig) {
+          setResumoConfig((prev) => {
+            if (!prev || prev.lastUpdated !== liveData.resumoConfig?.lastUpdated) {
+              return liveData.resumoConfig || prev;
+            }
+            return prev;
+          });
+        }
+      }
+    }, 20000);
+
+    return () => clearInterval(syncInterval);
   }, []);
 
   // Sync helpers with automatic backend server reflection
@@ -297,6 +331,12 @@ export default function App() {
     setDemandLogs(newLogs);
     saveStoredDemandLogs(newLogs);
     syncCollectionToBackend('demandLogs', newLogs);
+  };
+
+  const updateResumoConfig = (newConfig: { validos: number; pendentes: number }) => {
+    const configWithTimestamp = { ...newConfig, lastUpdated: new Date().toISOString() };
+    setResumoConfig(configWithTimestamp);
+    syncCollectionToBackend('resumoConfig', configWithTimestamp);
   };
 
   const updateBrand = (newBrand: BrandConfig) => {
@@ -607,6 +647,8 @@ export default function App() {
               contracts={contracts}
               trabalhistaEnvios={trabalhistaEnvios}
               stats={stats}
+              resumoConfig={resumoConfig}
+              onSaveResumoConfig={updateResumoConfig}
               onSaveArea={handleSaveArea}
               onDeleteArea={handleDeleteArea}
               onSelectAreaForDispatch={(area) => {

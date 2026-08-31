@@ -147,50 +147,52 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Center Navigation Tabs (Unificado) */}
-          <nav className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/80 shadow-inner overflow-x-auto shrink-0">
-            {/* 1. Resumo Executivo (Primeira tela padrão solicitada) */}
+          {/* Center Navigation Tabs (Unificado e Profissional) */}
+          <nav className="flex items-center bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 shadow-inner overflow-x-auto shrink-0 gap-1">
+            {/* 1. Resumo Geral (Primeira tela padrão) */}
             <button
+              id="nav-tab-resumo"
               onClick={() => setPortalMode('areas')}
               style={
                 currentMode === 'areas'
                   ? { backgroundColor: '#ffffff', color: primaryColor }
                   : {}
               }
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                 currentMode === 'areas'
-                  ? 'shadow-xs font-black'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  ? 'shadow-xs font-black ring-1 ring-slate-200'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
             >
               <Building2 className="w-4 h-4" />
               <span>Resumo Geral</span>
             </button>
 
-            {/* 2. Painel de Pendências (Unificado) */}
+            {/* 2. Painel de Pendências (Máximo Destaque) */}
             <button
+              id="nav-tab-pendencias"
               onClick={() => setPortalMode('pendencias')}
               style={
                 currentMode === 'pendencias'
-                  ? { backgroundColor: '#ffffff', color: primaryColor }
+                  ? { backgroundColor: primaryColor, color: '#ffffff' }
                   : {}
               }
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-2 px-4.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                 currentMode === 'pendencias'
-                  ? 'shadow-xs font-black'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  ? 'shadow-md ring-2 ring-rose-300'
+                  : 'text-slate-700 bg-white/70 hover:bg-white hover:text-slate-900 shadow-2xs border border-slate-200/80'
               }`}
             >
-              <ShieldCheck className="w-4 h-4" />
+              <ShieldCheck className={`w-4 h-4 ${currentMode === 'pendencias' ? 'text-white' : 'text-[#E21B23]'}`} />
               <span>Painel de Pendências</span>
               {totalPending > 0 && (
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
                     blinkingAlerts ? 'animate-pulse' : ''
                   } ${
                     currentMode === 'pendencias'
-                      ? 'bg-rose-100 text-rose-800'
-                      : 'bg-rose-200 text-rose-900'
+                      ? 'bg-white text-[#E21B23]'
+                      : 'bg-rose-100 text-rose-800 border border-rose-200'
                   }`}
                 >
                   {totalPending}
@@ -200,6 +202,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* 3. Gestão GRU (Protegida por senha) */}
             <button
+              id="nav-tab-gestao"
               onClick={() => {
                 if (isAdminLoggedIn) {
                   setPortalMode('demands');
@@ -212,51 +215,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? { backgroundColor: '#ffffff', color: primaryColor }
                   : {}
               }
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 currentMode === 'demands'
-                  ? 'shadow-xs font-black'
+                  ? 'shadow-xs font-black ring-1 ring-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
               {isAdminLoggedIn ? (
-                <Send className="w-4 h-4" />
+                <Send className="w-4 h-4 text-slate-700" />
               ) : (
-                <Lock className="w-4 h-4 text-amber-500" />
+                <Lock className="w-3.5 h-3.5 text-amber-500" />
               )}
               <span>Gestão GRU</span>
-              {!isAdminLoggedIn && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 uppercase font-black tracking-wider hidden lg:inline">
-                  Senha
-                </span>
-              )}
-            </button>
-
-            {/* 4. Configuração (Protegida por senha) */}
-            <button
-              onClick={() => {
-                if (isAdminLoggedIn) {
-                  setPortalMode('settings');
-                } else {
-                  onOpenAdminLogin('settings');
-                }
-              }}
-              style={
-                currentMode === 'settings'
-                  ? { backgroundColor: '#ffffff', color: '#0f172a' }
-                  : {}
-              }
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
-                currentMode === 'settings'
-                  ? 'shadow-xs text-slate-900 font-black'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              {isAdminLoggedIn ? (
-                <Settings className="w-4 h-4 text-slate-700" />
-              ) : (
-                <Lock className="w-4 h-4 text-amber-500" />
-              )}
-              <span>Configuração</span>
               {!isAdminLoggedIn && (
                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 uppercase font-black tracking-wider hidden lg:inline">
                   Senha
