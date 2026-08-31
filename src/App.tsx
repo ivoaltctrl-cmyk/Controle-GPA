@@ -135,7 +135,7 @@ export default function App() {
     message?: string;
   }>({ status: 'idle' });
 
-  // Function to pull and smart-merge from GPA_BD Sheets
+  // Function to pull and smart-merge from GPA_BD Sheets (background)
   const refreshFromGoogleSheets = async (silent = false) => {
     try {
       setSyncStatus((prev) => ({ ...prev, status: 'syncing' }));
@@ -179,6 +179,36 @@ export default function App() {
         lastSynced: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         message: 'Planilha GPA_BD local pronta',
       });
+    }
+  };
+
+  // Real-time direct mirror sync (substituição fiel on-time do que está na planilha)
+  const handleMirrorSyncDirect = async () => {
+    try {
+      setSyncStatus({ status: 'syncing', message: 'Sincronizando com Google Sheets...' });
+      const spreadsheetId = getStoredSpreadsheetId();
+      const webhookUrl = getStoredWebhookUrl();
+      const imported = await pullAllFromSheets(spreadsheetId, undefined, webhookUrl);
+
+      updateEmployees(imported.employees);
+      updateContracts(imported.contracts);
+      updateTrabalhistaEnvios(imported.trabalhistas);
+
+      const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      setSyncStatus({
+        status: 'synced',
+        lastSynced: nowTime,
+        message: `Planilha sincronizada: ${imported.employees.length} colaboradores`,
+      });
+      return imported;
+    } catch (err: any) {
+      console.error('Erro na sincronização direta:', err);
+      setSyncStatus({
+        status: 'error',
+        lastSynced: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        message: err.message || 'Erro ao sincronizar com Google Sheets',
+      });
+      throw err;
     }
   };
 
@@ -556,6 +586,7 @@ export default function App() {
             trabalhistaEnvios={trabalhistaEnvios}
             onSaveTrabalhistaEnvios={updateTrabalhistaEnvios}
             onOpenGoogleSheetsSync={() => setIsSheetsSyncOpen(true)}
+            onDirectSync={handleMirrorSyncDirect}
             onOpenOfficialGuide={(emp) => {
               setOfficialGuideEmployee(emp || null);
               setIsOfficialGuideOpen(true);

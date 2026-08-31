@@ -60,6 +60,7 @@ interface DemandadoPortalProps {
   trabalhistaEnvios?: TrabalhistaEnvio[];
   onSaveTrabalhistaEnvios?: (envios: TrabalhistaEnvio[]) => void;
   onOpenGoogleSheetsSync?: () => void;
+  onDirectSync?: () => Promise<any>;
   onOpenOfficialGuide?: (employee?: Employee) => void;
   onOpenEmployeeDetail?: (employee: Employee) => void;
   onOpenDemandCenter?: (employee: Employee) => void;
@@ -84,6 +85,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   trabalhistaEnvios = [],
   onSaveTrabalhistaEnvios,
   onOpenGoogleSheetsSync,
+  onDirectSync,
   onOpenOfficialGuide,
   onOpenEmployeeDetail,
   onOpenDemandCenter,
@@ -105,8 +107,28 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   const [sortField, setSortField] = useState<SortField>('nome');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-  // Toast feedback
+  // Toast feedback & sync state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSyncingDirect, setIsSyncingDirect] = useState(false);
+
+  const handleQuickSync = async () => {
+    if (onDirectSync) {
+      setIsSyncingDirect(true);
+      try {
+        const res = await onDirectSync();
+        const count = res?.employees?.length ?? 0;
+        setToastMessage(`Sincronização on-time concluída! ${count} registros refletidos no painel.`);
+        setTimeout(() => setToastMessage(null), 4000);
+      } catch (e: any) {
+        setToastMessage(`Erro ao sincronizar: ${e.message || 'Falha de conexão com a planilha'}`);
+        setTimeout(() => setToastMessage(null), 5000);
+      } finally {
+        setIsSyncingDirect(false);
+      }
+    } else if (onOpenGoogleSheetsSync) {
+      onOpenGoogleSheetsSync();
+    }
+  };
 
   const primaryColor = brand?.primaryColor || '#E21B23'; // WFS Red
   const companyName = brand?.companyName || 'WFS';
@@ -608,16 +630,30 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             </button>
           )}
 
-          {onOpenGoogleSheetsSync && (
+          <div className="flex items-center gap-1">
             <button
-              onClick={onOpenGoogleSheetsSync}
-              className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs flex items-center gap-2 cursor-pointer transition-all hover:scale-102"
-              title="Sincronizar dados bidirecionalmente com o Google Sheets GPA_BD"
+              onClick={handleQuickSync}
+              disabled={isSyncingDirect}
+              className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs flex items-center gap-2 cursor-pointer transition-all hover:scale-102 disabled:opacity-60"
+              title="Sincronizar dados em tempo real com o Google Sheets GPA_BD"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
-              <span>Sincronizar GPA_BD</span>
+              {isSyncingDirect ? (
+                <RefreshCw className="w-4 h-4 text-emerald-100 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 text-emerald-100" />
+              )}
+              <span>{isSyncingDirect ? 'Sincronizando...' : 'Sincronizar GPA_BD'}</span>
             </button>
-          )}
+            {onOpenGoogleSheetsSync && (
+              <button
+                onClick={onOpenGoogleSheetsSync}
+                className="p-2 rounded-xl text-xs font-black bg-emerald-700 text-white hover:bg-emerald-800 shadow-xs flex items-center justify-center cursor-pointer transition-all"
+                title="Configurações e opções avançadas de sincronização Google Sheets"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
+              </button>
+            )}
+          </div>
 
           <button
             onClick={handleExportExcel}

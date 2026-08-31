@@ -25,6 +25,19 @@ export const SHEET_TABS = {
   CONTRATUAIS: 'Pendências Contratuais',
 };
 
+/**
+ * Extrai o ID da planilha mesmo se o usuário colar o link completo do Google Sheets
+ */
+export function extractSpreadsheetId(input?: string): string {
+  if (!input) return DEFAULT_SPREADSHEET_ID;
+  const trimmed = input.trim();
+  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  return trimmed || DEFAULT_SPREADSHEET_ID;
+}
+
 // Initialize Firebase App safely
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
@@ -45,7 +58,8 @@ onAuthStateChanged(auth, (user) => {
 
 export function getStoredSpreadsheetId(): string {
   try {
-    return localStorage.getItem(SPREADSHEET_ID_KEY) || DEFAULT_SPREADSHEET_ID;
+    const raw = localStorage.getItem(SPREADSHEET_ID_KEY) || DEFAULT_SPREADSHEET_ID;
+    return extractSpreadsheetId(raw);
   } catch {
     return DEFAULT_SPREADSHEET_ID;
   }
@@ -53,7 +67,8 @@ export function getStoredSpreadsheetId(): string {
 
 export function saveStoredSpreadsheetId(id: string) {
   try {
-    localStorage.setItem(SPREADSHEET_ID_KEY, id.trim());
+    const clean = extractSpreadsheetId(id);
+    localStorage.setItem(SPREADSHEET_ID_KEY, clean);
   } catch (e) {
     console.error('Erro ao salvar Spreadsheet ID:', e);
   }
@@ -198,31 +213,54 @@ export async function fetchTabCsvDirectly(
   spreadsheetId: string,
   tabName: string
 ): Promise<string[][]> {
+  const cleanId = extractSpreadsheetId(spreadsheetId);
   const encodedTab = encodeURIComponent(tabName);
-  const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodedTab}`;
+  const timestamp = Date.now();
+  const randomBust = Math.floor(Math.random() * 1000000);
+  const gvizUrl = `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:csv&sheet=${encodedTab}&t=${timestamp}&_=${randomBust}`;
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(gvizUrl, {
       method: 'GET',
       headers: {
         Accept: 'text/csv,text/plain,*/*',
+        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
+        Pragma: 'no-cache',
       },
+      cache: 'no-store',
     });
 
-    if (!response.ok) {
-      throw new Error(`Não foi possível acessar a aba "${tabName}" (HTTP ${response.status}). Verifique se a planilha está com link compartilhado.`);
+    if (response.ok) {
+      const csvText = await response.text();
+      if (!csvText.includes('<!DOCTYPE html>') && !csvText.includes('<html')) {
+        return parseCsvRows(csvText);
+      }
     }
 
-    const csvText = await response.text();
-    if (csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
-      throw new Error(
-        `A planilha requer permissão de acesso. No Google Sheets, clique em "Compartilhar" -> "Qualquer pessoa com o link pode ler/editar" ou utilize o Webhook Apps Script.`
-      );
+    // Fallback para /export?format=csv
+    const exportUrl = `https://docs.google.com/spreadsheets/d/${cleanId}/export?format=csv&sheet=${encodedTab}&t=${timestamp}&_=${randomBust}`;
+    const exportResponse = await fetch(exportUrl, {
+      method: 'GET',
+      headers: {
+        Accept: 'text/csv,text/plain,*/*',
+        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
+        Pragma: 'no-cache',
+      },
+      cache: 'no-store',
+    });
+
+    if (exportResponse.ok) {
+      const csvText = await exportResponse.text();
+      if (!csvText.includes('<!DOCTYPE html>') && !csvText.includes('<html')) {
+        return parseCsvRows(csvText);
+      }
     }
 
-    return parseCsvRows(csvText);
+    throw new Error(
+      `A planilha requer permissão de acesso. No Google Sheets, clique em "Compartilhar" -> "Qualquer pessoa com o link pode ler/editar" ou utilize o Webhook Apps Script.`
+    );
   } catch (error: any) {
-    console.error(`Erro ao buscar aba ${tabName} via GViz:`, error);
+    console.error(`Erro ao buscar aba ${tabName} via CSV/GViz:`, error);
     throw error;
   }
 }
@@ -811,14 +849,27 @@ export async function pullAllFromSheets(
   contracts: Contract[];
   source: 'direct_link' | 'apps_script' | 'google_api';
 }> {
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+
   // Estratégia 1: Leitura Direta Instantânea via Google Visualization CSV (Zero popup, Zero login)
   try {
     let sstRows: string[][] = [];
-    for (const tabName of [SHEET_TABS.SST, SHEET_TABS.CADIM, 'SST', 'CADIM']) {
+    let sstFound = false;
+    for (const tabName of [
+      SHEET_TABS.SST,
+      SHEET_TABS.CADIM,
+      'Pendências SST',
+      'Pendências CADIM',
+      'Pendencias SST',
+      'Pendencias CADIM',
+      'SST',
+      'CADIM',
+    ]) {
       try {
-        const res = await fetchTabCsvDirectly(spreadsheetId, tabName);
-        if (res && res.length > 1) {
+        const res = await fetchTabCsvDirectly(cleanId, tabName);
+        if (res && res.length >= 1) {
           sstRows = res;
+          sstFound = true;
           break;
         }
       } catch {
@@ -827,11 +878,20 @@ export async function pullAllFromSheets(
     }
 
     let trabRows: string[][] = [];
-    for (const tabName of [SHEET_TABS.TRABALHISTAS, 'Trabalhistas', 'Pendencias trabalhistas', 'Pendências Trabalhistas']) {
+    let trabFound = false;
+    for (const tabName of [
+      SHEET_TABS.TRABALHISTAS,
+      'Pendências trabalhistas',
+      'Pendencias trabalhistas',
+      'Pendências Trabalhistas',
+      'Pendencias Trabalhistas',
+      'Trabalhistas',
+    ]) {
       try {
-        const res = await fetchTabCsvDirectly(spreadsheetId, tabName);
-        if (res && res.length > 1) {
+        const res = await fetchTabCsvDirectly(cleanId, tabName);
+        if (res && res.length >= 1) {
           trabRows = res;
+          trabFound = true;
           break;
         }
       } catch {
@@ -840,11 +900,20 @@ export async function pullAllFromSheets(
     }
 
     let contractRows: string[][] = [];
-    for (const tabName of [SHEET_TABS.CONTRATUAIS, 'Contratos', 'Pendencias Contratuais', 'Pendências contratuais']) {
+    let contractFound = false;
+    for (const tabName of [
+      SHEET_TABS.CONTRATUAIS,
+      'Pendências Contratuais',
+      'Pendencias Contratuais',
+      'Pendências contratuais',
+      'Pendencias contratuais',
+      'Contratos',
+    ]) {
       try {
-        const res = await fetchTabCsvDirectly(spreadsheetId, tabName);
-        if (res && res.length > 1) {
+        const res = await fetchTabCsvDirectly(cleanId, tabName);
+        if (res && res.length >= 1) {
           contractRows = res;
+          contractFound = true;
           break;
         }
       } catch {
@@ -852,19 +921,17 @@ export async function pullAllFromSheets(
       }
     }
 
-    if (sstRows.length > 0 || trabRows.length > 0 || contractRows.length > 0) {
+    if (sstFound || trabFound || contractFound) {
       const employees = convertSstRowsToEmployees(sstRows);
       const trabalhistas = convertTrabRowsToTrabalhistas(trabRows);
       const contracts = convertContractRowsToContracts(contractRows);
 
-      if (employees.length > 0 || trabalhistas.length > 0 || contracts.length > 0) {
-        return {
-          employees,
-          trabalhistas,
-          contracts,
-          source: 'direct_link',
-        };
-      }
+      return {
+        employees,
+        trabalhistas,
+        contracts,
+        source: 'direct_link',
+      };
     }
   } catch (gvizErr) {
     console.info('GViz direto não acessível (privado ou requer auth), tentando outros métodos...', gvizErr);
@@ -873,7 +940,7 @@ export async function pullAllFromSheets(
   // Estratégia 2: Webhook Apps Script (se configurado)
   if (webhookUrl && webhookUrl.startsWith('https://script.google.com')) {
     try {
-      const res = await fetch(webhookUrl, { method: 'GET' });
+      const res = await fetch(webhookUrl, { method: 'GET', cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         return {
@@ -897,7 +964,7 @@ export async function pullAllFromSheets(
     ];
 
     const res = await callSheetsApi(
-      `${spreadsheetId}/values:batchGet?ranges=${ranges.map(encodeURIComponent).join('&ranges=')}`,
+      `${cleanId}/values:batchGet?ranges=${ranges.map(encodeURIComponent).join('&ranges=')}`,
       'GET',
       undefined,
       token
@@ -921,7 +988,7 @@ export async function pullAllFromSheets(
   } catch (apiErr: any) {
     console.error('Erro em todos os métodos de leitura:', apiErr);
     throw new Error(
-      `Não foi possível ler a planilha automaticamente. Certifique-se de que a planilha (${spreadsheetId}) está com acesso de link compartilhado (Qualquer pessoa com o link pode ler) ou configure o Webhook Apps Script.`
+      `Não foi possível ler a planilha automaticamente. Certifique-se de que a planilha (${cleanId}) está com acesso de link compartilhado (Qualquer pessoa com o link pode ler) ou configure o Webhook Apps Script.`
     );
   }
 }

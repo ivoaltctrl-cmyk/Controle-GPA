@@ -20,6 +20,7 @@ import {
 import * as XLSX from 'xlsx';
 import {
   DEFAULT_SPREADSHEET_ID,
+  extractSpreadsheetId,
   getStoredSpreadsheetId,
   saveStoredSpreadsheetId,
   getStoredWebhookUrl,
@@ -90,24 +91,56 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
   };
 
   /**
-   * Importação e Mesclagem Inteligente (Sem script e sem login)
+   * Sincronização em Tempo Real (Espelhar Planilha Oficial - Substituição Exata)
+   */
+  const handleMirrorSyncFromSheets = async () => {
+    setLoadingAction('mirror');
+    setStatusMessage(null);
+    try {
+      const cleanId = extractSpreadsheetId(spreadsheetId);
+      saveStoredSpreadsheetId(cleanId);
+      saveStoredWebhookUrl(webhookUrl);
+
+      const imported = await pullAllFromSheets(cleanId, undefined, webhookUrl);
+
+      onApplyImportedData({
+        employees: imported.employees,
+        contracts: imported.contracts,
+        trabalhistas: imported.trabalhistas,
+      });
+
+      const totalEmp = imported.employees.length;
+      const ativosEmp = imported.employees.filter(
+        (e) => !e.resumoGeral?.includes('Desligado') && !e.resumoGeral?.includes('Cancelado') && e.statusGeral !== 'BLOQUEADO'
+      ).length;
+
+      setStatusMessage({
+        type: 'success',
+        text: `Sincronização em tempo real concluída com sucesso! Painel espelhado com a planilha: ${totalEmp} colaboradores no total (${ativosEmp} ativos, ${totalEmp - ativosEmp} desligados), ${imported.contracts.length} contratos e ${imported.trabalhistas.length} envios trabalhistas.`,
+      });
+    } catch (err: any) {
+      console.error(err);
+      setStatusMessage({
+        type: 'error',
+        text: err.message || 'Erro ao sincronizar com a planilha.',
+      });
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  /**
+   * Importação e Mesclagem Inteligente (Sem Conflito / Upsert)
    */
   const handleImportMergeFromSheets = async () => {
     setLoadingAction('merge');
     setStatusMessage(null);
     try {
-      saveStoredSpreadsheetId(spreadsheetId);
+      const cleanId = extractSpreadsheetId(spreadsheetId);
+      saveStoredSpreadsheetId(cleanId);
       saveStoredWebhookUrl(webhookUrl);
 
-      const imported = await pullAllFromSheets(spreadsheetId, undefined, webhookUrl);
-
-      if (imported.employees.length === 0 && imported.contracts.length === 0 && imported.trabalhistas.length === 0) {
-        setStatusMessage({
-          type: 'info',
-          text: 'A planilha foi lida com sucesso, mas não possui novos registros preenchidos abaixo dos cabeçalhos.',
-        });
-        return;
-      }
+      const imported = await pullAllFromSheets(cleanId, undefined, webhookUrl);
 
       // Mesclagem Inteligente (Sem Conflito de IDs / Upsert)
       const merged = smartMergeData(
@@ -123,7 +156,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
 
       setStatusMessage({
         type: 'success',
-        text: `Sincronização concluída diretamente com a planilha GPA_BD! +${merged.stats.newEmployees} novos colaboradores, ${merged.stats.updatedEmployees} atualizados, ${merged.stats.newContracts} contratos e ${merged.stats.newTrabalhistas} envios trabalhistas mesclados sem perdas!`,
+        text: `Mesclagem concluída! Base atual: ${merged.stats.totalEmployees} colaboradores (${merged.stats.newEmployees} novos, ${merged.stats.updatedEmployees} atualizados), ${merged.stats.newContracts} contratos e ${merged.stats.newTrabalhistas} trabalhistas.`,
       });
     } catch (err: any) {
       console.error(err);
@@ -382,44 +415,64 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
         )}
 
         {/* 1. Direct Import Section (Zero Script / Zero Login) */}
-        <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200/90 space-y-3">
+        <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-blue-950 flex items-center gap-1.5">
-              <GitMerge className="w-4 h-4 text-blue-700" />
-              <span>1. Importar Dados da Planilha Google (Sem Script / 1 Clique)</span>
+            <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+              <RefreshCw className="w-4 h-4 text-emerald-700" />
+              <span>1. Sincronização em Tempo Real (Google Sheets GPA_BD)</span>
             </span>
             <a
               href={sheetUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-[11px] font-bold text-blue-700 hover:underline flex items-center gap-1"
+              className="text-[11px] font-bold text-emerald-800 hover:underline flex items-center gap-1"
             >
               <span>Abrir Planilha GPA_BD</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
 
-          <p className="text-xs text-blue-800 leading-relaxed">
-            Lê diretamente as 3 abas da planilha GPA_BD (CADIM, Trabalhistas e Contratos) e atualiza o painel instantaneamente:
+          <p className="text-xs text-emerald-900 leading-relaxed">
+            Escolha a forma de sincronização com as 3 abas da sua planilha (<strong>Pendências SST/CADIM</strong>, <strong>Pendências trabalhistas</strong> e <strong>Pendências Contratuais</strong>):
           </p>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* Opção A: Espelhamento Fiel On-Time (Substituição Exata) */}
+            <button
+              onClick={handleMirrorSyncFromSheets}
+              disabled={loadingAction !== null}
+              className="p-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex flex-col items-start gap-1 shadow-xs transition-all cursor-pointer disabled:opacity-50 text-left"
+            >
+              <div className="flex items-center gap-1.5">
+                {loadingAction === 'mirror' ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-emerald-200" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 text-emerald-200" />
+                )}
+                <span className="font-black text-xs">Espelhar Planilha (Substituir Exato)</span>
+              </div>
+              <span className="text-[11px] text-emerald-100 font-normal">
+                Reflete 100% o que está na planilha no momento. Se apagou linhas, limpa no painel; se adicionou, carrega instantaneamente.
+              </span>
+            </button>
+
+            {/* Opção B: Mesclagem Inteligente (Preservar dados locais) */}
             <button
               onClick={handleImportMergeFromSheets}
-              disabled={loadingAction === 'merge'}
-              className="flex-1 py-3 px-4 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-50"
+              disabled={loadingAction !== null}
+              className="p-3.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold flex flex-col items-start gap-1 shadow-xs transition-all cursor-pointer disabled:opacity-50 text-left"
             >
-              {loadingAction === 'merge' ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Lendo Planilha GPA_BD...</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Importar e Mesclar Dados da Planilha Agora</span>
-                </>
-              )}
+              <div className="flex items-center gap-1.5">
+                {loadingAction === 'merge' ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-blue-200" />
+                ) : (
+                  <GitMerge className="w-4 h-4 text-blue-200" />
+                )}
+                <span className="font-black text-xs">Mesclagem Inteligente (Upsert)</span>
+              </div>
+              <span className="text-[11px] text-blue-100 font-normal">
+                Adiciona novos colaboradores e atualiza os existentes sem apagar registros cadastrados manualmente.
+              </span>
             </button>
           </div>
         </div>
