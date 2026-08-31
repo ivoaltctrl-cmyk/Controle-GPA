@@ -134,6 +134,31 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   const companyName = brand?.companyName || 'WFS';
   const companySubtitle = brand?.companySubtitle || 'A SATS COMPANY';
 
+  // Cálculos de pendências por categoria para dar destaque visual imediato
+  const cadimPendingCount = useMemo(() => {
+    return employees.filter(
+      (e) =>
+        e.statusGeral !== 'EM_DIA' &&
+        !e.resumoGeral?.includes('Desligado') &&
+        !e.resumoGeral?.includes('Cancelado')
+    ).length;
+  }, [employees]);
+
+  const trabalhistaPendingCount = useMemo(() => {
+    return trabalhistaEnvios.filter(
+      (t) => t.status === 'Reprovado' || t.status === 'Em Análise'
+    ).length;
+  }, [trabalhistaEnvios]);
+
+  const demaisPendingCount = useMemo(() => {
+    return contracts.filter(
+      (c) =>
+        c.status !== 'ATIVO' ||
+        c.statusDocumentos === 'Reprovado' ||
+        c.statusDocumentos === 'Em Análise'
+    ).length;
+  }, [contracts]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -608,78 +633,78 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* Botão Principal de Sincronização em Tempo Real (Limpo e Direto) */}
+          <button
+            onClick={handleQuickSync}
+            disabled={isSyncingDirect}
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs flex items-center gap-2 cursor-pointer transition-all disabled:opacity-60"
+            title="Sincronizar dados em tempo real com o Google Sheets GPA_BD"
+          >
+            {isSyncingDirect ? (
+              <RefreshCw className="w-4 h-4 text-emerald-100 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4 text-emerald-100" />
+            )}
+            <span>{isSyncingDirect ? 'Sincronizando...' : 'Sincronizar GPA_BD'}</span>
+          </button>
+
+          {/* Botões Secundários com Visual Corporativo e Elegante */}
           <a
             href="https://gpa.gru.com.br/Login"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 rounded-xl text-xs font-black bg-[#E21B23] text-white hover:bg-[#c4161d] shadow-xs flex items-center gap-2 cursor-pointer transition-all hover:scale-102"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
             title="Acessar o sistema oficial GPA para saneamento de pendências documentais"
           >
-            <ExternalLink className="w-4 h-4 text-white" />
+            <ExternalLink className="w-3.5 h-3.5 text-slate-300" />
             <span>Sanar no GPA Oficial</span>
           </a>
 
           {onOpenOfficialGuide && (
             <button
               onClick={() => onOpenOfficialGuide()}
-              className="px-4 py-2 rounded-xl text-xs font-black bg-amber-500 text-white hover:bg-amber-600 shadow-xs flex items-center gap-2 cursor-pointer transition-all hover:scale-102"
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all"
               title="Ver passo a passo de como sanar no sistema oficial de cadastro"
             >
-              <HelpCircle className="w-4 h-4 text-amber-100" />
+              <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
               <span>Guia do Sistema</span>
             </button>
           )}
 
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handleQuickSync}
-              disabled={isSyncingDirect}
-              className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs flex items-center gap-2 cursor-pointer transition-all hover:scale-102 disabled:opacity-60"
-              title="Sincronizar dados em tempo real com o Google Sheets GPA_BD"
-            >
-              {isSyncingDirect ? (
-                <RefreshCw className="w-4 h-4 text-emerald-100 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4 text-emerald-100" />
-              )}
-              <span>{isSyncingDirect ? 'Sincronizando...' : 'Sincronizar GPA_BD'}</span>
-            </button>
-            {onOpenGoogleSheetsSync && (
-              <button
-                onClick={onOpenGoogleSheetsSync}
-                className="p-2 rounded-xl text-xs font-black bg-emerald-700 text-white hover:bg-emerald-800 shadow-xs flex items-center justify-center cursor-pointer transition-all"
-                title="Configurações e opções avançadas de sincronização Google Sheets"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
-              </button>
-            )}
-          </div>
-
           <button
             onClick={handleExportExcel}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 shadow-2xs flex items-center gap-2 cursor-pointer transition-all"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
             <span>Exportar Excel</span>
           </button>
         </div>
       </div>
 
-      {/* Seletor de Categorias de Controle Documental GPA (3 Categorias) */}
-      <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 flex flex-wrap items-center gap-1.5 shadow-inner">
+      {/* Seletor de Categorias de Pendências com Máximo Destaque e Contadores Nítidos */}
+      <div className="bg-slate-900 p-2 rounded-2xl border border-slate-800 flex flex-wrap items-center gap-2 shadow-sm">
         <button
           onClick={() => {
             setSelectedCategory('CADIM');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[180px] px-3.5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[220px] px-4 py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
             selectedCategory === 'CADIM' || selectedCategory === 'SST'
-              ? 'bg-emerald-700 text-white shadow-xs'
-              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
+              ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400/40'
+              : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
           }`}
         >
-          <ShieldCheck className="w-4 h-4" />
-          <span>Pendências Documentações de CADIM</span>
+          <ShieldCheck className={`w-4 h-4 ${selectedCategory === 'CADIM' || selectedCategory === 'SST' ? 'text-white' : 'text-emerald-400'}`} />
+          <span className="tracking-tight">Pendências Documentações de CADIM</span>
+          {cadimPendingCount > 0 && (
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-black ${
+              selectedCategory === 'CADIM' || selectedCategory === 'SST'
+                ? 'bg-white text-emerald-800'
+                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+            }`}>
+              {cadimPendingCount}
+            </span>
+          )}
         </button>
 
         <button
@@ -687,14 +712,23 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setSelectedCategory('TRABALHISTA');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[180px] px-3.5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[220px] px-4 py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
             selectedCategory === 'TRABALHISTA'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
+              ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400/40'
+              : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
           }`}
         >
-          <FileText className="w-4 h-4" />
-          <span>Pendências Documentações Trabalhistas</span>
+          <FileText className={`w-4 h-4 ${selectedCategory === 'TRABALHISTA' ? 'text-white' : 'text-blue-400'}`} />
+          <span className="tracking-tight">Pendências Documentações Trabalhistas</span>
+          {trabalhistaPendingCount > 0 && (
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-black ${
+              selectedCategory === 'TRABALHISTA'
+                ? 'bg-white text-blue-800'
+                : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+            }`}>
+              {trabalhistaPendingCount}
+            </span>
+          )}
         </button>
 
         <button
@@ -702,14 +736,23 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setSelectedCategory('DEMAIS');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[180px] px-3.5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[220px] px-4 py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
             selectedCategory === 'DEMAIS'
-              ? 'bg-purple-700 text-white shadow-xs'
-              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
+              ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-400/40'
+              : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
           }`}
         >
-          <Layers className="w-4 h-4" />
-          <span>Pendências Demais Documentações</span>
+          <Layers className={`w-4 h-4 ${selectedCategory === 'DEMAIS' ? 'text-white' : 'text-purple-400'}`} />
+          <span className="tracking-tight">Pendências Demais Documentações</span>
+          {demaisPendingCount > 0 && (
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-black ${
+              selectedCategory === 'DEMAIS'
+                ? 'bg-white text-purple-800'
+                : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+            }`}>
+              {demaisPendingCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -1041,157 +1084,156 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
       </div>
 
-      {/* TABELA PLANILHA COMPACTA EM PÁGINA ÚNICA (SEM BARRA DE ROLAGEM HORIZONTAL) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="w-full">
-          <table className="w-full text-left border-collapse text-xs table-fixed">
-            <colgroup>
-              <col className="w-7 sm:w-8" />
-              <col className="w-[78px] sm:w-[84px]" />
-              <col className="w-[100px] sm:w-[108px]" />
-              <col className="w-[17%]" />
-              <col className="w-[12%]" />
-              <col className="w-[9%]" />
-              <col className="w-[11%]" />
-              <col className="w-[11%]" />
-              <col className="w-[11%]" />
-              <col className="w-[11%]" />
-              <col className="w-[74px] sm:w-[80px]" />
-            </colgroup>
+      {/* TABELA PLANILHA COM ROLAGEM SUAVE E COLUNAS ESPAÇADAS (ZERO SOBREPOSIÇÃO) */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto">
+        <table className="w-full text-left border-collapse text-xs min-w-[1150px]">
+          <colgroup>
+            <col className="w-10" />
+            <col className="w-24" />
+            <col className="w-32" />
+            <col className="min-w-[220px]" />
+            <col className="min-w-[180px]" />
+            <col className="min-w-[180px]" />
+            <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-28" />
+          </colgroup>
 
-            {/* Header da Planilha */}
-            <thead>
-              <tr className="bg-slate-100/90 text-slate-700 font-black uppercase text-[10.5px] border-b border-slate-300 select-none">
-                <th className="py-2.5 px-2 text-center">
-                  <input
-                    type="checkbox"
-                    checked={paginatedEmployees.length > 0 && paginatedEmployees.every((e) => selectedIds.includes(e.id))}
-                    onChange={handleToggleSelectAll}
-                    className="rounded text-[#E21B23] focus:ring-[#E21B23] cursor-pointer"
-                  />
-                </th>
-                <th
-                  onClick={() => handleSort('matricula')}
-                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center gap-0.5">
-                    <span className="truncate">MATRÍCULA</span>
-                    {sortField === 'matricula' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('cpf')}
-                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center gap-0.5">
-                    <span className="truncate">CPF</span>
-                    {sortField === 'cpf' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('nome')}
-                  className="py-2.5 px-2 cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center gap-0.5">
-                    <span className="truncate">NOME</span>
-                    {sortField === 'nome' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('cargo')}
-                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center gap-0.5">
-                    <span className="truncate">FUNÇÃO</span>
-                    {sortField === 'cargo' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('setor')}
-                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center gap-0.5">
-                    <span className="truncate">SETOR</span>
-                    {sortField === 'setor' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('os')}
-                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center justify-center gap-0.5">
-                    <span className="truncate">OS</span>
-                    {sortField === 'os' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('aso')}
-                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center justify-center gap-0.5">
-                    <span className="truncate">ASO</span>
-                    {sortField === 'aso' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('epi')}
-                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center justify-center gap-0.5">
-                    <span className="truncate">FICHA EPI</span>
-                    {sortField === 'epi' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('radio')}
-                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center justify-center gap-0.5">
-                    <span className="truncate">RADIOPROTEÇÃO</span>
-                    {sortField === 'radio' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th className="py-2.5 px-2 text-center">
-                  <span className="truncate">AÇÕES</span>
-                </th>
-              </tr>
-            </thead>
+          {/* Header da Planilha */}
+          <thead>
+            <tr className="bg-slate-100/90 text-slate-700 font-black uppercase text-[10.5px] border-b border-slate-300 select-none">
+              <th className="py-2.5 px-3 text-center">
+                <input
+                  type="checkbox"
+                  checked={paginatedEmployees.length > 0 && paginatedEmployees.every((e) => selectedIds.includes(e.id))}
+                  onChange={handleToggleSelectAll}
+                  className="rounded text-[#E21B23] focus:ring-[#E21B23] cursor-pointer"
+                />
+              </th>
+              <th
+                onClick={() => handleSort('matricula')}
+                className="py-2.5 px-2 cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span>MATRÍCULA</span>
+                  {sortField === 'matricula' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('cpf')}
+                className="py-2.5 px-2 cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span>CPF</span>
+                  {sortField === 'cpf' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('nome')}
+                className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span>NOME DO COLABORADOR</span>
+                  {sortField === 'nome' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('cargo')}
+                className="py-2.5 px-2 cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span>FUNÇÃO / CARGO</span>
+                  {sortField === 'cargo' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('setor')}
+                className="py-2.5 px-2 cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span>SETOR / ÁREA</span>
+                  {sortField === 'setor' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('os')}
+                className="py-2.5 px-1.5 text-center cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>OS</span>
+                  {sortField === 'os' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('aso')}
+                className="py-2.5 px-1.5 text-center cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>ASO</span>
+                  {sortField === 'aso' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('epi')}
+                className="py-2.5 px-1.5 text-center cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>FICHA EPI</span>
+                  {sortField === 'epi' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('radio')}
+                className="py-2.5 px-1.5 text-center cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>RADIOPROTEÇÃO</span>
+                  {sortField === 'radio' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th className="py-2.5 px-2 text-center">
+                <span>AÇÕES</span>
+              </th>
+            </tr>
+          </thead>
 
             {/* Linhas da Tabela */}
             <tbody className="divide-y divide-slate-200">
@@ -1237,6 +1279,12 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
                   const isSelected = selectedIds.includes(emp.id);
                   const isAllEmDia = emp.statusGeral === 'EM_DIA';
 
+                  const displayName = (emp.nome || '').replace(/^[:\s\-\.]+/, '').trim();
+                  const displayMatricula = (emp.matricula || '').replace(/^[:\s\-\.]+/, '').trim();
+                  const displayCpf = (emp.cpf || '').replace(/^[:\s\-\.]+/, '').trim();
+                  const displayCargo = (emp.cargo || '').replace(/^[:\s\-\.]+/, '').trim();
+                  const displaySetor = (emp.setor || emp.areaNome || 'Operações').replace(/^[:\s\-\.]+/, '').trim();
+
                   return (
                     <tr
                       key={emp.id}
@@ -1245,7 +1293,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
                       }`}
                     >
                       {/* Checkbox */}
-                      <td className="py-2 px-2 text-center">
+                      <td className="py-2.5 px-3 text-center">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -1255,52 +1303,52 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
                       </td>
 
                       {/* Matrícula */}
-                      <td className="py-2 px-1.5 font-mono font-bold text-slate-800 truncate" title={emp.matricula}>
-                        {emp.matricula}
+                      <td className="py-2.5 px-2 font-mono font-bold text-slate-800 text-xs" title={displayMatricula}>
+                        {displayMatricula}
                       </td>
 
                       {/* CPF */}
-                      <td className="py-2 px-1.5 font-mono text-slate-600 truncate text-[11px]" title={emp.cpf || '—'}>
-                        {emp.cpf || '—'}
+                      <td className="py-2.5 px-2 font-mono text-slate-600 text-xs whitespace-nowrap" title={displayCpf || '—'}>
+                        {displayCpf || '—'}
                       </td>
 
                       {/* Nome */}
-                      <td className="py-2 px-2 font-bold text-slate-900 truncate" title={emp.nome}>
-                        {emp.nome}
+                      <td className="py-2.5 px-3 font-bold text-slate-900 text-xs" title={displayName}>
+                        {displayName}
                       </td>
 
                       {/* Função */}
-                      <td className="py-2 px-1.5 text-slate-700 truncate" title={emp.cargo}>
-                        {emp.cargo}
+                      <td className="py-2.5 px-2 text-slate-700 text-xs" title={displayCargo}>
+                        {displayCargo}
                       </td>
 
                       {/* Setor */}
-                      <td className="py-2 px-1.5 text-slate-700 truncate" title={emp.setor || emp.areaNome || 'Operações'}>
-                        {emp.setor || emp.areaNome || 'Operações'}
+                      <td className="py-2.5 px-2 text-slate-700 text-xs" title={displaySetor}>
+                        {displaySetor}
                       </td>
 
                       {/* OS */}
-                      <td className="py-2 px-1">
+                      <td className="py-2.5 px-1.5 text-center">
                         {renderDocCell(emp, 'ORDEM_DE_SERVICO')}
                       </td>
 
                       {/* ASO */}
-                      <td className="py-2 px-1">
+                      <td className="py-2.5 px-1.5 text-center">
                         {renderDocCell(emp, 'ATESTADO_SAUDE_OCUPACIONAL')}
                       </td>
 
                       {/* FICHA DE EPI */}
-                      <td className="py-2 px-1">
+                      <td className="py-2.5 px-1.5 text-center">
                         {renderDocCell(emp, 'FICHA_EPI')}
                       </td>
 
                       {/* RADIOPROTEÇÃO */}
-                      <td className="py-2 px-1">
+                      <td className="py-2.5 px-1.5 text-center">
                         {renderDocCell(emp, 'TREINAMENTO_RADIOPROTECAO')}
                       </td>
 
                       {/* Ações Rápidas */}
-                      <td className="py-2 px-1.5 text-center">
+                      <td className="py-2.5 px-2 text-center">
                         <div className="flex items-center justify-center gap-1">
                           {emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado') || emp.statusGeral === 'BLOQUEADO' ? (
                             <div className="flex items-center justify-center gap-1">
@@ -1447,7 +1495,6 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             </div>
           )}
         </div>
-      </div>
       </>
       )}
     </div>

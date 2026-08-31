@@ -87,8 +87,8 @@ export default function App() {
   const [trabalhistaEnvios, setTrabalhistaEnvios] = useState<TrabalhistaEnvio[]>([]);
   const [brand, setBrand] = useState<BrandConfig>(getStoredBrandConfig());
 
-  // Master Portal Mode: 'pendencias', 'areas', 'demands', 'settings'
-  const [portalMode, setPortalMode] = useState<MainPortalMode>('pendencias');
+  // Master Portal Mode: 'areas' (Resumo Geral - Primeira Tela Padrão), 'pendencias', 'demands', 'settings'
+  const [portalMode, setPortalMode] = useState<MainPortalMode>('areas');
   const [targetAdminMode, setTargetAdminMode] = useState<MainPortalMode>('demands');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);

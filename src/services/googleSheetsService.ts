@@ -326,10 +326,11 @@ export function convertSstRowsToEmployees(rows: string[][]): Employee[] {
   return dataRows
     .filter((row) => row && (row[docIdx]?.trim() || row[nomeIdx]?.trim()))
     .map((row, idx) => {
-      const rawDoc = String(row[docIdx] || '').trim();
-      const nome = String(row[nomeIdx] || `Colaborador ${idx + 1}`).trim();
-      const cargo = String(row[cargoIdx] || 'AGENTE DE PROTECAO').trim();
-      const setor = String(row[setorIdx] || 'GRU SEGURANCA CANAL DE II').trim();
+      const rawDoc = String(row[docIdx] || '').replace(/^[:\s\-\.]+/, '').trim();
+      const rawNome = String(row[nomeIdx] || `Colaborador ${idx + 1}`).trim();
+      const nome = rawNome.replace(/^[:\s\-\.]+/, '').trim();
+      const cargo = String(row[cargoIdx] || 'AGENTE DE PROTECAO').replace(/^[:\s\-\.]+/, '').trim();
+      const setor = String(row[setorIdx] || 'GRU SEGURANCA CANAL DE II').replace(/^[:\s\-\.]+/, '').trim();
       const statusGpaRaw = String(row[statusGpaIdx] || '').trim();
       const contratoVal = String(row[contratoIdx] || '1').trim();
 

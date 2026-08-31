@@ -275,12 +275,12 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
     return Math.max(0, Math.min(100, pct));
   }, [validos, totalGeral]);
 
-  // Dimensões do SVG Donut Chart com alta nitidez e alinhamento
-  const chartSize = 260;
-  const strokeWidth = 32;
+  // Dimensões do SVG Donut Chart com alta nitidez, proporções harmônicas e espaçamento perfeito
+  const chartSize = 280;
+  const strokeWidth = 26;
   const chartCenter = chartSize / 2;
-  const chartRadius = (chartSize - strokeWidth) / 2 - 10;
-  const innerRingRadius = chartRadius - strokeWidth / 2 - 4;
+  const chartRadius = 108;
+  const innerRingRadius = chartRadius - strokeWidth / 2 - 2;
   const circumference = 2 * Math.PI * chartRadius;
   const strokeDashoffset = circumference - (percentualGeral / 100) * circumference;
 
@@ -444,15 +444,15 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                 />
               </svg>
 
-              {/* Conteúdo Central com Tipografia Espaçada e Nítida */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none px-6">
-                <span className="text-xs sm:text-sm font-black text-slate-800 tracking-tight leading-tight">
+              {/* Conteúdo Central com Tipografia Espaçada e Nítida (Zero Sobreposição) */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none p-4">
+                <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Documentos Validados
                 </span>
-                <span className="text-4xl sm:text-5xl font-black text-slate-950 tracking-tight mt-1">
+                <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight my-0.5">
                   {percentualGeral}%
                 </span>
-                <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                   {validos} de {totalGeral} docs
                 </span>
               </div>

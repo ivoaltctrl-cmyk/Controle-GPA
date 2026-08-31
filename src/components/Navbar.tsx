@@ -148,8 +148,26 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Center Navigation Tabs (Unificado) */}
-          <nav className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/80 shadow-inner overflow-x-auto max-w-[55vw] sm:max-w-none">
-            {/* 1. Painel de Pendências (Unificado) */}
+          <nav className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/80 shadow-inner overflow-x-auto shrink-0">
+            {/* 1. Resumo Executivo (Primeira tela padrão solicitada) */}
+            <button
+              onClick={() => setPortalMode('areas')}
+              style={
+                currentMode === 'areas'
+                  ? { backgroundColor: '#ffffff', color: primaryColor }
+                  : {}
+              }
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                currentMode === 'areas'
+                  ? 'shadow-xs font-black'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Resumo Geral</span>
+            </button>
+
+            {/* 2. Painel de Pendências (Unificado) */}
             <button
               onClick={() => setPortalMode('pendencias')}
               style={
@@ -178,24 +196,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {totalPending}
                 </span>
               )}
-            </button>
-
-            {/* 2. Resumo (Áreas & Gestores) */}
-            <button
-              onClick={() => setPortalMode('areas')}
-              style={
-                currentMode === 'areas'
-                  ? { backgroundColor: '#ffffff', color: primaryColor }
-                  : {}
-              }
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
-                currentMode === 'areas'
-                  ? 'shadow-xs font-black'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              <span>Resumo</span>
             </button>
 
             {/* 3. Gestão GRU (Protegida por senha) */}
