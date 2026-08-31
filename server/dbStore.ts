@@ -8,6 +8,11 @@ export interface AppDatabase {
   trabalhistas: any[];
   demandLogs: any[];
   brandConfig: any;
+  adminCredentials?: {
+    username: string;
+    password: string;
+    lastUpdated?: string;
+  } | null;
   resumoConfig: {
     validos: number;
     pendentes: number;
@@ -92,6 +97,7 @@ export function readDb(): AppDatabase {
         trabalhistas: Array.isArray(parsed.trabalhistas) ? parsed.trabalhistas : [],
         demandLogs: Array.isArray(parsed.demandLogs) ? parsed.demandLogs : [],
         brandConfig: parsed.brandConfig || null,
+        adminCredentials: parsed.adminCredentials || null,
         resumoConfig: parsed.resumoConfig || null,
         lastUpdated: parsed.lastUpdated || new Date().toISOString(),
       };
@@ -106,6 +112,7 @@ export function readDb(): AppDatabase {
     trabalhistas: [],
     demandLogs: [],
     brandConfig: null,
+    adminCredentials: null,
     resumoConfig: null,
     lastUpdated: new Date().toISOString(),
   };
@@ -121,6 +128,7 @@ export function saveDb(db: Partial<AppDatabase>): AppDatabase {
     trabalhistas: db.trabalhistas !== undefined ? db.trabalhistas : current.trabalhistas,
     demandLogs: db.demandLogs !== undefined ? db.demandLogs : current.demandLogs,
     brandConfig: db.brandConfig !== undefined ? db.brandConfig : current.brandConfig,
+    adminCredentials: db.adminCredentials !== undefined ? db.adminCredentials : current.adminCredentials,
     resumoConfig: db.resumoConfig !== undefined ? db.resumoConfig : current.resumoConfig,
     lastUpdated: new Date().toISOString(),
   };

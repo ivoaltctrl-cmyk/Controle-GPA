@@ -426,7 +426,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
           </div>
         </div>
 
-        {/* Corpo do Resultado Geral: Donut Chart à Esquerda e Parâmetros Simples à Direita */}
+        {/* Corpo do Resultado Geral: Donut Chart à Esquerda e Indicadores Analíticos à Direita */}
         <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Lado Esquerdo: Donut Chart Elegante e Nítido */}
           <div className="lg:col-span-5 flex flex-col items-center justify-center">
@@ -463,7 +463,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                   />
                 )}
 
-                {/* Anel interno concêntrico branco com borda verde refinada (conforme referência) */}
+                {/* Anel interno concêntrico branco com borda verde refinada */}
                 <circle
                   cx={chartCenter}
                   cy={chartCenter}
@@ -501,153 +501,83 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
             </div>
           </div>
 
-          {/* Lado Direito: Parâmetros Simples e Diretos (Válidos: X | Pendentes: Y) */}
-          <div className="lg:col-span-7 space-y-5">
-            <div className="bg-slate-50/90 p-6 rounded-2xl border border-slate-200/90 space-y-5 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="w-4 h-4 text-slate-700" />
-                  <h3 className="text-sm font-black text-slate-900 uppercase">
-                    Parâmetros do Gráfico
-                  </h3>
+          {/* Lado Direito: Painel Executivo Consolidado de Conformidade */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Card 1: Documentos Validados */}
+              <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-2xl p-4.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-emerald-900 uppercase tracking-wide flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Válidos & Conformes</span>
+                  </span>
+                  <span className="text-[11px] font-black text-emerald-800 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs">
+                    {percentualGeral}%
+                  </span>
                 </div>
-                <span className="text-[10px] text-slate-500 font-bold bg-white px-2 py-0.5 rounded-md border border-slate-200">
-                  Atualização Imediata
+                <div className="text-2xl sm:text-3xl font-black text-emerald-800">
+                  {validos.toLocaleString('pt-BR')}
+                </div>
+                <p className="text-[11px] text-emerald-700/80 font-medium">
+                  Documentações aprovadas e em dia no sistema.
+                </p>
+              </div>
+
+              {/* Card 2: Pendências em Aberto */}
+              <div className="bg-rose-50/50 border border-rose-200/80 rounded-2xl p-4.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-rose-900 uppercase tracking-wide flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-rose-600" />
+                    <span>Pendências em Aberto</span>
+                  </span>
+                  <span className="text-[11px] font-black text-rose-800 bg-white px-2 py-0.5 rounded-md border border-rose-200 shadow-2xs">
+                    {totalGeral > 0 ? Math.round((pendentes / totalGeral) * 100) : 0}%
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-rose-800">
+                  {pendentes.toLocaleString('pt-BR')}
+                </div>
+                <p className="text-[11px] text-rose-700/80 font-medium">
+                  Itens com pendência documental a sanar.
+                </p>
+              </div>
+
+              {/* Card 3: Total Geral no Escopo */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4.5 space-y-1.5">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                  Total de Documentos Auditados
                 </span>
+                <div className="text-2xl sm:text-3xl font-black text-slate-900">
+                  {totalGeral.toLocaleString('pt-BR')}
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Soma de todas as auditorias CADIM, Trabalhistas e Demais.
+                </p>
               </div>
 
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Altere os valores de <strong>Válidos</strong> e <strong>Pendentes</strong> abaixo para atualizar o gráfico instantaneamente:
-              </p>
-
-              {/* CAMPOS SIMPLES E DIRETOS: VÁLIDOS E PENDENTES */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Campo Válidos */}
-                <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-2xs space-y-2 hover:border-emerald-400 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-black text-emerald-800 uppercase tracking-wide flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>Válidos:</span>
-                    </label>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                      Conformes
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateValidos(Math.max(0, validos - 1))}
-                      className="w-8 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 font-black text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="number"
-                      min="0"
-                      value={validos}
-                      onChange={(e) => handleUpdateValidos(parseInt(e.target.value, 10))}
-                      className="w-full text-center px-3 py-2 text-xl font-black text-emerald-700 bg-emerald-50/40 rounded-lg border border-emerald-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all"
-                      placeholder="30"
+              {/* Card 4: Status do Ecossistema */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4.5 space-y-2 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    Status Operacional
+                  </span>
+                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                    percentualGeral >= 85 ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'
+                  }`}>
+                    {percentualGeral >= 85 ? 'Excelente' : 'Monitoramento'}
+                  </span>
+                </div>
+                <div>
+                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-600 rounded-full transition-all duration-500"
+                      style={{ width: `${percentualGeral}%` }}
                     />
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateValidos(validos + 1)}
-                      className="w-8 h-9 rounded-lg bg-emerald-100 hover:bg-emerald-200 font-black text-emerald-800 flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      +
-                    </button>
                   </div>
+                  <span className="text-[11px] text-slate-500 font-semibold mt-1.5 block">
+                    Taxa global de conformidade: <strong>{percentualGeral}%</strong>
+                  </span>
                 </div>
-
-                {/* Campo Pendentes */}
-                <div className="bg-white p-4 rounded-xl border border-rose-200 shadow-2xs space-y-2 hover:border-rose-400 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-black text-rose-800 uppercase tracking-wide flex items-center gap-1.5">
-                      <AlertTriangle className="w-4 h-4 text-rose-600" />
-                      <span>Pendentes:</span>
-                    </label>
-                    <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md">
-                      Em aberto
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleUpdatePendentes(Math.max(0, pendentes - 1))}
-                      className="w-8 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 font-black text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="number"
-                      min="0"
-                      value={pendentes}
-                      onChange={(e) => handleUpdatePendentes(parseInt(e.target.value, 10))}
-                      className="w-full text-center px-3 py-2 text-xl font-black text-rose-700 bg-rose-50/40 rounded-lg border border-rose-300 focus:outline-hidden focus:ring-2 focus:ring-rose-600 focus:bg-white transition-all"
-                      placeholder="70"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleUpdatePendentes(pendentes + 1)}
-                      className="w-8 h-9 rounded-lg bg-rose-100 hover:bg-rose-200 font-black text-rose-800 flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Botões Rápidos / Presets de Demonstração */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200/80">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-slate-500">Exemplos Rápidos:</span>
-                  <button
-                    onClick={() => {
-                      handleUpdateValidos(30);
-                      handleUpdatePendentes(70);
-                    }}
-                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition-colors cursor-pointer"
-                  >
-                    30 / 70 (30%)
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleUpdateValidos(99);
-                      handleUpdatePendentes(1);
-                    }}
-                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition-colors cursor-pointer"
-                  >
-                    99 / 1 (99%)
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleUpdateValidos(100);
-                      handleUpdatePendentes(0);
-                    }}
-                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition-colors cursor-pointer"
-                  >
-                    100 / 0 (100%)
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleUpdateValidos(85);
-                      handleUpdatePendentes(15);
-                    }}
-                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition-colors cursor-pointer"
-                  >
-                    85 / 15 (85%)
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleAutoFillFromSystem}
-                  className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-emerald-200 hover:bg-emerald-50 transition-colors"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>Sincronizar com base do sistema</span>
-                </button>
               </div>
             </div>
           </div>

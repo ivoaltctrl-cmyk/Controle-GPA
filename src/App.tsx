@@ -24,6 +24,8 @@ import {
   saveStoredTrabalhistaEnvios,
   isStoredAdminAuthenticated,
   setStoredAdminAuthenticated,
+  getStoredAdminCredentials,
+  saveStoredAdminCredentials,
   getStoredBlinkingAlerts,
   saveStoredBlinkingAlerts,
   calculateSystemStats,
@@ -268,6 +270,12 @@ export default function App() {
         if (serverData.resumoConfig) {
           setResumoConfig(serverData.resumoConfig);
         }
+        if (serverData.adminCredentials?.password) {
+          saveStoredAdminCredentials(
+            serverData.adminCredentials.username || 'admin',
+            serverData.adminCredentials.password
+          );
+        }
       }
 
       setEmployees(loadedEmployees);
@@ -295,6 +303,18 @@ export default function App() {
             }
             return prev;
           });
+        }
+        if (liveData.adminCredentials?.password) {
+          const currentCreds = getStoredAdminCredentials();
+          if (
+            currentCreds.password !== liveData.adminCredentials.password ||
+            currentCreds.username !== liveData.adminCredentials.username
+          ) {
+            saveStoredAdminCredentials(
+              liveData.adminCredentials.username || 'admin',
+              liveData.adminCredentials.password
+            );
+          }
         }
       }
     }, 20000);
@@ -337,6 +357,15 @@ export default function App() {
     const configWithTimestamp = { ...newConfig, lastUpdated: new Date().toISOString() };
     setResumoConfig(configWithTimestamp);
     syncCollectionToBackend('resumoConfig', configWithTimestamp);
+  };
+
+  const handleSaveAdminCredentials = (username: string, password: string) => {
+    saveStoredAdminCredentials(username, password);
+    syncCollectionToBackend('adminCredentials', {
+      username,
+      password,
+      lastUpdated: new Date().toISOString(),
+    });
   };
 
   const updateBrand = (newBrand: BrandConfig) => {
@@ -742,6 +771,9 @@ export default function App() {
             syncStatus={syncStatus}
             onRefreshSheets={() => refreshFromGoogleSheets(false)}
             onGoToDemandado={() => setPortalMode('pendencias')}
+            resumoConfig={resumoConfig}
+            onSaveResumoConfig={updateResumoConfig}
+            onSaveAdminCredentials={handleSaveAdminCredentials}
           />
         )}
       </main>

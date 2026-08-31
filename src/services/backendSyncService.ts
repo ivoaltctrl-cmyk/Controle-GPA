@@ -13,6 +13,11 @@ export interface ServerSyncData {
   trabalhistas?: TrabalhistaEnvio[];
   demandLogs?: DemandLog[];
   brandConfig?: BrandConfig;
+  adminCredentials?: {
+    username: string;
+    password: string;
+    lastUpdated?: string;
+  };
   resumoConfig?: {
     validos: number;
     pendentes: number;
@@ -27,6 +32,11 @@ export async function fetchAllDataFromServer(): Promise<{
   trabalhistas?: TrabalhistaEnvio[];
   demandLogs?: DemandLog[];
   brandConfig?: BrandConfig;
+  adminCredentials?: {
+    username: string;
+    password: string;
+    lastUpdated?: string;
+  };
   resumoConfig?: {
     validos: number;
     pendentes: number;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Settings,
   Lock,
@@ -12,11 +12,13 @@ import {
   Palette,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Sparkles,
   Database,
   ArrowRight,
   RefreshCw,
   Sliders,
+  SlidersHorizontal,
   Flame,
   Activity,
   Layers,
@@ -25,6 +27,7 @@ import {
   HelpCircle,
   Building2,
   Building,
+  TrendingUp,
 } from 'lucide-react';
 import { BrandConfig, Employee, Contract, TrabalhistaEnvio, AreaResponsavel } from '../types/index.ts';
 import { getStoredAdminCredentials, saveStoredAdminCredentials } from '../utils/storage.ts';
@@ -48,7 +51,16 @@ interface SettingsModuleProps {
   };
   onRefreshSheets?: () => void;
   onGoToDemandado?: () => void;
+  resumoConfig?: {
+    validos: number;
+    pendentes: number;
+    lastUpdated?: string;
+  } | null;
+  onSaveResumoConfig?: (newConfig: { validos: number; pendentes: number }) => void;
+  onSaveAdminCredentials?: (username: string, password: string) => void;
 }
+
+const LOCAL_STORAGE_CUSTOM_RESUMO = 'sgp_custom_resumo_v1';
 
 export const SettingsModule: React.FC<SettingsModuleProps> = ({
   onOpenSheetsSync,
@@ -65,6 +77,9 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
   syncStatus,
   onRefreshSheets,
   onGoToDemandado,
+  resumoConfig,
+  onSaveResumoConfig,
+  onSaveAdminCredentials,
 }) => {
   const currentCreds = getStoredAdminCredentials();
   const [username, setUsername] = useState(currentCreds.username);
@@ -77,6 +92,117 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
   const primaryColor = brand?.primaryColor || '#E21B23';
   const companyName = brand?.companyName || 'GPA';
 
+  // --------------------------------------------------------------------------
+  // PARÂMETROS DO GRÁFICO (RESUMO GERAL)
+  // --------------------------------------------------------------------------
+  const [validos, setValidos] = useState<number>(() => {
+    if (resumoConfig && typeof resumoConfig.validos === 'number') {
+      return resumoConfig.validos;
+    }
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_CUSTOM_RESUMO);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.validos === 'number') return parsed.validos;
+      }
+    } catch (e) {}
+    return 4404;
+  });
+
+  const [pendentes, setPendentes] = useState<number>(() => {
+    if (resumoConfig && typeof resumoConfig.pendentes === 'number') {
+      return resumoConfig.pendentes;
+    }
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_CUSTOM_RESUMO);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.pendentes === 'number') return parsed.pendentes;
+      }
+    } catch (e) {}
+    return 2;
+  });
+
+  useEffect(() => {
+    if (resumoConfig && typeof resumoConfig.validos === 'number' && typeof resumoConfig.pendentes === 'number') {
+      setValidos(resumoConfig.validos);
+      setPendentes(resumoConfig.pendentes);
+    }
+  }, [resumoConfig?.validos, resumoConfig?.pendentes, resumoConfig?.lastUpdated]);
+
+  const handleUpdateValidos = (val: number) => {
+    const safeVal = Math.max(0, isNaN(val) ? 0 : val);
+    setValidos(safeVal);
+    try {
+      localStorage.setItem(
+        LOCAL_STORAGE_CUSTOM_RESUMO,
+        JSON.stringify({ validos: safeVal, pendentes })
+      );
+    } catch (e) {}
+    onSaveResumoConfig?.({ validos: safeVal, pendentes });
+  };
+
+  const handleUpdatePendentes = (val: number) => {
+    const safeVal = Math.max(0, isNaN(val) ? 0 : val);
+    setPendentes(safeVal);
+    try {
+      localStorage.setItem(
+        LOCAL_STORAGE_CUSTOM_RESUMO,
+        JSON.stringify({ validos, pendentes: safeVal })
+      );
+    } catch (e) {}
+    onSaveResumoConfig?.({ validos, pendentes: safeVal });
+  };
+
+  const handleAutoFillFromSystem = () => {
+    // Calcula a soma real de exames validados e pendências
+    let calcValidados = 0;
+    let calcPendentes = 0;
+
+    employees.forEach((emp) => {
+      if (emp.pendencias && Array.isArray(emp.pendencias)) {
+        emp.pendencias.forEach((p) => {
+          if (p.status === 'EM_DIA') {
+            calcValidados++;
+          } else if (p.status === 'PENDENTE' || p.status === 'VENCIDO' || p.status === 'A_VENCER') {
+            calcPendentes++;
+          }
+        });
+      }
+    });
+
+    trabalhistas.forEach((t) => {
+      if (t.status === 'Validado') {
+        calcValidados++;
+      } else if (t.status === 'Reprovado' || t.status === 'Em Análise') {
+        calcPendentes++;
+      }
+    });
+
+    const finalVal = calcValidados > 0 ? calcValidados : 4404;
+    const finalPen = calcPendentes > 0 ? calcPendentes : 2;
+
+    setValidos(finalVal);
+    setPendentes(finalPen);
+    try {
+      localStorage.setItem(
+        LOCAL_STORAGE_CUSTOM_RESUMO,
+        JSON.stringify({ validos: finalVal, pendentes: finalPen })
+      );
+    } catch (e) {}
+    onSaveResumoConfig?.({ validos: finalVal, pendentes: finalPen });
+  };
+
+  const totalGeral = validos + pendentes;
+  const percentualGeral = useMemo(() => {
+    if (totalGeral <= 0) return validos > 0 ? 100 : 0;
+    const pct = Math.round((validos / totalGeral) * 100);
+    return Math.max(0, Math.min(100, pct));
+  }, [validos, totalGeral]);
+
+  // --------------------------------------------------------------------------
+  // CREDENCIAIS DE ADM
+  // --------------------------------------------------------------------------
   const handleUpdateCredentials = (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError('');
@@ -97,8 +223,13 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
       return;
     }
 
-    saveStoredAdminCredentials(username, newPassword);
-    setPasswordSuccess('Credenciais de Administrador salvas com sucesso!');
+    if (onSaveAdminCredentials) {
+      onSaveAdminCredentials(username, newPassword);
+    } else {
+      saveStoredAdminCredentials(username, newPassword);
+    }
+
+    setPasswordSuccess('Credenciais de Administrador salvas e sincronizadas em todos os dispositivos com sucesso!');
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
@@ -123,14 +254,14 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
               </span>
               <span className="text-[10px] font-mono text-emerald-600 font-bold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Base Operacional Ativa
+                Sincronização em Tempo Real Ativa
               </span>
             </div>
             <h2 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
               Guia de Configurações do Sistema
             </h2>
             <p className="text-xs text-slate-500 font-medium">
-              Painel de governança, integrações, inteligência artificial OCR, alertas visuais e parâmetros de infraestrutura.
+              Painel de governança, parâmetros do resumo geral, credenciais de administrador, integrações e segurança.
             </p>
           </div>
         </div>
@@ -145,75 +276,10 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
         </div>
       </div>
 
-      {/* Direct Banner: Orientation for Data Input & Regularization */}
-      <div className="bg-linear-to-r from-rose-50 via-white to-amber-50 border border-rose-200/80 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-            <FileCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-black text-slate-900">
-                Lançamento de Dados & Regularização de Pendências
-              </h3>
-              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800">
-                Portal do Demandado
-              </span>
-            </div>
-            <p className="text-xs text-slate-600 mt-1 max-w-2xl">
-              Para efetuar input de colaboradores, dar baixa em exames vencidos, anexar comprovantes ou sanar pendências documentais, utilize o <strong>Portal do Demandado</strong>.
-            </p>
-          </div>
-        </div>
-
-        {onGoToDemandado && (
-          <button
-            onClick={onGoToDemandado}
-            style={{ backgroundColor: primaryColor }}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-white font-bold text-xs shadow-xs hover:opacity-90 transition-all cursor-pointer flex items-center justify-center gap-2 shrink-0"
-          >
-            <FileCheck className="w-4 h-4" />
-            <span>Ir para o Portal Demandado</span>
-          </button>
-        )}
-      </div>
-
       {/* Grid of Main Configuration Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Gestao de Parametros & Visao Operacional */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Status do Banco de Dados & Infraestrutura */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-slate-100 text-slate-800">
-                <Activity className="w-4 h-4 text-slate-700" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-slate-900">Métricas & Inventário do Sistema</h3>
-                <p className="text-[11px] text-slate-500">Volume de registros carregados em memória e servidor</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
-                <span className="text-[11px] text-slate-500 block font-medium">Colaboradores CADIM</span>
-                <span className="text-xl font-black text-slate-900 mt-0.5 block">{employees.length}</span>
-              </div>
-              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
-                <span className="text-[11px] text-slate-500 block font-medium">Contratos Cadastrados</span>
-                <span className="text-xl font-black text-slate-900 mt-0.5 block">{contracts.length}</span>
-              </div>
-              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
-                <span className="text-[11px] text-slate-500 block font-medium">Áreas & Setores</span>
-                <span className="text-xl font-black text-slate-900 mt-0.5 block">{areas.length}</span>
-              </div>
-              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
-                <span className="text-[11px] text-slate-500 block font-medium">Envios Trabalhistas</span>
-                <span className="text-xl font-black text-slate-900 mt-0.5 block">{trabalhistas.length}</span>
-              </div>
-            </div>
-          </div>
-
           {/* Gestão de Credenciais do Administrador */}
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
             <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
@@ -222,7 +288,9 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
               </div>
               <div>
                 <h3 className="text-sm font-black text-slate-900">Segurança & Troca de Senha do ADM</h3>
-                <p className="text-[11px] text-slate-500">Defina o usuário e senha para o Painel ADM</p>
+                <p className="text-[11px] text-slate-500">
+                  Ao trocar a senha aqui, ela é sincronizada automaticamente em todos os navegadores e computadores
+                </p>
               </div>
             </div>
 
@@ -301,15 +369,210 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
                 className="w-full py-2.5 rounded-xl text-white font-bold text-xs shadow-xs hover:opacity-90 transition-all cursor-pointer flex items-center justify-center gap-2 mt-2"
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>Salvar Novas Credenciais</span>
+                <span>Salvar Novas Credenciais (Sincronizar em Todos os PCs)</span>
               </button>
             </form>
           </div>
+
+          {/* Status do Banco de Dados & Infraestrutura */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+              <div className="p-2 rounded-xl bg-slate-100 text-slate-800">
+                <Activity className="w-4 h-4 text-slate-700" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-900">Métricas & Inventário do Sistema</h3>
+                <p className="text-[11px] text-slate-500">Volume de registros carregados em memória e servidor</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                <span className="text-[11px] text-slate-500 block font-medium">Colaboradores CADIM</span>
+                <span className="text-xl font-black text-slate-900 mt-0.5 block">{employees.length}</span>
+              </div>
+              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                <span className="text-[11px] text-slate-500 block font-medium">Contratos Cadastrados</span>
+                <span className="text-xl font-black text-slate-900 mt-0.5 block">{contracts.length}</span>
+              </div>
+              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                <span className="text-[11px] text-slate-500 block font-medium">Áreas & Setores</span>
+                <span className="text-xl font-black text-slate-900 mt-0.5 block">{areas.length}</span>
+              </div>
+              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                <span className="text-[11px] text-slate-500 block font-medium">Envios Trabalhistas</span>
+                <span className="text-xl font-black text-slate-900 mt-0.5 block">{trabalhistas.length}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Right Column: Actions, Integrations & Global System Tools */}
+        {/* Right Column: Actions, Integrations & Resumo Parameters */}
         <div className="lg:col-span-7 space-y-5">
-          {/* 1. Sincronização GPA (Sheets) */}
+          {/* ========================================================================= */}
+          {/* 1. PARÂMETROS DO GRÁFICO (RESUMO GERAL) - MOVIDO PARA CONFIGURAÇÕES      */}
+          {/* ========================================================================= */}
+          <div className="bg-white border-2 border-emerald-300 rounded-3xl p-5 sm:p-6 shadow-sm space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                  <SlidersHorizontal className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-slate-900 uppercase">
+                      Parâmetros do Gráfico (Resumo Geral)
+                    </h3>
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                      Sincronizado
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Altere os números de <strong>Válidos</strong> e <strong>Pendentes</strong> para atualizar o gráfico Donut da tela principal em todos os computadores.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                <TrendingUp className="w-4 h-4 text-emerald-700" />
+                <span className="text-xs font-black text-emerald-900">
+                  Resultado: {percentualGeral}% ({validos} de {totalGeral})
+                </span>
+              </div>
+            </div>
+
+            {/* CAMPOS SIMPLES E DIRETOS: VÁLIDOS E PENDENTES */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Campo Válidos */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-emerald-200 shadow-2xs space-y-2 hover:border-emerald-400 transition-colors">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-emerald-800 uppercase tracking-wide flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Válidos (Conformes):</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                    {percentualGeral}%
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateValidos(Math.max(0, validos - 1))}
+                    className="w-9 h-10 rounded-xl bg-white hover:bg-slate-200 font-black text-slate-700 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer text-base shadow-2xs"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    value={validos}
+                    onChange={(e) => handleUpdateValidos(parseInt(e.target.value, 10))}
+                    className="w-full text-center px-3 py-2 text-2xl font-black text-emerald-700 bg-white rounded-xl border border-emerald-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-600 transition-all shadow-2xs"
+                    placeholder="4404"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateValidos(validos + 1)}
+                    className="w-9 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 font-black text-white flex items-center justify-center transition-colors cursor-pointer text-base shadow-2xs"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Campo Pendentes */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-rose-200 shadow-2xs space-y-2 hover:border-rose-400 transition-colors">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-rose-800 uppercase tracking-wide flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-rose-600" />
+                    <span>Pendentes (Em Aberto):</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md">
+                    {totalGeral > 0 ? Math.round((pendentes / totalGeral) * 100) : 0}%
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdatePendentes(Math.max(0, pendentes - 1))}
+                    className="w-9 h-10 rounded-xl bg-white hover:bg-slate-200 font-black text-slate-700 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer text-base shadow-2xs"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    value={pendentes}
+                    onChange={(e) => handleUpdatePendentes(parseInt(e.target.value, 10))}
+                    className="w-full text-center px-3 py-2 text-2xl font-black text-rose-700 bg-white rounded-xl border border-rose-300 focus:outline-hidden focus:ring-2 focus:ring-rose-600 transition-all shadow-2xs"
+                    placeholder="2"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleUpdatePendentes(pendentes + 1)}
+                    className="w-9 h-10 rounded-xl bg-rose-600 hover:bg-rose-700 font-black text-white flex items-center justify-center transition-colors cursor-pointer text-base shadow-2xs"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Presets & Sincronização */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500">Exemplos Rápidos:</span>
+                <button
+                  onClick={() => {
+                    handleUpdateValidos(30);
+                    handleUpdatePendentes(70);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                >
+                  30 / 70 (30%)
+                </button>
+                <button
+                  onClick={() => {
+                    handleUpdateValidos(99);
+                    handleUpdatePendentes(1);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                >
+                  99 / 1 (99%)
+                </button>
+                <button
+                  onClick={() => {
+                    handleUpdateValidos(100);
+                    handleUpdatePendentes(0);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                >
+                  100 / 0 (100%)
+                </button>
+                <button
+                  onClick={() => {
+                    handleUpdateValidos(85);
+                    handleUpdatePendentes(15);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                >
+                  85 / 15 (85%)
+                </button>
+              </div>
+
+              <button
+                onClick={handleAutoFillFromSystem}
+                className="text-xs font-bold text-emerald-800 hover:text-emerald-900 flex items-center gap-1.5 cursor-pointer bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition-colors shadow-2xs"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Calcular da Base de Dados</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Sincronização GPA (Sheets) */}
           <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-emerald-300 transition-colors">
             <div className="flex items-start gap-3.5">
               <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
@@ -348,7 +611,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
             </div>
           </div>
 
-          {/* 2. Lançar Print (OCR com IA) */}
+          {/* 3. Lançar Print (OCR com IA) */}
           <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-indigo-300 transition-colors">
             <div className="flex items-start gap-3.5">
               <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center shrink-0">
@@ -378,7 +641,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
             </button>
           </div>
 
-          {/* 3. Alertas Piscantes ON/OFF */}
+          {/* 4. Alertas Piscantes ON/OFF */}
           <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <div
@@ -429,7 +692,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
             </button>
           </div>
 
-          {/* 4. Personalização Visual & Marca */}
+          {/* 5. Personalização Visual & Marca */}
           <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <div className="w-11 h-11 rounded-2xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center shrink-0">
@@ -452,7 +715,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
             </button>
           </div>
 
-          {/* 5. Zerar Planilha / Iniciar Produção */}
+          {/* 6. Zerar Planilha / Iniciar Produção */}
           <div className="bg-rose-50/50 border border-rose-200 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <div className="w-11 h-11 rounded-2xl bg-rose-100 text-rose-700 border border-rose-300 flex items-center justify-center shrink-0">
@@ -484,3 +747,4 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
     </div>
   );
 };
+
