@@ -4,6 +4,7 @@ import {
   Search,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   Clock,
   Building,
   Building2,
@@ -12,6 +13,7 @@ import {
   HardHat,
   Radio,
   User,
+  UserX,
   Check,
   ChevronRight,
   ChevronLeft,
@@ -90,7 +92,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   const [selectedContractId, setSelectedContractId] = useState('');
   const [selectedAreaId, setSelectedAreaId] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'CADIM' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('CADIM');
-  const [filterStatus, setFilterStatus] = useState<'TODOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA'>('TODOS');
+  const [filterStatus, setFilterStatus] = useState<'TODOS' | 'ATIVOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA' | 'DESLIGADOS'>('TODOS');
   
   // Selection for bulk actions
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -327,12 +329,22 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
       }
 
       // Status filter
-      if (filterStatus === 'PENDENTES') {
+      if (filterStatus === 'ATIVOS') {
+        const isDesligado = emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado') || emp.statusGeral === 'BLOQUEADO';
+        if (isDesligado) return false;
+      } else if (filterStatus === 'DESLIGADOS') {
+        const isDesligado = emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado') || emp.statusGeral === 'BLOQUEADO';
+        if (!isDesligado) return false;
+      } else if (filterStatus === 'PENDENTES') {
+        const isDesligado = emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado');
+        if (isDesligado) return false;
         const hasPendingOrExpired = emp.pendencias.some(
           (p) => p.status === 'PENDENTE' || p.status === 'VENCIDO'
         );
         if (!hasPendingOrExpired && emp.statusGeral === 'EM_DIA') return false;
       } else if (filterStatus === 'A_VENCER') {
+        const isDesligado = emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado');
+        if (isDesligado) return false;
         const hasAVencer = emp.pendencias.some((p) => p.status === 'A_VENCER');
         if (!hasAVencer) return false;
       } else if (filterStatus === 'EM_DIA') {
@@ -422,11 +434,21 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
 
   // KPI calculations
   const totalDemandados = employees.length;
-  const totalEmDia = employees.filter((e) => e.statusGeral === 'EM_DIA').length;
-  const totalCriticos = employees.filter(
-    (e) => e.statusGeral === 'CRITICO' || e.statusGeral === 'BLOQUEADO' || e.pendencias.some((p) => p.status === 'PENDENTE' || p.status === 'VENCIDO')
+  const totalAtivos = employees.filter(
+    (e) => !e.resumoGeral?.includes('Desligado') && !e.resumoGeral?.includes('Cancelado') && e.statusGeral !== 'BLOQUEADO'
   ).length;
-  const totalAVencer = employees.filter((e) => e.pendencias.some((p) => p.status === 'A_VENCER')).length;
+  const totalEmDia = employees.filter((e) => e.statusGeral === 'EM_DIA').length;
+  const totalDesligados = employees.filter(
+    (e) => (e.resumoGeral && e.resumoGeral.includes('Desligado')) || (e.resumoGeral && e.resumoGeral.includes('Cancelado')) || e.statusGeral === 'BLOQUEADO'
+  ).length;
+  const totalCriticos = employees.filter(
+    (e) =>
+      !e.resumoGeral?.includes('Desligado') &&
+      (e.statusGeral === 'CRITICO' || e.statusGeral === 'PENDENTE' || e.pendencias.some((p) => p.status === 'PENDENTE' || p.status === 'VENCIDO'))
+  ).length;
+  const totalAVencer = employees.filter(
+    (e) => !e.resumoGeral?.includes('Desligado') && e.pendencias.some((p) => p.status === 'A_VENCER')
+  ).length;
 
   // Toggle select all on page
   const handleToggleSelectAll = () => {
@@ -452,6 +474,18 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
    */
   const renderDocCell = (emp: Employee, docType: DocType) => {
     const doc = getEmpDoc(emp, docType);
+    const isDesligado = emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado') || emp.statusGeral === 'BLOQUEADO';
+    
+    if (isDesligado) {
+      return (
+        <div className="text-center">
+          <span className="text-slate-400 text-[10px] font-semibold bg-slate-100 px-1.5 py-0.5 rounded" title="Colaborador Inativo/Desligado no GPA">
+            INATIVO
+          </span>
+        </div>
+      );
+    }
+
     if (!doc || doc.status === 'NAO_APLICAVEL') {
       return (
         <div className="text-center">
@@ -668,7 +702,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
       ) : (
         <>
       {/* KPI Cards Rápidos Compactos com Alertas Piscantes */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div
           onClick={() => {
             setFilterStatus('TODOS');
@@ -683,7 +717,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             <User className="w-4 h-4 text-slate-400" />
           </div>
           <div className="text-xl font-black text-slate-900">{totalDemandados.toLocaleString('pt-BR')}</div>
-          <span className="text-[10px] text-slate-500">Colaboradores no sistema</span>
+          <span className="text-[10px] text-slate-500">{totalAtivos.toLocaleString('pt-BR')} ativos na base</span>
         </div>
 
         <div
@@ -692,7 +726,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setCurrentPage(1);
           }}
           className={`p-3.5 rounded-xl bg-white border cursor-pointer transition-all shadow-2xs ${
-            filterStatus === 'EM_DIA' ? 'border-emerald-600 ring-2 ring-emerald-600/15' : 'border-slate-200 hover:border-emerald-200'
+            filterStatus === 'EM_DIA' ? 'border-emerald-600 ring-2 ring-emerald-600/15 bg-emerald-50/20' : 'border-slate-200 hover:border-emerald-200'
           }`}
         >
           <div className="flex items-center justify-between text-emerald-700 mb-1">
@@ -700,7 +734,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-xl font-black text-emerald-700">{totalEmDia.toLocaleString('pt-BR')}</div>
-          <span className="text-[10px] text-emerald-600">Acesso liberado</span>
+          <span className="text-[10px] text-emerald-600">Acesso liberado GPA</span>
         </div>
 
         {/* Card A Vencer com Alerta Piscante */}
@@ -753,6 +787,24 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
           </div>
           <div className="text-xl font-black text-[#E21B23]">{totalCriticos.toLocaleString('pt-BR')}</div>
           <span className="text-[10px] text-rose-600">Requer saneamento</span>
+        </div>
+
+        {/* Card Desligados / Inativos */}
+        <div
+          onClick={() => {
+            setFilterStatus('DESLIGADOS');
+            setCurrentPage(1);
+          }}
+          className={`p-3.5 rounded-xl bg-white border cursor-pointer transition-all shadow-2xs ${
+            filterStatus === 'DESLIGADOS' ? 'border-slate-500 ring-2 ring-slate-400/20 bg-slate-100' : 'border-slate-200 hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between text-slate-600 mb-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Desligados</span>
+            <UserX className="w-4 h-4 text-slate-500" />
+          </div>
+          <div className="text-xl font-black text-slate-700">{totalDesligados.toLocaleString('pt-BR')}</div>
+          <span className="text-[10px] text-slate-500">Inativos no GPA</span>
         </div>
       </div>
 
@@ -850,6 +902,19 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             </button>
             <button
               onClick={() => {
+                setFilterStatus('ATIVOS');
+                setCurrentPage(1);
+              }}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                filterStatus === 'ATIVOS'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
+              }`}
+            >
+              Ativos ({totalAtivos})
+            </button>
+            <button
+              onClick={() => {
                 setFilterStatus('PENDENTES');
                 setCurrentPage(1);
               }}
@@ -906,6 +971,19 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
               }`}
             >
               Em Dia ({totalEmDia})
+            </button>
+            <button
+              onClick={() => {
+                setFilterStatus('DESLIGADOS');
+                setCurrentPage(1);
+              }}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                filterStatus === 'DESLIGADOS'
+                  ? 'bg-slate-700 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+              }`}
+            >
+              Desligados ({totalDesligados})
             </button>
           </div>
 
@@ -1188,7 +1266,22 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
                       {/* Ações Rápidas */}
                       <td className="py-2 px-1.5 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          {!isAllEmDia ? (
+                          {emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado') || emp.statusGeral === 'BLOQUEADO' ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="inline-flex items-center justify-center gap-0.5 text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                <span>Desligado</span>
+                              </span>
+                              {onOpenEmployeeDetail && (
+                                <button
+                                  onClick={() => onOpenEmployeeDetail(emp)}
+                                  title="Visualizar ficha cadastral completa"
+                                  className="p-1 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer shrink-0"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ) : !isAllEmDia ? (
                             <>
                               <button
                                 onClick={() => {

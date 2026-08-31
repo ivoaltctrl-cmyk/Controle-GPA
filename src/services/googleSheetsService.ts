@@ -11,7 +11,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Employee, Contract, TrabalhistaEnvio, AreaResponsavel, PendingDoc } from '../types/index.ts';
+import { Employee, Contract, TrabalhistaEnvio, AreaResponsavel, PendingDoc, DocStatus, EmployeeStatus } from '../types/index.ts';
 
 export const DEFAULT_SPREADSHEET_ID = '1eiiiADFvTgdKFp37zwWU5r5iJktZSdsr5BlFVAXZKIc';
 const SPREADSHEET_ID_KEY = 'sst_gpa_spreadsheet_id_v1';
@@ -227,28 +227,79 @@ export async function fetchTabCsvDirectly(
   }
 }
 
+// Helper para converter data em formato YYYY-MM-DD
+export function parseDateCell(val?: string | number): string | undefined {
+  if (!val) return undefined;
+  const s = String(val).trim();
+  if (!s) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const parts = s.split(/[\/\-\.]/);
+  if (parts.length === 3) {
+    let day = parts[0].padStart(2, '0');
+    let month = parts[1].padStart(2, '0');
+    let year = parts[2];
+    if (year.length > 4) year = year.slice(-4);
+    else if (year.length === 2) year = '20' + year;
+    if (parts[0].length === 4) {
+      return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+    return `${year}-${month}-${day}`;
+  }
+  return undefined;
+}
+
 /**
  * Converte linhas de SST em lista de colaboradores com pendências
  */
 export function convertSstRowsToEmployees(rows: string[][]): Employee[] {
-  // Ignora cabeçalho
-  const dataRows = rows.length > 0 && (rows[0][0]?.toLowerCase().includes('doc') || rows[0][1]?.toLowerCase().includes('nome'))
-    ? rows.slice(1)
-    : rows;
+  if (!rows || rows.length === 0) return [];
 
-  const mesesNomes: Record<number, string> = {
-    1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
-    5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
-    9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+  // Detect header row
+  const headerIdx = rows.findIndex((r) =>
+    r.some((cell) => {
+      const c = (cell || '').toLowerCase();
+      return c.includes('doc') || c.includes('nome') || c.includes('cpf') || c.includes('matricula');
+    })
+  );
+
+  const headerRow = headerIdx >= 0 ? rows[headerIdx].map((c) => (c || '').toLowerCase().trim()) : [];
+  const dataRows = headerIdx >= 0 ? rows.slice(headerIdx + 1) : rows;
+
+  const findCol = (...keywords: string[]): number => {
+    return headerRow.findIndex((h) => keywords.some((k) => h.includes(k)));
   };
 
+  const docIdx = findCol('documento', 'cpf', 'matrícula', 'matricula') !== -1 ? findCol('documento', 'cpf', 'matrícula', 'matricula') : 0;
+  const nomeIdx = findCol('nome do colaborador', 'nome') !== -1 ? findCol('nome do colaborador', 'nome') : 1;
+  const cargoIdx = findCol('cargo', 'função', 'funcao') !== -1 ? findCol('cargo', 'função', 'funcao') : 2;
+  const setorIdx = findCol('área', 'area', 'setor') !== -1 ? findCol('área', 'area', 'setor') : 3;
+  const statusGpaIdx = findCol('status gpa', 'status ativos', 'status') !== -1 ? findCol('status gpa', 'status ativos', 'status') : 4;
+  const contratoIdx = findCol('contrato') !== -1 ? findCol('contrato') : 6;
+  const cnpjIdx = findCol('cnpj') !== -1 ? findCol('cnpj') : 7;
+  const osIdx = findCol('ordem de serviço', 'nr-01', 'os') !== -1 ? findCol('ordem de serviço', 'nr-01', 'os') : 8;
+  const osValIdx = findCol('validade os', 'validade ordem') !== -1 ? findCol('validade os', 'validade ordem') : 9;
+  const asoIdx = findCol('aso ocupacional', 'nr-07', 'aso') !== -1 ? findCol('aso ocupacional', 'nr-07', 'aso') : 10;
+  const asoValIdx = findCol('validade aso') !== -1 ? findCol('validade aso') : 11;
+  const epiIdx = findCol('ficha de epi', 'nr-06', 'ficha epi', 'epi') !== -1 ? findCol('ficha de epi', 'nr-06', 'ficha epi', 'epi') : 12;
+  const epiValIdx = findCol('validade ficha epi', 'validade epi') !== -1 ? findCol('validade ficha epi', 'validade epi') : 13;
+  const nrIdx = findCol('treinamento', 'certificação', 'certificacao', 'curso') !== -1 ? findCol('treinamento', 'certificação', 'certificacao', 'curso') : 14;
+  const nrValIdx = findCol('validade certificado', 'validade treinamento') !== -1 ? findCol('validade certificado', 'validade treinamento') : 15;
+
   return dataRows
-    .filter((row) => row && (row[0]?.trim() || row[1]?.trim()))
+    .filter((row) => row && (row[docIdx]?.trim() || row[nomeIdx]?.trim()))
     .map((row, idx) => {
-      const rawDoc = String(row[0] || '').trim();
-      const nome = String(row[1] || `Colaborador ${idx + 1}`).trim();
-      const cargo = String(row[2] || 'AGENTE DE PROTECAO').trim();
-      const setor = String(row[3] || 'GRU SEGURANCA CANAL DE II').trim();
+      const rawDoc = String(row[docIdx] || '').trim();
+      const nome = String(row[nomeIdx] || `Colaborador ${idx + 1}`).trim();
+      const cargo = String(row[cargoIdx] || 'AGENTE DE PROTECAO').trim();
+      const setor = String(row[setorIdx] || 'GRU SEGURANCA CANAL DE II').trim();
+      const statusGpaRaw = String(row[statusGpaIdx] || '').trim();
+      const contratoVal = String(row[contratoIdx] || '1').trim();
+
+      const asoRaw = String(row[asoIdx] || '').trim();
+      const isDesligado =
+        statusGpaRaw.toLowerCase().includes('desligad') ||
+        asoRaw.toLowerCase().includes('desligad');
+      const isCancelado = statusGpaRaw.toLowerCase().includes('cancelad');
 
       const parseDoc = (
         tipo: any,
@@ -257,7 +308,22 @@ export function convertSstRowsToEmployees(rows: string[][]): Employee[] {
         validadeCell?: string
       ): PendingDoc => {
         const val = String(statusCell || '').toUpperCase().trim();
-        let status: any = 'EM_DIA';
+        const parsedDate = parseDateCell(validadeCell);
+
+        if (isCancelado || isDesligado || val.includes('DESLIGAD') || val.includes('CANCELAD')) {
+          return {
+            id: `doc_${idx}_${tipo}`,
+            tipo,
+            nomeDocumento: nomeDoc,
+            status: 'NAO_APLICAVEL',
+            obrigatorio: false,
+            categoria: 'CADIM',
+            observacoes: isCancelado ? 'Cancelado no GPA' : 'Desligado / Inativo no GPA',
+            dataVencimento: parsedDate,
+          };
+        }
+
+        let status: DocStatus = 'EM_DIA';
         if (val.includes('VENCID')) status = 'VENCIDO';
         else if (val.includes('PENDENT')) status = 'PENDENTE';
         else if (val.includes('A_VENCER') || val.includes('A VENCER')) status = 'A_VENCER';
@@ -271,48 +337,69 @@ export function convertSstRowsToEmployees(rows: string[][]): Employee[] {
           status,
           obrigatorio: true,
           categoria: 'CADIM',
-          dataVencimento: validadeCell?.trim() || '2027-01-01',
+          dataVencimento: parsedDate || '2027-01-01',
         };
       };
 
       const pendencias: PendingDoc[] = [
-        parseDoc('ORDEM_DE_SERVICO', 'Ordem de Serviço (NR-01)', row[7], row[8]),
-        parseDoc('ATESTADO_SAUDE_OCUPACIONAL', 'ASO Ocupacional (NR-07)', row[9], row[10]),
-        parseDoc('FICHA_EPI', 'Ficha de EPI (NR-06)', row[11], row[12]),
-        parseDoc('TREINAMENTO_NR', 'Treinamento / Certificação Técnica', row[13], row[14]),
+        parseDoc('ORDEM_DE_SERVICO', 'Ordem de Serviço (NR-01)', row[osIdx], row[osValIdx]),
+        parseDoc('ATESTADO_SAUDE_OCUPACIONAL', 'ASO Ocupacional (NR-07)', row[asoIdx], row[asoValIdx]),
+        parseDoc('FICHA_EPI', 'Ficha de EPI (NR-06)', row[epiIdx], row[epiValIdx]),
+        parseDoc('TREINAMENTO_NR', 'Treinamento / Certificação Técnica', row[nrIdx], row[nrValIdx]),
       ];
 
-      const hasVencido = pendencias.some((p) => p.status === 'VENCIDO');
-      const hasPendente = pendencias.some((p) => p.status === 'PENDENTE');
-      const hasAVencer = pendencias.some((p) => p.status === 'A_VENCER');
-
-      let statusGeral: any = 'EM_DIA';
-      if (hasVencido) statusGeral = 'NAO_CONFORME';
-      else if (hasPendente) statusGeral = 'PENDENTE';
-      else if (hasAVencer) statusGeral = 'A_VENCER';
-
-      const totalValid = pendencias.filter((p) => p.status === 'EM_DIA' || p.status === 'NAO_APLICAVEL').length;
-      const indicadorPercentual = Math.round((totalValid / pendencias.length) * 100);
-
-      const isCpf = rawDoc.replace(/\D/g, '').length === 11;
+      const cleanDoc = rawDoc.replace(/\D/g, '');
+      const isCpf = cleanDoc.length === 11;
       const formattedCpf = isCpf
-        ? rawDoc.replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+        ? cleanDoc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
         : rawDoc;
 
+      let statusGeral: EmployeeStatus = 'EM_DIA';
+      let indicadorPercentual = 100;
+      let resumoGeral = '100% em conformidade com as normas';
+
+      if (isCancelado) {
+        statusGeral = 'BLOQUEADO';
+        indicadorPercentual = 0;
+        resumoGeral = 'Registro Cancelado no GPA';
+      } else if (isDesligado) {
+        statusGeral = 'BLOQUEADO';
+        indicadorPercentual = 0;
+        resumoGeral = 'Colaborador Desligado / Inativo no GPA';
+      } else {
+        const hasVencido = pendencias.some((p) => p.status === 'VENCIDO');
+        const hasPendente = pendencias.some((p) => p.status === 'PENDENTE');
+        const hasAVencer = pendencias.some((p) => p.status === 'A_VENCER');
+        const validDocs = pendencias.filter((p) => p.status === 'EM_DIA' || p.status === 'NAO_APLICAVEL').length;
+        indicadorPercentual = Math.round((validDocs / pendencias.length) * 100);
+
+        if (hasVencido) {
+          statusGeral = indicadorPercentual < 50 ? 'BLOQUEADO' : 'CRITICO';
+          resumoGeral = 'Possui documentos vencidos';
+        } else if (hasPendente) {
+          statusGeral = 'PENDENTE';
+          resumoGeral = 'Possui documentos pendentes de regularização';
+        } else if (hasAVencer) {
+          statusGeral = 'PENDENTE';
+          resumoGeral = 'Documentos a vencer nos próximos 30 dias';
+        }
+      }
+
       return {
-        id: `emp_${rawDoc || idx + 1}`,
-        matricula: isCpf ? `MAT-${rawDoc.slice(-4)}` : rawDoc || `MAT-${1000 + idx}`,
+        id: `emp_${cleanDoc || idx + 1}`,
+        matricula: isCpf ? `MAT-${cleanDoc.slice(-4)}` : rawDoc || `MAT-${1000 + idx}`,
         nome,
         cpf: formattedCpf,
         cargo,
         setor,
         empresa: 'ORBITAL SERV. AUX. DE TRANSP. AÉREO',
-        contratoId: String(row[5] || '1'),
-        contratoNome: `Contrato ${row[5] || '1'}`,
+        contratoId: contratoVal,
+        contratoNome: `Contrato ${contratoVal}`,
         areaNome: setor,
         areaResponsavelNome: 'Gestão de Segurança GRU',
         statusGeral,
         indicadorPercentual,
+        resumoGeral,
         pendencias,
         dataCadastro: '2026-01-01',
         dataUltimaLeitura: new Date().toLocaleDateString('pt-BR'),
@@ -324,9 +411,15 @@ export function convertSstRowsToEmployees(rows: string[][]): Employee[] {
  * Converte linhas de Trabalhistas
  */
 export function convertTrabRowsToTrabalhistas(rows: string[][]): TrabalhistaEnvio[] {
-  const dataRows = rows.length > 0 && (rows[0][0]?.toLowerCase().includes('mês') || rows[0][0]?.toLowerCase().includes('mes'))
-    ? rows.slice(1)
-    : rows;
+  if (!rows || rows.length === 0) return [];
+  const headerIdx = rows.findIndex((r) =>
+    r.some((cell) => {
+      const c = (cell || '').toLowerCase();
+      return c.includes('mês') || c.includes('mes') || c.includes('ano') || c.includes('envio');
+    })
+  );
+
+  const dataRows = headerIdx >= 0 ? rows.slice(headerIdx + 1) : rows;
 
   const mesesNomes: Record<number, string> = {
     1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
@@ -340,8 +433,9 @@ export function convertTrabRowsToTrabalhistas(rows: string[][]): TrabalhistaEnvi
       const mesNum = Number(row[0]) || 1;
       const anoNum = Number(row[1]) || 2026;
       const mesPadded = String(mesNum).padStart(2, '0');
+      const dataEnvioStr = String(row[2] || '').trim() || new Date().toLocaleString('pt-BR');
       const statusRaw = String(row[3] || 'Validado').trim();
-      let statusNorm: any = 'Validado';
+      let statusNorm: 'Validado' | 'Reprovado' | 'Em Análise' = 'Validado';
       if (statusRaw.toLowerCase().includes('reprovad')) statusNorm = 'Reprovado';
       else if (statusRaw.toLowerCase().includes('análise') || statusRaw.toLowerCase().includes('analise')) statusNorm = 'Em Análise';
 
@@ -350,16 +444,16 @@ export function convertTrabRowsToTrabalhistas(rows: string[][]): TrabalhistaEnvi
         mes: mesPadded,
         mesNome: mesesNomes[mesNum] || `Mês ${mesNum}`,
         ano: anoNum,
-        dataEnvio: row[2] || new Date().toLocaleString('pt-BR'),
+        dataEnvio: dataEnvioStr,
         status: statusNorm,
         empresa: 'ORBITAL SERV. AUX. DE TRANSP. AÉREO',
         contratoNome: 'Contrato Geral GPA',
         documentosAnexados: ['Folha de Pagamento', 'Comprovante GFIP/FGTS', 'CNDT'],
         motivoReprovacao: statusNorm === 'Reprovado' ? 'Guia com inconsistência de recolhimento' : undefined,
-        observacoes: `Envio registrado em ${row[2] || 'data não informada'}`,
+        observacoes: `Envio registrado em ${dataEnvioStr}`,
         usuarioEnvio: 'Prestador (GPA_BD)',
         validadoPor: statusNorm === 'Validado' ? 'Fiscalização GRU' : undefined,
-        dataValidacao: row[2] || undefined,
+        dataValidacao: statusNorm === 'Validado' ? dataEnvioStr : undefined,
       };
     });
 }
@@ -368,42 +462,53 @@ export function convertTrabRowsToTrabalhistas(rows: string[][]): TrabalhistaEnvi
  * Converte linhas de Contratuais
  */
 export function convertContractRowsToContracts(rows: string[][]): Contract[] {
-  const dataRows = rows.length > 0 && (rows[0][0]?.toLowerCase().includes('contrato') || rows[0][1]?.toLowerCase().includes('objeto'))
-    ? rows.slice(1)
-    : rows;
+  if (!rows || rows.length === 0) return [];
+  const headerIdx = rows.findIndex((r) =>
+    r.some((cell) => {
+      const c = (cell || '').toLowerCase();
+      return c.includes('contrato') || c.includes('objeto');
+    })
+  );
+
+  const dataRows = headerIdx >= 0 ? rows.slice(headerIdx + 1) : rows;
 
   return dataRows
     .filter((row) => row && row[0] && String(row[0]).trim().length > 0)
     .map((row, idx) => {
       const num = String(row[0] || `CTR-${idx + 1}`).trim();
-      const statusVig = String(row[5] || '').toLowerCase().includes('vencid') ? 'Vencido' : 'Vigente';
+      const objeto = String(row[1] || '').trim();
+      const categoria = String(row[2] || 'ESATA').trim();
+      const dataInicio = String(row[3] || '').trim() || '01/10/2020';
+      const dataTermino = String(row[4] || '').trim() || '30/11/2026';
+      const statusRaw = String(row[5] || '').trim();
+      const statusVig = statusRaw.toLowerCase().includes('vencid') ? 'Vencido' : 'Vigente';
       const docRaw = String(row[6] || '').trim();
-      let statusDoc: any = 'Validado';
+      let statusDoc: 'Validado' | 'Reprovado' | 'Em Análise' = 'Validado';
       if (docRaw.toLowerCase().includes('reprovad')) statusDoc = 'Reprovado';
       else if (docRaw.toLowerCase().includes('análise') || docRaw.toLowerCase().includes('analise')) statusDoc = 'Em Análise';
 
       return {
         id: `ctr_${num.replace(/[^a-zA-Z0-9]/g, '_')}`,
         numero: num,
-        titulo: row[1] || num,
-        objeto: row[1] || '',
+        titulo: objeto || num,
+        objeto: objeto || '',
         cnpjPrestador: '05.007.113/0001-32',
         empresaPrestador: 'ORBITAL SERV. AUX. DE TRANSP. AÉREO',
-        categoria: row[2] || 'ESATA',
+        categoria: categoria || 'ESATA',
         cliente: 'GRU Airport',
         unidade: 'Terminal Operacional',
-        gestorResponsavel: 'Gestão de Contratos',
+        gestorResponsavel: 'Gestão de Contratos GPA',
         emailContato: 'fiscalizacao@gru.com.br',
         telefoneContato: '(11) 2445-0000',
-        dataInicio: row[3] || '01/10/2020',
-        dataTermino: row[4] || '30/11/2026',
-        vigenciaInicio: row[3] || '2020-10-01',
-        vigenciaFim: row[4] || '2026-11-30',
+        dataInicio,
+        dataTermino,
+        vigenciaInicio: dataInicio,
+        vigenciaFim: dataTermino,
         statusVigencia: statusVig,
         statusDocumentos: statusDoc,
         status: statusVig === 'Vigente' ? 'ATIVO' : 'ENCERRADO',
         limiteBloqueioConformidade: 85,
-        observacoes: `Categoria: ${row[2] || 'ESATA'} | Documentos: ${statusDoc}`,
+        observacoes: `Categoria: ${categoria} | Documentos: ${statusDoc}`,
       };
     });
 }
@@ -708,14 +813,44 @@ export async function pullAllFromSheets(
 }> {
   // Estratégia 1: Leitura Direta Instantânea via Google Visualization CSV (Zero popup, Zero login)
   try {
-    let sstRows = await fetchTabCsvDirectly(spreadsheetId, SHEET_TABS.CADIM).catch(() => []);
-    if (!sstRows || sstRows.length === 0) {
-      sstRows = await fetchTabCsvDirectly(spreadsheetId, SHEET_TABS.SST).catch(() => []);
+    let sstRows: string[][] = [];
+    for (const tabName of [SHEET_TABS.SST, SHEET_TABS.CADIM, 'SST', 'CADIM']) {
+      try {
+        const res = await fetchTabCsvDirectly(spreadsheetId, tabName);
+        if (res && res.length > 1) {
+          sstRows = res;
+          break;
+        }
+      } catch {
+        // try next
+      }
     }
-    const [trabRows, contractRows] = await Promise.all([
-      fetchTabCsvDirectly(spreadsheetId, SHEET_TABS.TRABALHISTAS).catch(() => []),
-      fetchTabCsvDirectly(spreadsheetId, SHEET_TABS.CONTRATUAIS).catch(() => []),
-    ]);
+
+    let trabRows: string[][] = [];
+    for (const tabName of [SHEET_TABS.TRABALHISTAS, 'Trabalhistas', 'Pendencias trabalhistas', 'Pendências Trabalhistas']) {
+      try {
+        const res = await fetchTabCsvDirectly(spreadsheetId, tabName);
+        if (res && res.length > 1) {
+          trabRows = res;
+          break;
+        }
+      } catch {
+        // try next
+      }
+    }
+
+    let contractRows: string[][] = [];
+    for (const tabName of [SHEET_TABS.CONTRATUAIS, 'Contratos', 'Pendencias Contratuais', 'Pendências contratuais']) {
+      try {
+        const res = await fetchTabCsvDirectly(spreadsheetId, tabName);
+        if (res && res.length > 1) {
+          contractRows = res;
+          break;
+        }
+      } catch {
+        // try next
+      }
+    }
 
     if (sstRows.length > 0 || trabRows.length > 0 || contractRows.length > 0) {
       const employees = convertSstRowsToEmployees(sstRows);
@@ -810,6 +945,11 @@ export function smartMergeData(
   trabalhistas: TrabalhistaEnvio[];
   contracts: Contract[];
   stats: {
+    totalEmployees: number;
+    ativosEmployees: number;
+    desligadosEmployees: number;
+    totalContracts: number;
+    totalTrabalhistas: number;
     newEmployees: number;
     updatedEmployees: number;
     newContracts: number;
@@ -817,6 +957,11 @@ export function smartMergeData(
   };
 } {
   const stats = {
+    totalEmployees: 0,
+    ativosEmployees: 0,
+    desligadosEmployees: 0,
+    totalContracts: 0,
+    totalTrabalhistas: 0,
     newEmployees: 0,
     updatedEmployees: 0,
     newContracts: 0,
@@ -875,13 +1020,26 @@ export function smartMergeData(
     if (!trabMap.has(key)) {
       trabMap.set(key, impT);
       stats.newTrabalhistas++;
+    } else {
+      const existing = trabMap.get(key)!;
+      trabMap.set(key, { ...existing, ...impT, id: existing.id });
     }
   });
 
+  const mergedEmployees = Array.from(empMap.values());
+  const mergedContracts = Array.from(contractMap.values());
+  const mergedTrabalhistas = Array.from(trabMap.values());
+
+  stats.totalEmployees = mergedEmployees.length;
+  stats.ativosEmployees = mergedEmployees.filter((e) => e.statusGeral !== 'BLOQUEADO' && !e.resumoGeral?.includes('Desligado') && !e.resumoGeral?.includes('Cancelado')).length;
+  stats.desligadosEmployees = stats.totalEmployees - stats.ativosEmployees;
+  stats.totalContracts = mergedContracts.length;
+  stats.totalTrabalhistas = mergedTrabalhistas.length;
+
   return {
-    employees: Array.from(empMap.values()),
-    contracts: Array.from(contractMap.values()),
-    trabalhistas: Array.from(trabMap.values()),
+    employees: mergedEmployees,
+    contracts: mergedContracts,
+    trabalhistas: mergedTrabalhistas,
     stats,
   };
 }

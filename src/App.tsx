@@ -782,7 +782,7 @@ export default function App() {
         trabalhistas={trabalhistaEnvios}
         areas={areas}
         onApplyImportedData={({ employees: emps, contracts: cts, trabalhistas: tbs, areas: ars }) => {
-          if (emps) handleBulkImportEmployees(emps);
+          if (emps) updateEmployees(emps);
           if (cts) updateContracts(cts);
           if (tbs) updateTrabalhistaEnvios(tbs);
           if (ars) updateAreas(ars);
