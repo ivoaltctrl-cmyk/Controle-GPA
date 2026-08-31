@@ -348,7 +348,7 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
                     <span className="text-xs font-bold text-slate-900">Escudo / Geométrico</span>
                   </div>
                   <span className="text-[11px] text-slate-500">
-                    Símbolo de proteção SST com as cores da marca
+                    Símbolo de proteção CADIM com as cores da marca
                   </span>
                 </button>
 
@@ -461,7 +461,7 @@ export const BrandSettingsModal: React.FC<BrandSettingsModalProps> = ({
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, badgeText: e.target.value }))
                   }
-                  placeholder="Ex: SST & Compliance, Segurança do Trabalho, NRs"
+                  placeholder="Ex: CADIM & Compliance, Controle CADIM, NRs"
                   className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-slate-900"
                 />
               </div>

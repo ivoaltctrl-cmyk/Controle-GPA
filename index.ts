@@ -1,3 +1,33 @@
+export interface TrabalhistaEnvio {
+  id: string;
+  mes: string; // "01" a "12"
+  mesNome?: string; // "Janeiro", "Fevereiro", ...
+  ano: number; // 2026, 2025...
+  dataEnvio: string; // "27/07/2026 12:14:48"
+  status: 'Validado' | 'Reprovado' | 'Em Análise';
+  contratoId?: string;
+  contratoNome?: string;
+  empresa?: string;
+  motivoReprovacao?: string;
+  documentosAnexados?: string[];
+  observacoes?: string;
+  usuarioEnvio?: string;
+  validadoPor?: string;
+  dataValidacao?: string;
+}
+
+export interface TrabalhistaMesConsolidado {
+  mes: string;
+  mesNome: string;
+  ano: number;
+  totalEnvios: number;
+  totalValidados: number;
+  totalReprovados: number;
+  isValidado: boolean;
+  statusConsolidado: 'VALIDADO' | 'REPROVADO' | 'PENDENTE';
+  ultimoEnvio?: TrabalhistaEnvio;
+}
+
 export type ThemePaletteId =
   | 'wfs-red'
   | 'gpa-corporate'
@@ -21,7 +51,7 @@ export interface BrandConfig {
   accentTextColor: string;
 }
 
-export type DocCategory = 'SST' | 'TRABALHISTA' | 'DEMAIS';
+export type DocCategory = 'CADIM' | 'SST' | 'TRABALHISTA' | 'DEMAIS';
 
 export type DocType =
   | 'ORDEM_DE_SERVICO'
@@ -102,6 +132,16 @@ export interface Employee {
   imagemOrigemUrl?: string;
 }
 
+export interface ContractDocumentItem {
+  id: string;
+  nome: string;
+  tipo: string;
+  status: 'Validado' | 'Reprovado' | 'Em Análise';
+  motivoReprovacao?: string;
+  dataUpload?: string;
+  obrigatorio?: boolean;
+}
+
 export interface Contract {
   id: string;
   numero: string;
@@ -118,6 +158,16 @@ export interface Contract {
   status: 'ATIVO' | 'ALERTA' | 'BLOQUEADO' | 'ENCERRADO';
   limiteBloqueioConformidade: number; // e.g. 80%
   observacoes?: string;
+  // Campos detalhados para controle de contratos e auditoria
+  cnpjPrestador?: string;
+  empresaPrestador?: string;
+  objeto?: string;
+  categoria?: string;
+  dataInicio?: string; // Formato DD/MM/AAAA
+  dataTermino?: string; // Formato DD/MM/AAAA
+  statusVigencia?: 'Vigente' | 'Vencido';
+  statusDocumentos?: 'Validado' | 'Em Análise' | 'Reprovado';
+  documentosContrato?: ContractDocumentItem[];
 }
 
 export interface DemandLog {
@@ -147,7 +197,7 @@ export interface SystemStats {
   totalCriticos: number;
   totalBloqueados: number;
   taxaConformidadeGeral: number;
-  // Stats by core SST document
+  // Stats by core CADIM document
   ordemServico: {
     total: number;
     emDia: number;

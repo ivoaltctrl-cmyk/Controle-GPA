@@ -106,7 +106,7 @@ export function generateSampleScreenshotBase64(profileIndex: number = 0): string
 
   ctx.fillStyle = '#38bdf8';
   ctx.font = 'bold 20px sans-serif';
-  ctx.fillText('SISTEMA INTEGRADO DE GESTÃO DE SST & CONFORMIDADE DE TERCEIROS', 24, 38);
+  ctx.fillText('SISTEMA INTEGRADO DE GESTÃO CADIM & CONFORMIDADE DE TERCEIROS', 24, 38);
 
   ctx.fillStyle = '#94a3b8';
   ctx.font = '13px sans-serif';
@@ -153,10 +153,10 @@ export function generateSampleScreenshotBase64(profileIndex: number = 0): string
   // Title for Checklist
   ctx.fillStyle = '#f8fafc';
   ctx.font = 'bold 16px sans-serif';
-  ctx.fillText('QUADRO DE PENDÊNCIAS E OBRIGAÇÕES LEGAIS DE SST', 24, 248);
+  ctx.fillText('QUADRO DE PENDÊNCIAS E OBRIGAÇÕES LEGAIS DE CADIM', 24, 248);
 
   // Document 1: Ordem de Serviço (NR-01)
-  drawDocBox(ctx, 24, 260, 1052, 75, '1. ORDEM DE SERVIÇO DE SST (NR-01)', profile.osStatus, profile.osData, '#38bdf8');
+  drawDocBox(ctx, 24, 260, 1052, 75, '1. ORDEM DE SERVIÇO DE CADIM (NR-01)', profile.osStatus, profile.osData, '#38bdf8');
 
   // Document 2: ASO (NR-07)
   drawDocBox(ctx, 24, 345, 1052, 75, '2. ATESTADO DE SAÚDE OCUPACIONAL - ASO (NR-07)', profile.asoStatus, profile.asoData, '#a855f7');

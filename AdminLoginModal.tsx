@@ -68,7 +68,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
         {/* Header Decorator */}
         <div
           style={{ backgroundColor: primaryColor }}
-          className="p-6 text-white text-center relative overflow-hidden"
+          className="p-6 text-white text-center relative overflow-hidden flex flex-col items-center"
         >
           <button
             onClick={onClose}
@@ -77,12 +77,12 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
             <X className="w-5 h-5" />
           </button>
 
-          <div className="inline-flex p-3 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/20 mb-3 shadow-inner">
-            <Lock className="w-7 h-7" style={{ color: accentColor }} />
+          <div className="bg-white px-4 py-2 rounded-2xl shadow-md mb-3 inline-flex items-center justify-center">
+            <WfsLogo brand={brand} size="md" showSubtitle={false} />
           </div>
 
           <h2 className="text-xl font-black tracking-tight">Área Administrativa</h2>
-          <p className="text-xs text-emerald-100 mt-1 max-w-xs mx-auto">
+          <p className="text-xs text-white/90 mt-1 max-w-xs mx-auto">
             Acesso restrito para gestão completa de contratos, auditoria, OCR e configurações {companyName}
           </p>
         </div>

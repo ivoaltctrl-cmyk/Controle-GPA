@@ -48,6 +48,8 @@ interface EmployeeTableProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   brand: BrandConfig;
+  readOnly?: boolean;
+  onGoToDemandado?: () => void;
 }
 
 export const EmployeeTable: React.FC<EmployeeTableProps> = ({
@@ -70,8 +72,10 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   searchTerm,
   setSearchTerm,
   brand,
+  readOnly = false,
+  onGoToDemandado,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<'TODOS' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('TODOS');
+  const [selectedCategory, setSelectedCategory] = useState<'CADIM' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('CADIM');
   const primaryColor = brand?.primaryColor || '#006837';
   const accentColor = brand?.accentColor || '#f59e0b';
 
@@ -252,49 +256,71 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
             </select>
 
             {/* Import from Excel Button */}
-            <button
-              onClick={onOpenExcelImport}
-              title="Importar planilha de colaboradores oficial"
-              className="px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Importar Planilha</span>
-            </button>
+            {!readOnly ? (
+              <>
+                <button
+                  onClick={onOpenExcelImport}
+                  title="Importar planilha de colaboradores oficial"
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span>Importar Planilha</span>
+                </button>
 
-            {/* Add Employee Button */}
-            <button
-              onClick={onOpenNewEmployee}
-              style={{ backgroundColor: primaryColor }}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-95 transition-opacity flex items-center gap-1.5 cursor-pointer shrink-0"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Novo Colaborador</span>
-            </button>
+                {/* Add Employee Button */}
+                <button
+                  onClick={onOpenNewEmployee}
+                  style={{ backgroundColor: primaryColor }}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-95 transition-opacity flex items-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Novo Colaborador</span>
+                </button>
+              </>
+            ) : onGoToDemandado ? (
+              <button
+                onClick={onGoToDemandado}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Editar no Portal Demandado</span>
+              </button>
+            ) : null}
           </div>
         </div>
 
-        {/* Categories Bar (SST, Trabalhista, Demais) */}
+        {/* Banner Informativo quando em Modo Auditoria Read-Only */}
+        {readOnly && (
+          <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-900 gap-2">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>
+                <strong>Modo Auditoria & Visualização:</strong> A edição de cadastros e regularização de pendências é feita no <strong>Portal do Demandado</strong>.
+              </span>
+            </div>
+            {onGoToDemandado && (
+              <button
+                onClick={onGoToDemandado}
+                className="px-2.5 py-1 rounded-lg bg-amber-200/80 hover:bg-amber-300 font-bold text-[11px] text-amber-950 transition-colors cursor-pointer shrink-0"
+              >
+                Ir para o Portal Demandado
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Categories Bar (CADIM, Trabalhista, Demais - 3 Categorias) */}
         <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex flex-wrap items-center gap-1">
           <button
-            onClick={() => setSelectedCategory('TODOS')}
-            className={`flex-1 min-w-[130px] px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
-              selectedCategory === 'TODOS'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-transparent text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            Todos os Documentos
-          </button>
-          <button
-            onClick={() => setSelectedCategory('SST')}
+            onClick={() => setSelectedCategory('CADIM')}
             className={`flex-1 min-w-[170px] px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
-              selectedCategory === 'SST'
+              selectedCategory === 'CADIM' || selectedCategory === 'SST'
                 ? 'bg-emerald-700 text-white shadow-xs'
                 : 'bg-transparent text-slate-700 hover:bg-slate-200'
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Pendências Documentações de SST</span>
+            <span>Pendências Documentações de CADIM</span>
           </button>
           <button
             onClick={() => setSelectedCategory('TRABALHISTA')}
@@ -631,27 +657,31 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                             <Eye className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Edit Button */}
-                          <button
-                            onClick={() => onEditEmployee(emp)}
-                            title="Editar Colaborador e Pendências"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
+                          {!readOnly && (
+                            <>
+                              {/* Edit Button */}
+                              <button
+                                onClick={() => onEditEmployee(emp)}
+                                title="Editar Colaborador e Pendências"
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
 
-                          {/* Delete Button */}
-                          <button
-                            onClick={() => {
-                              if (confirm(`Deseja excluir o colaborador ${emp.nome}?`)) {
-                                onDeleteEmployee(emp.id);
-                              }
-                            }}
-                            title="Excluir Colaborador"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                              {/* Delete Button */}
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Deseja excluir o colaborador ${emp.nome}?`)) {
+                                    onDeleteEmployee(emp.id);
+                                  }
+                                }}
+                                title="Excluir Colaborador"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

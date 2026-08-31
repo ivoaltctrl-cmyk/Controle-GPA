@@ -4,6 +4,7 @@ import {
   Search,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   Clock,
   Building,
   Building2,
@@ -12,6 +13,7 @@ import {
   HardHat,
   Radio,
   User,
+  UserX,
   Check,
   ChevronRight,
   ChevronLeft,
@@ -29,9 +31,16 @@ import {
   SlidersHorizontal,
   FileSpreadsheet,
   Layers,
+  ExternalLink,
+  HelpCircle,
+  Eye,
+  Send,
+  Copy,
 } from 'lucide-react';
-import { Employee, Contract, AreaResponsavel, DocType, DocStatus, BrandConfig, PendingDoc } from '../types/index.ts';
+import { Employee, Contract, AreaResponsavel, DocType, DocStatus, BrandConfig, PendingDoc, TrabalhistaEnvio } from '../types/index.ts';
 import { updateEmployeeCalculatedFields } from '../utils/storage.ts';
+import { TrabalhistaModule } from './TrabalhistaModule.tsx';
+import { ContractsModule } from './ContractsModule.tsx';
 import * as XLSX from 'xlsx';
 import confetti from 'canvas-confetti';
 
@@ -41,11 +50,20 @@ interface DemandadoPortalProps {
   areas: AreaResponsavel[];
   brand: BrandConfig;
   onSaveEmployee: (employee: Employee) => void;
+  onSaveContract?: (contract: Contract) => void;
+  onDeleteContract?: (contractId: string) => void;
   onOpenAdminLogin: () => void;
   isAdminLoggedIn: boolean;
-  onSwitchToAdminTab: () => void;
+  onSwitchToAdminTab?: () => void;
   onResetData?: () => void;
   blinkingAlerts?: boolean;
+  trabalhistaEnvios?: TrabalhistaEnvio[];
+  onSaveTrabalhistaEnvios?: (envios: TrabalhistaEnvio[]) => void;
+  onOpenGoogleSheetsSync?: () => void;
+  onDirectSync?: () => Promise<any>;
+  onOpenOfficialGuide?: (employee?: Employee) => void;
+  onOpenEmployeeDetail?: (employee: Employee) => void;
+  onOpenDemandCenter?: (employee: Employee) => void;
 }
 
 type SortField = 'matricula' | 'cpf' | 'nome' | 'cargo' | 'setor' | 'os' | 'aso' | 'epi' | 'radio' | 'statusGeral';
@@ -57,17 +75,26 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   areas,
   brand,
   onSaveEmployee,
+  onSaveContract,
+  onDeleteContract,
   onOpenAdminLogin,
   isAdminLoggedIn,
   onSwitchToAdminTab,
   onResetData,
   blinkingAlerts = true,
+  trabalhistaEnvios = [],
+  onSaveTrabalhistaEnvios,
+  onOpenGoogleSheetsSync,
+  onDirectSync,
+  onOpenOfficialGuide,
+  onOpenEmployeeDetail,
+  onOpenDemandCenter,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContractId, setSelectedContractId] = useState('');
   const [selectedAreaId, setSelectedAreaId] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<'TODOS' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('TODOS');
-  const [filterStatus, setFilterStatus] = useState<'TODOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA'>('TODOS');
+  const [selectedCategory, setSelectedCategory] = useState<'CADIM' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('CADIM');
+  const [filterStatus, setFilterStatus] = useState<'TODOS' | 'ATIVOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA' | 'DESLIGADOS'>('TODOS');
   
   // Selection for bulk actions
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -80,12 +107,57 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   const [sortField, setSortField] = useState<SortField>('nome');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-  // Toast feedback
+  // Toast feedback & sync state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSyncingDirect, setIsSyncingDirect] = useState(false);
+
+  const handleQuickSync = async () => {
+    if (onDirectSync) {
+      setIsSyncingDirect(true);
+      try {
+        const res = await onDirectSync();
+        const count = res?.employees?.length ?? 0;
+        setToastMessage(`Sincronização on-time concluída! ${count} registros refletidos no painel.`);
+        setTimeout(() => setToastMessage(null), 4000);
+      } catch (e: any) {
+        setToastMessage(`Erro ao sincronizar: ${e.message || 'Falha de conexão com a planilha'}`);
+        setTimeout(() => setToastMessage(null), 5000);
+      } finally {
+        setIsSyncingDirect(false);
+      }
+    } else if (onOpenGoogleSheetsSync) {
+      onOpenGoogleSheetsSync();
+    }
+  };
 
   const primaryColor = brand?.primaryColor || '#E21B23'; // WFS Red
   const companyName = brand?.companyName || 'WFS';
   const companySubtitle = brand?.companySubtitle || 'A SATS COMPANY';
+
+  // Cálculos de pendências por categoria para dar destaque visual imediato
+  const cadimPendingCount = useMemo(() => {
+    return employees.filter(
+      (e) =>
+        e.statusGeral !== 'EM_DIA' &&
+        !e.resumoGeral?.includes('Desligado') &&
+        !e.resumoGeral?.includes('Cancelado')
+    ).length;
+  }, [employees]);
+
+  const trabalhistaPendingCount = useMemo(() => {
+    return trabalhistaEnvios.filter(
+      (t) => t.status === 'Reprovado' || t.status === 'Em Análise'
+    ).length;
+  }, [trabalhistaEnvios]);
+
+  const demaisPendingCount = useMemo(() => {
+    return contracts.filter(
+      (c) =>
+        c.status !== 'ATIVO' ||
+        c.statusDocumentos === 'Reprovado' ||
+        c.statusDocumentos === 'Em Análise'
+    ).length;
+  }, [contracts]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -269,8 +341,8 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Controle SST WFS');
-    XLSX.writeFile(workbook, `WFS_Controle_SST_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Controle CADIM WFS');
+    XLSX.writeFile(workbook, `WFS_Controle_CADIM_${new Date().toISOString().split('T')[0]}.xlsx`);
     showToast('Planilha Excel baixada com sucesso!');
   };
 
@@ -304,12 +376,22 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
       }
 
       // Status filter
-      if (filterStatus === 'PENDENTES') {
+      if (filterStatus === 'ATIVOS') {
+        const isDesligado = emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado') || emp.statusGeral === 'BLOQUEADO';
+        if (isDesligado) return false;
+      } else if (filterStatus === 'DESLIGADOS') {
+        const isDesligado = emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado') || emp.statusGeral === 'BLOQUEADO';
+        if (!isDesligado) return false;
+      } else if (filterStatus === 'PENDENTES') {
+        const isDesligado = emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado');
+        if (isDesligado) return false;
         const hasPendingOrExpired = emp.pendencias.some(
           (p) => p.status === 'PENDENTE' || p.status === 'VENCIDO'
         );
         if (!hasPendingOrExpired && emp.statusGeral === 'EM_DIA') return false;
       } else if (filterStatus === 'A_VENCER') {
+        const isDesligado = emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado');
+        if (isDesligado) return false;
         const hasAVencer = emp.pendencias.some((p) => p.status === 'A_VENCER');
         if (!hasAVencer) return false;
       } else if (filterStatus === 'EM_DIA') {
@@ -399,11 +481,21 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
 
   // KPI calculations
   const totalDemandados = employees.length;
-  const totalEmDia = employees.filter((e) => e.statusGeral === 'EM_DIA').length;
-  const totalCriticos = employees.filter(
-    (e) => e.statusGeral === 'CRITICO' || e.statusGeral === 'BLOQUEADO' || e.pendencias.some((p) => p.status === 'PENDENTE' || p.status === 'VENCIDO')
+  const totalAtivos = employees.filter(
+    (e) => !e.resumoGeral?.includes('Desligado') && !e.resumoGeral?.includes('Cancelado') && e.statusGeral !== 'BLOQUEADO'
   ).length;
-  const totalAVencer = employees.filter((e) => e.pendencias.some((p) => p.status === 'A_VENCER')).length;
+  const totalEmDia = employees.filter((e) => e.statusGeral === 'EM_DIA').length;
+  const totalDesligados = employees.filter(
+    (e) => (e.resumoGeral && e.resumoGeral.includes('Desligado')) || (e.resumoGeral && e.resumoGeral.includes('Cancelado')) || e.statusGeral === 'BLOQUEADO'
+  ).length;
+  const totalCriticos = employees.filter(
+    (e) =>
+      !e.resumoGeral?.includes('Desligado') &&
+      (e.statusGeral === 'CRITICO' || e.statusGeral === 'PENDENTE' || e.pendencias.some((p) => p.status === 'PENDENTE' || p.status === 'VENCIDO'))
+  ).length;
+  const totalAVencer = employees.filter(
+    (e) => !e.resumoGeral?.includes('Desligado') && e.pendencias.some((p) => p.status === 'A_VENCER')
+  ).length;
 
   // Toggle select all on page
   const handleToggleSelectAll = () => {
@@ -429,6 +521,18 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
    */
   const renderDocCell = (emp: Employee, docType: DocType) => {
     const doc = getEmpDoc(emp, docType);
+    const isDesligado = emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado') || emp.statusGeral === 'BLOQUEADO';
+    
+    if (isDesligado) {
+      return (
+        <div className="text-center">
+          <span className="text-slate-400 text-[10px] font-semibold bg-slate-100 px-1.5 py-0.5 rounded" title="Colaborador Inativo/Desligado no GPA">
+            INATIVO
+          </span>
+        </div>
+      );
+    }
+
     if (!doc || doc.status === 'NAO_APLICAVEL') {
       return (
         <div className="text-center">
@@ -513,61 +617,94 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
       )}
 
-      {/* Header Discreto - Portal de Pendências dos Contratos GPA */}
+      {/* Header - Portal Unificado de Pendências e Conformidade GPA */}
       <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200 border-l-4 border-l-[#E21B23] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md text-[11px] font-black bg-[#E21B23]/10 text-[#E21B23] uppercase tracking-wider border border-[#E21B23]/20">
             <span className="w-2 h-2 rounded-full bg-[#E21B23]" />
-            <span>PORTAL DE PENDÊNCIAS DOS CONTRATOS GPA • WFS</span>
+            <span>PORTAL DE PENDÊNCIAS & CONFORMIDADE • GPA</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Controle Pendências Documentais
+            Consulta & Regularização de Pendências
           </h2>
           <p className="text-xs text-slate-600 font-medium max-w-2xl">
-            Visualize a lista geral de colaboradores e clique diretamente no texto da pendência para saná-la com 1 clique.
+            Consulte as pendências documentais dos terceiros e realize a regularização diretamente no sistema oficial da empresa.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* Botão Principal de Sincronização em Tempo Real */}
+          <button
+            onClick={handleQuickSync}
+            disabled={isSyncingDirect}
+            className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs flex items-center gap-2 cursor-pointer transition-all disabled:opacity-60"
+            title="Sincronizar dados em tempo real com o Google Sheets GPA_BD"
+          >
+            {isSyncingDirect ? (
+              <RefreshCw className="w-4 h-4 text-emerald-100 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4 text-emerald-100" />
+            )}
+            <span>{isSyncingDirect ? 'Sincronizando...' : 'Sincronizar GPA_BD'}</span>
+          </button>
+
+          {/* Botões Secundários com Visual Corporativo e Discreto */}
+          <a
+            href="https://gpa.gru.com.br/Login"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all"
+            title="Acessar o sistema oficial GPA para saneamento de pendências documentais"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+            <span>Sistema GPA</span>
+          </a>
+
+          {onOpenOfficialGuide && (
+            <button
+              onClick={() => onOpenOfficialGuide()}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all"
+              title="Ver passo a passo de como sanar no sistema oficial de cadastro"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+              <span>Guia</span>
+            </button>
+          )}
+
           <button
             onClick={handleExportExcel}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 shadow-2xs flex items-center gap-2 cursor-pointer transition-all"
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            <span>Exportar Excel (.xlsx)</span>
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Excel</span>
           </button>
         </div>
       </div>
 
-      {/* Seletor de Categorias de Controle Documental GPA */}
-      <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 flex flex-wrap items-center gap-1.5 shadow-inner">
+      {/* Seletor de Categorias de Pendências com Máximo Destaque e Contadores Nítidos */}
+      <div className="bg-slate-900 p-2 rounded-2xl border border-slate-800 flex flex-wrap items-center gap-2.5 shadow-sm">
         <button
           onClick={() => {
-            setSelectedCategory('TODOS');
+            setSelectedCategory('CADIM');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[140px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-            selectedCategory === 'TODOS'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
+          className={`flex-1 min-w-[240px] px-4 py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
+            selectedCategory === 'CADIM' || selectedCategory === 'SST'
+              ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400/40'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-750 hover:text-white border border-slate-700/60'
           }`}
         >
-          <span>Todos os Documentos</span>
-        </button>
-
-        <button
-          onClick={() => {
-            setSelectedCategory('SST');
-            setCurrentPage(1);
-          }}
-          className={`flex-1 min-w-[180px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
-            selectedCategory === 'SST'
-              ? 'bg-emerald-700 text-white shadow-xs'
-              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
-          }`}
-        >
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Pendências Documentações de SST</span>
+          <ShieldCheck className={`w-4 h-4 ${selectedCategory === 'CADIM' || selectedCategory === 'SST' ? 'text-white' : 'text-emerald-400'}`} />
+          <span className="tracking-tight uppercase">Pendências de CADIM</span>
+          {cadimPendingCount > 0 && (
+            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-black ${
+              selectedCategory === 'CADIM' || selectedCategory === 'SST'
+                ? 'bg-white text-emerald-800'
+                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+            }`}>
+              {cadimPendingCount}
+            </span>
+          )}
         </button>
 
         <button
@@ -575,14 +712,23 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setSelectedCategory('TRABALHISTA');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[180px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[240px] px-4 py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
             selectedCategory === 'TRABALHISTA'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
+              ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400/40'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-750 hover:text-white border border-slate-700/60'
           }`}
         >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Pendências Documentações Trabalhistas</span>
+          <FileText className={`w-4 h-4 ${selectedCategory === 'TRABALHISTA' ? 'text-white' : 'text-blue-400'}`} />
+          <span className="tracking-tight uppercase">Pendências Trabalhistas</span>
+          {trabalhistaPendingCount > 0 && (
+            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-black ${
+              selectedCategory === 'TRABALHISTA'
+                ? 'bg-white text-blue-800'
+                : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+            }`}>
+              {trabalhistaPendingCount}
+            </span>
+          )}
         </button>
 
         <button
@@ -590,19 +736,52 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setSelectedCategory('DEMAIS');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[180px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[240px] px-4 py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
             selectedCategory === 'DEMAIS'
-              ? 'bg-purple-700 text-white shadow-xs'
-              : 'bg-transparent text-slate-700 hover:bg-slate-200/80'
+              ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-400/40'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-750 hover:text-white border border-slate-700/60'
           }`}
         >
-          <Layers className="w-3.5 h-3.5" />
-          <span>Pendências Demais Documentações</span>
+          <Layers className={`w-4 h-4 ${selectedCategory === 'DEMAIS' ? 'text-white' : 'text-purple-400'}`} />
+          <span className="tracking-tight uppercase">Demais Pendências</span>
+          {demaisPendingCount > 0 && (
+            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-black ${
+              selectedCategory === 'DEMAIS'
+                ? 'bg-white text-purple-800'
+                : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+            }`}>
+              {demaisPendingCount}
+            </span>
+          )}
         </button>
       </div>
 
+      {/* RENDERIZAÇÃO CONDICIONAL POR CATEGORIA */}
+      {selectedCategory === 'TRABALHISTA' ? (
+        <TrabalhistaModule
+          envios={trabalhistaEnvios}
+          onSaveEnvios={onSaveTrabalhistaEnvios || (() => {})}
+          brand={brand}
+          isAdmin={isAdminLoggedIn}
+          blinkingAlerts={blinkingAlerts}
+        />
+      ) : selectedCategory === 'DEMAIS' ? (
+        <div className="space-y-4">
+          <ContractsModule
+            contracts={contracts}
+            employees={employees}
+            onSelectContractToFilter={() => setSelectedCategory('CADIM')}
+            onSaveContract={onSaveContract || (() => {})}
+            onDeleteContract={onDeleteContract || (() => {})}
+            onDemandContract={() => {}}
+            brand={brand}
+            isAdmin={isAdminLoggedIn}
+          />
+        </div>
+      ) : (
+        <>
       {/* KPI Cards Rápidos Compactos com Alertas Piscantes */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div
           onClick={() => {
             setFilterStatus('TODOS');
@@ -617,7 +796,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             <User className="w-4 h-4 text-slate-400" />
           </div>
           <div className="text-xl font-black text-slate-900">{totalDemandados.toLocaleString('pt-BR')}</div>
-          <span className="text-[10px] text-slate-500">Colaboradores no sistema</span>
+          <span className="text-[10px] text-slate-500">{totalAtivos.toLocaleString('pt-BR')} ativos na base</span>
         </div>
 
         <div
@@ -626,7 +805,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setCurrentPage(1);
           }}
           className={`p-3.5 rounded-xl bg-white border cursor-pointer transition-all shadow-2xs ${
-            filterStatus === 'EM_DIA' ? 'border-emerald-600 ring-2 ring-emerald-600/15' : 'border-slate-200 hover:border-emerald-200'
+            filterStatus === 'EM_DIA' ? 'border-emerald-600 ring-2 ring-emerald-600/15 bg-emerald-50/20' : 'border-slate-200 hover:border-emerald-200'
           }`}
         >
           <div className="flex items-center justify-between text-emerald-700 mb-1">
@@ -634,7 +813,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-xl font-black text-emerald-700">{totalEmDia.toLocaleString('pt-BR')}</div>
-          <span className="text-[10px] text-emerald-600">Acesso liberado</span>
+          <span className="text-[10px] text-emerald-600">Acesso liberado GPA</span>
         </div>
 
         {/* Card A Vencer com Alerta Piscante */}
@@ -687,6 +866,24 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
           </div>
           <div className="text-xl font-black text-[#E21B23]">{totalCriticos.toLocaleString('pt-BR')}</div>
           <span className="text-[10px] text-rose-600">Requer saneamento</span>
+        </div>
+
+        {/* Card Desligados / Inativos */}
+        <div
+          onClick={() => {
+            setFilterStatus('DESLIGADOS');
+            setCurrentPage(1);
+          }}
+          className={`p-3.5 rounded-xl bg-white border cursor-pointer transition-all shadow-2xs ${
+            filterStatus === 'DESLIGADOS' ? 'border-slate-500 ring-2 ring-slate-400/20 bg-slate-100' : 'border-slate-200 hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between text-slate-600 mb-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Desligados</span>
+            <UserX className="w-4 h-4 text-slate-500" />
+          </div>
+          <div className="text-xl font-black text-slate-700">{totalDesligados.toLocaleString('pt-BR')}</div>
+          <span className="text-[10px] text-slate-500">Inativos no GPA</span>
         </div>
       </div>
 
@@ -784,6 +981,19 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             </button>
             <button
               onClick={() => {
+                setFilterStatus('ATIVOS');
+                setCurrentPage(1);
+              }}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                filterStatus === 'ATIVOS'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
+              }`}
+            >
+              Ativos ({totalAtivos})
+            </button>
+            <button
+              onClick={() => {
                 setFilterStatus('PENDENTES');
                 setCurrentPage(1);
               }}
@@ -841,6 +1051,19 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             >
               Em Dia ({totalEmDia})
             </button>
+            <button
+              onClick={() => {
+                setFilterStatus('DESLIGADOS');
+                setCurrentPage(1);
+              }}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                filterStatus === 'DESLIGADOS'
+                  ? 'bg-slate-700 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+              }`}
+            >
+              Desligados ({totalDesligados})
+            </button>
           </div>
 
           {/* Bulk Action Button */}
@@ -861,157 +1084,156 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
       </div>
 
-      {/* TABELA PLANILHA COMPACTA EM PÁGINA ÚNICA (SEM BARRA DE ROLAGEM HORIZONTAL) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="w-full">
-          <table className="w-full text-left border-collapse text-xs table-fixed">
-            <colgroup>
-              <col className="w-7 sm:w-8" />
-              <col className="w-[78px] sm:w-[84px]" />
-              <col className="w-[100px] sm:w-[108px]" />
-              <col className="w-[17%]" />
-              <col className="w-[12%]" />
-              <col className="w-[9%]" />
-              <col className="w-[11%]" />
-              <col className="w-[11%]" />
-              <col className="w-[11%]" />
-              <col className="w-[11%]" />
-              <col className="w-[74px] sm:w-[80px]" />
-            </colgroup>
+      {/* TABELA PLANILHA COM ROLAGEM SUAVE E COLUNAS ESPAÇADAS (ZERO SOBREPOSIÇÃO) */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto">
+        <table className="w-full text-left border-collapse text-xs min-w-[1150px]">
+          <colgroup>
+            <col className="w-10" />
+            <col className="w-24" />
+            <col className="w-32" />
+            <col className="min-w-[220px]" />
+            <col className="min-w-[180px]" />
+            <col className="min-w-[180px]" />
+            <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-28" />
+          </colgroup>
 
-            {/* Header da Planilha */}
-            <thead>
-              <tr className="bg-slate-100/90 text-slate-700 font-black uppercase text-[10.5px] border-b border-slate-300 select-none">
-                <th className="py-2.5 px-2 text-center">
-                  <input
-                    type="checkbox"
-                    checked={paginatedEmployees.length > 0 && paginatedEmployees.every((e) => selectedIds.includes(e.id))}
-                    onChange={handleToggleSelectAll}
-                    className="rounded text-[#E21B23] focus:ring-[#E21B23] cursor-pointer"
-                  />
-                </th>
-                <th
-                  onClick={() => handleSort('matricula')}
-                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center gap-0.5">
-                    <span className="truncate">MATRÍCULA</span>
-                    {sortField === 'matricula' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('cpf')}
-                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center gap-0.5">
-                    <span className="truncate">CPF</span>
-                    {sortField === 'cpf' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('nome')}
-                  className="py-2.5 px-2 cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center gap-0.5">
-                    <span className="truncate">NOME</span>
-                    {sortField === 'nome' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('cargo')}
-                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center gap-0.5">
-                    <span className="truncate">FUNÇÃO</span>
-                    {sortField === 'cargo' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('setor')}
-                  className="py-2.5 px-1.5 cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center gap-0.5">
-                    <span className="truncate">SETOR</span>
-                    {sortField === 'setor' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('os')}
-                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center justify-center gap-0.5">
-                    <span className="truncate">OS</span>
-                    {sortField === 'os' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('aso')}
-                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center justify-center gap-0.5">
-                    <span className="truncate">ASO</span>
-                    {sortField === 'aso' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('epi')}
-                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center justify-center gap-0.5">
-                    <span className="truncate">FICHA EPI</span>
-                    {sortField === 'epi' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th
-                  onClick={() => handleSort('radio')}
-                  className="py-2.5 px-1 text-center cursor-pointer hover:bg-slate-200 transition-colors"
-                >
-                  <div className="flex items-center justify-center gap-0.5">
-                    <span className="truncate">RADIOPROTEÇÃO</span>
-                    {sortField === 'radio' ? (
-                      sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
-                    ) : (
-                      <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
-                    )}
-                  </div>
-                </th>
-                <th className="py-2.5 px-2 text-center">
-                  <span className="truncate">AÇÕES</span>
-                </th>
-              </tr>
-            </thead>
+          {/* Header da Planilha */}
+          <thead>
+            <tr className="bg-slate-100/90 text-slate-700 font-black uppercase text-[10.5px] border-b border-slate-300 select-none">
+              <th className="py-2.5 px-3 text-center">
+                <input
+                  type="checkbox"
+                  checked={paginatedEmployees.length > 0 && paginatedEmployees.every((e) => selectedIds.includes(e.id))}
+                  onChange={handleToggleSelectAll}
+                  className="rounded text-[#E21B23] focus:ring-[#E21B23] cursor-pointer"
+                />
+              </th>
+              <th
+                onClick={() => handleSort('matricula')}
+                className="py-2.5 px-2 cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span>MATRÍCULA</span>
+                  {sortField === 'matricula' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('cpf')}
+                className="py-2.5 px-2 cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span>CPF</span>
+                  {sortField === 'cpf' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('nome')}
+                className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span>NOME DO COLABORADOR</span>
+                  {sortField === 'nome' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('cargo')}
+                className="py-2.5 px-2 cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span>FUNÇÃO / CARGO</span>
+                  {sortField === 'cargo' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('setor')}
+                className="py-2.5 px-2 cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span>SETOR / ÁREA</span>
+                  {sortField === 'setor' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('os')}
+                className="py-2.5 px-1.5 text-center cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>OS</span>
+                  {sortField === 'os' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('aso')}
+                className="py-2.5 px-1.5 text-center cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>ASO</span>
+                  {sortField === 'aso' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('epi')}
+                className="py-2.5 px-1.5 text-center cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>FICHA EPI</span>
+                  {sortField === 'epi' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('radio')}
+                className="py-2.5 px-1.5 text-center cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                <div className="flex items-center justify-center gap-0.5">
+                  <span>RADIOPROTEÇÃO</span>
+                  {sortField === 'radio' ? (
+                    sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#E21B23] shrink-0" /> : <ArrowDown className="w-3 h-3 text-[#E21B23] shrink-0" />
+                  ) : (
+                    <ArrowUpDown className="w-2.5 h-2.5 opacity-30 shrink-0" />
+                  )}
+                </div>
+              </th>
+              <th className="py-2.5 px-2 text-center">
+                <span>AÇÕES</span>
+              </th>
+            </tr>
+          </thead>
 
             {/* Linhas da Tabela */}
             <tbody className="divide-y divide-slate-200">
@@ -1057,6 +1279,12 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
                   const isSelected = selectedIds.includes(emp.id);
                   const isAllEmDia = emp.statusGeral === 'EM_DIA';
 
+                  const displayName = (emp.nome || '').replace(/^[:\s\-\.]+/, '').trim();
+                  const displayMatricula = (emp.matricula || '').replace(/^[:\s\-\.]+/, '').trim();
+                  const displayCpf = (emp.cpf || '').replace(/^[:\s\-\.]+/, '').trim();
+                  const displayCargo = (emp.cargo || '').replace(/^[:\s\-\.]+/, '').trim();
+                  const displaySetor = (emp.setor || emp.areaNome || 'Operações').replace(/^[:\s\-\.]+/, '').trim();
+
                   return (
                     <tr
                       key={emp.id}
@@ -1065,7 +1293,7 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
                       }`}
                     >
                       {/* Checkbox */}
-                      <td className="py-2 px-2 text-center">
+                      <td className="py-2.5 px-3 text-center">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -1075,66 +1303,114 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
                       </td>
 
                       {/* Matrícula */}
-                      <td className="py-2 px-1.5 font-mono font-bold text-slate-800 truncate" title={emp.matricula}>
-                        {emp.matricula}
+                      <td className="py-2.5 px-2 font-mono font-bold text-slate-800 text-xs" title={displayMatricula}>
+                        {displayMatricula}
                       </td>
 
                       {/* CPF */}
-                      <td className="py-2 px-1.5 font-mono text-slate-600 truncate text-[11px]" title={emp.cpf || '—'}>
-                        {emp.cpf || '—'}
+                      <td className="py-2.5 px-2 font-mono text-slate-600 text-xs whitespace-nowrap" title={displayCpf || '—'}>
+                        {displayCpf || '—'}
                       </td>
 
                       {/* Nome */}
-                      <td className="py-2 px-2 font-bold text-slate-900 truncate" title={emp.nome}>
-                        {emp.nome}
+                      <td className="py-2.5 px-3 font-bold text-slate-900 text-xs" title={displayName}>
+                        {displayName}
                       </td>
 
                       {/* Função */}
-                      <td className="py-2 px-1.5 text-slate-700 truncate" title={emp.cargo}>
-                        {emp.cargo}
+                      <td className="py-2.5 px-2 text-slate-700 text-xs" title={displayCargo}>
+                        {displayCargo}
                       </td>
 
                       {/* Setor */}
-                      <td className="py-2 px-1.5 text-slate-700 truncate" title={emp.setor || emp.areaNome || 'Operações'}>
-                        {emp.setor || emp.areaNome || 'Operações'}
+                      <td className="py-2.5 px-2 text-slate-700 text-xs" title={displaySetor}>
+                        {displaySetor}
                       </td>
 
                       {/* OS */}
-                      <td className="py-2 px-1">
+                      <td className="py-2.5 px-1.5 text-center">
                         {renderDocCell(emp, 'ORDEM_DE_SERVICO')}
                       </td>
 
                       {/* ASO */}
-                      <td className="py-2 px-1">
+                      <td className="py-2.5 px-1.5 text-center">
                         {renderDocCell(emp, 'ATESTADO_SAUDE_OCUPACIONAL')}
                       </td>
 
                       {/* FICHA DE EPI */}
-                      <td className="py-2 px-1">
+                      <td className="py-2.5 px-1.5 text-center">
                         {renderDocCell(emp, 'FICHA_EPI')}
                       </td>
 
                       {/* RADIOPROTEÇÃO */}
-                      <td className="py-2 px-1">
+                      <td className="py-2.5 px-1.5 text-center">
                         {renderDocCell(emp, 'TREINAMENTO_RADIOPROTECAO')}
                       </td>
 
                       {/* Ações Rápidas */}
-                      <td className="py-2 px-1.5 text-center">
-                        {!isAllEmDia ? (
-                          <button
-                            onClick={(e) => handleSanarEmployeeAll(emp, e)}
-                            title="Regularizar todas as pendências deste colaborador com 1 clique"
-                            className="w-full px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] cursor-pointer transition-all shadow-2xs truncate"
-                          >
-                            Sanar Tudo
-                          </button>
-                        ) : (
-                          <span className="inline-flex items-center justify-center gap-0.5 text-[10px] font-bold text-emerald-700">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                            <span className="truncate">Regular</span>
-                          </span>
-                        )}
+                      <td className="py-2.5 px-2 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {emp.resumoGeral?.includes('Desligado') || emp.resumoGeral?.includes('Cancelado') || emp.statusGeral === 'BLOQUEADO' ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="inline-flex items-center justify-center gap-0.5 text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                <span>Desligado</span>
+                              </span>
+                              {onOpenEmployeeDetail && (
+                                <button
+                                  onClick={() => onOpenEmployeeDetail(emp)}
+                                  title="Visualizar ficha cadastral completa"
+                                  className="p-1 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer shrink-0"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ) : !isAllEmDia ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  if (onOpenOfficialGuide) {
+                                    onOpenOfficialGuide(emp);
+                                  } else {
+                                    handleSanarEmployeeAll(emp);
+                                  }
+                                }}
+                                title="Ver orientações para sanar pendências no sistema oficial"
+                                className="px-1.5 py-1 rounded bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] cursor-pointer transition-all shadow-2xs flex items-center gap-1 shrink-0"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                <span className="hidden xl:inline">Saneamento Oficial</span>
+                                <span className="xl:hidden">Sanar</span>
+                              </button>
+
+                              {onOpenEmployeeDetail && (
+                                <button
+                                  onClick={() => onOpenEmployeeDetail(emp)}
+                                  title="Visualizar ficha cadastral e histórico completo"
+                                  className="p-1 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer shrink-0"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="inline-flex items-center justify-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>Regular</span>
+                              </span>
+                              {onOpenEmployeeDetail && (
+                                <button
+                                  onClick={() => onOpenEmployeeDetail(emp)}
+                                  title="Visualizar ficha cadastral completa"
+                                  className="p-1 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer shrink-0"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1219,7 +1495,8 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             </div>
           )}
         </div>
-      </div>
+      </>
+      )}
     </div>
   );
 };

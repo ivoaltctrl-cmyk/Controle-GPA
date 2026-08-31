@@ -136,9 +136,10 @@ export const ManualEmployeeModal: React.FC<ManualEmployeeModalProps> = ({
       {
         id: `p_man_os_${Date.now()}`,
         tipo: 'ORDEM_DE_SERVICO',
-        nomeDocumento: 'Ordem de Serviço de SST (NR-01)',
+        nomeDocumento: 'Ordem de Serviço de CADIM (NR-01)',
         status: osStatus,
         obrigatorio: true,
+        categoria: 'CADIM',
         ultimaAtualizacao: new Date().toISOString().split('T')[0],
       },
       {
