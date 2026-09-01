@@ -91,6 +91,46 @@ export async function syncCollectionToBackend(collectionName: string, data: any)
   }
 }
 
+export async function authenticateAdminOnServer(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/admin/auth', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      return { success: true };
+    }
+    return { success: false, error: data.error || 'Usuário ou senha incorretos.' };
+  } catch (e: any) {
+    console.warn('Erro ao autenticar com o servidor:', e);
+    return { success: false, error: 'Falha de conexão com o servidor.' };
+  }
+}
+
+export async function saveAdminCredentialsToServer(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/admin/credentials', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      return { success: true };
+    }
+    return { success: false, error: data.error || 'Erro ao salvar credenciais no servidor.' };
+  } catch (e: any) {
+    console.warn('Erro ao atualizar credenciais no servidor:', e);
+    return { success: false, error: 'Falha de conexão com o servidor.' };
+  }
+}
+
 export async function checkBackendHealth(): Promise<{
   status: string;
   backend?: string;

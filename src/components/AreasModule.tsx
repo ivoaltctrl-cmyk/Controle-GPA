@@ -378,27 +378,32 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* ========================================================================= */}
-      {/* 1. CARD PRINCIPAL: RESULTADO GERAL (COM INDICADOR DONUT CONFORME IMAGEM)  */}
+      {/* 1. CARD PRINCIPAL: RESULTADO DE SST (DESTAQUE MÁXIMO DO PAINEL)           */}
       {/* ========================================================================= */}
       <section
-        id="secao-resultado-geral"
-        className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden"
+        id="secao-resultado-sst"
+        className="bg-white rounded-3xl border-2 border-emerald-500/80 shadow-lg overflow-hidden ring-4 ring-emerald-50/70"
       >
-        {/* Header do Card */}
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
+        {/* Header do Card com Destaque de Segurança SST */}
+        <div className="px-6 py-4.5 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/90 via-slate-50 to-white flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <div
               style={{ backgroundColor: primaryColor }}
-              className="w-9 h-9 rounded-2xl flex items-center justify-center text-white shadow-2xs"
+              className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-md ring-2 ring-emerald-300/60"
             >
               <TrendingUp className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase">
-                RESULTADO GERAL
-              </h2>
-              <p className="text-xs text-slate-500 font-medium">
-                Indicador consolidado de conformidade e validação documental
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">
+                  RESULTADO DE SST
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-700 text-white shadow-xs tracking-wider">
+                  Destaque Principal
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 font-medium mt-0.5">
+                Indicador consolidado de conformidade e segurança e saúde no trabalho (SST)
               </p>
             </div>
           </div>
@@ -406,19 +411,19 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handleAutoFillFromSystem}
-              className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-white border border-emerald-200 text-xs font-bold text-emerald-900 hover:bg-emerald-50 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
               title="Carregar a soma exata dos dados do sistema (SST + Trabalhistas + Demais)"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+              <RefreshCw className="w-3.5 h-3.5 text-emerald-700" />
               <span>Sincronizar com o Sistema</span>
             </button>
             <span
-              className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider shadow-2xs ${
                 percentualGeral >= 85
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  ? 'bg-emerald-600 text-white border border-emerald-700'
                   : percentualGeral >= 60
-                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                  : 'bg-rose-100 text-rose-800 border border-rose-200'
+                  ? 'bg-amber-500 text-white border border-amber-600'
+                  : 'bg-rose-600 text-white border border-rose-700'
               }`}
             >
               {percentualGeral >= 85 ? 'Conformidade Plena' : percentualGeral >= 60 ? 'Atenção' : 'Crítico'}
@@ -426,8 +431,8 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
           </div>
         </div>
 
-        {/* Corpo do Resultado Geral: Donut Chart à Esquerda e Indicadores Analíticos à Direita */}
-        <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        {/* Corpo do Resultado de SST: Donut Chart à Esquerda e Indicadores Analíticos à Direita */}
+        <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-gradient-to-b from-white to-slate-50/40">
           {/* Lado Esquerdo: Donut Chart Elegante e Nítido */}
           <div className="lg:col-span-5 flex flex-col items-center justify-center">
             <div className="relative flex items-center justify-center p-6 bg-slate-50/70 rounded-3xl border border-slate-200/80 w-full max-w-[320px] shadow-2xs">

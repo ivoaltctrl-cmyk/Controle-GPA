@@ -64,6 +64,7 @@ import {
 import {
   fetchAllDataFromServer,
   syncCollectionToBackend,
+  saveAdminCredentialsToServer,
 } from './services/backendSyncService.ts';
 import confetti from 'canvas-confetti';
 import {
@@ -359,8 +360,13 @@ export default function App() {
     syncCollectionToBackend('resumoConfig', configWithTimestamp);
   };
 
-  const handleSaveAdminCredentials = (username: string, password: string) => {
+  const handleSaveAdminCredentials = async (username: string, password: string) => {
     saveStoredAdminCredentials(username, password);
+    try {
+      await saveAdminCredentialsToServer(username, password);
+    } catch (e) {
+      console.warn('Erro ao salvar credenciais diretamente:', e);
+    }
     syncCollectionToBackend('adminCredentials', {
       username,
       password,
@@ -804,6 +810,7 @@ export default function App() {
         isOpen={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
         brand={brand}
+        onSaveAdminCredentials={handleSaveAdminCredentials}
       />
 
       <OcrScannerModal

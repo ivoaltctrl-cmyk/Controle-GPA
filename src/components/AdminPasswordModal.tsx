@@ -7,20 +7,24 @@ import {
   CheckCircle2,
   AlertCircle,
   Check,
+  Loader2,
 } from 'lucide-react';
 import { BrandConfig } from '../types/index.ts';
 import { getStoredAdminCredentials, saveStoredAdminCredentials } from '../utils/storage.ts';
+import { saveAdminCredentialsToServer } from '../services/backendSyncService.ts';
 
 interface AdminPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
   brand: BrandConfig;
+  onSaveAdminCredentials?: (username: string, newPass: string) => void;
 }
 
 export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
   isOpen,
   onClose,
   brand,
+  onSaveAdminCredentials,
 }) => {
   const currentCreds = getStoredAdminCredentials();
   const [username, setUsername] = useState(currentCreds.username);
@@ -29,12 +33,13 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;
 
   const primaryColor = brand?.primaryColor || '#006837';
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -54,11 +59,23 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
       return;
     }
 
-    saveStoredAdminCredentials(username, newPassword);
-    setSuccessMsg('Credenciais de Administrador atualizadas com sucesso!');
-    setTimeout(() => {
-      onClose();
-    }, 1200);
+    setIsSaving(true);
+    try {
+      if (onSaveAdminCredentials) {
+        onSaveAdminCredentials(username, newPassword);
+      } else {
+        saveStoredAdminCredentials(username, newPassword);
+        await saveAdminCredentialsToServer(username, newPassword);
+      }
+      setSuccessMsg('Credenciais de Administrador atualizadas e sincronizadas com sucesso!');
+      setTimeout(() => {
+        setIsSaving(false);
+        onClose();
+      }, 1200);
+    } catch {
+      setErrorMsg('Falha ao sincronizar a senha.');
+      setIsSaving(false);
+    }
   };
 
   return (

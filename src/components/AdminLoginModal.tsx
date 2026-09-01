@@ -7,11 +7,11 @@ import {
   ArrowRight,
   X,
   AlertCircle,
-  CheckCircle2,
-  Info,
+  Loader2,
 } from 'lucide-react';
 import { BrandConfig } from '../types/index.ts';
-import { getStoredAdminCredentials, setStoredAdminAuthenticated } from '../utils/storage.ts';
+import { getStoredAdminCredentials, saveStoredAdminCredentials, setStoredAdminAuthenticated } from '../utils/storage.ts';
+import { authenticateAdminOnServer } from '../services/backendSyncService.ts';
 import { WfsLogo } from './WfsLogo.tsx';
 
 interface AdminLoginModalProps {
@@ -30,36 +30,58 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [showDefaultHint, setShowDefaultHint] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
   const primaryColor = brand?.primaryColor || '#006837';
-  const accentColor = brand?.accentColor || '#f59e0b';
   const companyName = brand?.companyName || 'GPA';
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+    setIsSubmitting(true);
 
-    const credentials = getStoredAdminCredentials();
+    const cleanUser = username.trim();
+    const cleanPass = password.trim();
 
-    if (
-      username.trim().toLowerCase() === credentials.username.toLowerCase() &&
-      password.trim() === credentials.password
-    ) {
-      setStoredAdminAuthenticated(true);
-      onLoginSuccess();
-    } else {
+    try {
+      // 1. Tenta autenticação direta no servidor central para garantir paridade entre computadores
+      const serverAuth = await authenticateAdminOnServer(cleanUser, cleanPass);
+
+      if (serverAuth.success) {
+        saveStoredAdminCredentials(cleanUser, cleanPass);
+        setStoredAdminAuthenticated(true);
+        setIsSubmitting(false);
+        onLoginSuccess();
+        return;
+      }
+
+      // 2. Se o servidor rejeitou especificamente por credenciais incorretas, exibe o erro
+      if (serverAuth.error && serverAuth.error.includes('incorretos')) {
+        setErrorMsg('Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 3. Fallback de contingência local se o servidor estiver temporariamente inacessível
+      const localCreds = getStoredAdminCredentials();
+      if (
+        cleanUser.toLowerCase() === localCreds.username.toLowerCase() &&
+        cleanPass === localCreds.password
+      ) {
+        setStoredAdminAuthenticated(true);
+        setIsSubmitting(false);
+        onLoginSuccess();
+        return;
+      }
+
       setErrorMsg('Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.');
+    } catch {
+      setErrorMsg('Erro de comunicação. Tente novamente.');
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  const handleUseDefaultCredentials = () => {
-    const creds = getStoredAdminCredentials();
-    setUsername(creds.username);
-    setPassword(creds.password);
-    setErrorMsg('');
   };
 
   return (
@@ -107,7 +129,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Ex: admin"
+              placeholder="Digite o usuário"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm font-medium transition-all"
             />
           </div>
@@ -122,39 +144,30 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="Digite sua senha"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm font-medium transition-all"
             />
           </div>
 
-          {/* Default credentials fast filler tip */}
-          {showDefaultHint && (
-            <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-amber-900 text-xs flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Info className="w-4 h-4 text-amber-600 shrink-0" />
-                <span className="text-[11px] leading-tight">
-                  Padrão do sistema: <strong>admin</strong> / <strong>gpa</strong>
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleUseDefaultCredentials}
-                className="px-2.5 py-1 rounded-lg bg-amber-200/70 hover:bg-amber-300/80 text-[11px] font-bold text-amber-900 transition-colors cursor-pointer shrink-0"
-              >
-                Preencher
-              </button>
-            </div>
-          )}
-
           <div className="pt-2 space-y-2">
             <button
               type="submit"
+              disabled={isSubmitting}
               style={{ backgroundColor: primaryColor }}
-              className="w-full py-3 rounded-xl text-white text-sm font-bold shadow-md hover:opacity-95 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+              className="w-full py-3 rounded-xl text-white text-sm font-bold shadow-md hover:opacity-95 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Entrar no Painel Administrativo</span>
-              <ArrowRight className="w-4 h-4 ml-1" />
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Verificando Acesso...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Entrar no Painel Administrativo</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </>
+              )}
             </button>
 
             <button

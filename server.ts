@@ -23,6 +23,68 @@ app.get("/api/data", (_req, res) => {
   res.json({ success: true, ...db });
 });
 
+// Admin Authentication & Credential Verification Endpoint
+app.post("/api/admin/auth", (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const db = readDb();
+    const storedUsername = db.adminCredentials?.username || "admin";
+    const storedPassword = db.adminCredentials?.password || "gpa";
+
+    if (
+      typeof username === "string" &&
+      typeof password === "string" &&
+      username.trim().toLowerCase() === storedUsername.toLowerCase() &&
+      password.trim() === storedPassword
+    ) {
+      return res.json({
+        success: true,
+        authenticated: true,
+        username: storedUsername,
+      });
+    }
+
+    return res.status(401).json({
+      success: false,
+      authenticated: false,
+      error: "Usuário ou senha incorretos.",
+    });
+  } catch (error: any) {
+    console.error("Erro no login admin do backend:", error);
+    res.status(500).json({ error: error.message || "Erro no servidor" });
+  }
+});
+
+// Admin Password Update Endpoint
+app.post("/api/admin/credentials", (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!password || typeof password !== "string" || !password.trim()) {
+      return res.status(400).json({ error: "A senha não pode estar em branco." });
+    }
+    const cleanUsername = (username && typeof username === "string" && username.trim()) ? username.trim() : "admin";
+    const cleanPassword = password.trim();
+
+    const updated = saveDb({
+      adminCredentials: {
+        username: cleanUsername,
+        password: cleanPassword,
+        lastUpdated: new Date().toISOString(),
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: "Credenciais de administrador atualizadas com sucesso!",
+      username: cleanUsername,
+      lastUpdated: updated.lastUpdated,
+    });
+  } catch (error: any) {
+    console.error("Erro ao atualizar credenciais:", error);
+    res.status(500).json({ error: error.message || "Erro no servidor" });
+  }
+});
+
 app.post("/api/data", (req, res) => {
   try {
     let payload = req.body;
