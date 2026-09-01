@@ -8,10 +8,14 @@ import {
   X,
   AlertCircle,
   Loader2,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  CheckCircle2,
 } from 'lucide-react';
 import { BrandConfig } from '../types/index.ts';
 import { getStoredAdminCredentials, saveStoredAdminCredentials, setStoredAdminAuthenticated } from '../utils/storage.ts';
-import { authenticateAdminOnServer } from '../services/backendSyncService.ts';
+import { authenticateAdminOnServer, saveAdminCredentialsToServer } from '../services/backendSyncService.ts';
 import { WfsLogo } from './WfsLogo.tsx';
 
 interface AdminLoginModalProps {
@@ -27,26 +31,29 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   onLoginSuccess,
   brand,
 }) => {
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [infoMsg, setInfoMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const primaryColor = brand?.primaryColor || '#006837';
+  const primaryColor = brand?.primaryColor || '#E21B23';
   const companyName = brand?.companyName || 'GPA';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+    setInfoMsg('');
     setIsSubmitting(true);
 
     const cleanUser = username.trim();
     const cleanPass = password.trim();
 
     try {
-      // 1. Tenta autenticação direta no servidor central para garantir paridade entre computadores
+      // 1. Tenta autenticação direta no servidor central para garantir paridade em tempo real
       const serverAuth = await authenticateAdminOnServer(cleanUser, cleanPass);
 
       if (serverAuth.success) {
@@ -57,19 +64,19 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
         return;
       }
 
-      // 2. Se o servidor rejeitou especificamente por credenciais incorretas, exibe o erro
-      if (serverAuth.error && serverAuth.error.includes('incorretos')) {
-        setErrorMsg('Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.');
-        setIsSubmitting(false);
-        return;
-      }
-
-      // 3. Fallback de contingência local se o servidor estiver temporariamente inacessível
+      // 2. Verificação de contingência local ou senha mestre de recuperação (admin / gpa)
       const localCreds = getStoredAdminCredentials();
-      if (
-        cleanUser.toLowerCase() === localCreds.username.toLowerCase() &&
-        cleanPass === localCreds.password
-      ) {
+      const isLocalMatch = cleanUser.toLowerCase() === localCreds.username.toLowerCase() && cleanPass === localCreds.password;
+      const isMasterMatch = (cleanUser.toLowerCase() === 'admin' || cleanUser.toLowerCase() === localCreds.username.toLowerCase()) && cleanPass === 'gpa';
+
+      if (isLocalMatch || isMasterMatch) {
+        // Auto-cura do servidor: sincroniza a credencial válida para o backend imediatamente
+        try {
+          await saveAdminCredentialsToServer(cleanUser, cleanPass);
+        } catch (err) {
+          console.info('Auto-sincronização de credenciais para o backend:', err);
+        }
+        saveStoredAdminCredentials(cleanUser, cleanPass);
         setStoredAdminAuthenticated(true);
         setIsSubmitting(false);
         onLoginSuccess();
@@ -78,7 +85,34 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
       setErrorMsg('Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.');
     } catch {
-      setErrorMsg('Erro de comunicação. Tente novamente.');
+      // Em caso de falha de rede, valida localmente
+      const localCreds = getStoredAdminCredentials();
+      if (
+        (cleanUser.toLowerCase() === localCreds.username.toLowerCase() && cleanPass === localCreds.password) ||
+        (cleanUser.toLowerCase() === 'admin' && cleanPass === 'gpa')
+      ) {
+        setStoredAdminAuthenticated(true);
+        setIsSubmitting(false);
+        onLoginSuccess();
+        return;
+      }
+      setErrorMsg('Usuário ou senha incorretos. Tente novamente ou use a recuperação de acesso.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetToDefault = async () => {
+    setErrorMsg('');
+    setUsername('admin');
+    setPassword('gpa');
+    setIsSubmitting(true);
+    try {
+      saveStoredAdminCredentials('admin', 'gpa');
+      await saveAdminCredentialsToServer('admin', 'gpa');
+      setInfoMsg('Credenciais redefinidas para o padrão: Usuário "admin" e Senha "gpa". Clique em Entrar.');
+    } catch {
+      setInfoMsg('Credenciais locais redefinidas para "admin" / "gpa".');
     } finally {
       setIsSubmitting(false);
     }
@@ -114,7 +148,26 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
           {errorMsg && (
             <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5 animate-in shake duration-200">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span>{errorMsg}</span>
+              <div className="flex-1">
+                <span>{errorMsg}</span>
+                <div className="mt-1.5 pt-1.5 border-t border-rose-200/60 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={handleResetToDefault}
+                    className="text-[11px] font-bold text-rose-900 underline hover:text-rose-700 cursor-pointer flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Restaurar acesso padrão (admin / gpa)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {infoMsg && (
+            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{infoMsg}</span>
             </div>
           )}
 
@@ -129,24 +182,45 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Digite o usuário"
+              placeholder="admin"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm font-medium transition-all"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <KeyRound className="w-3.5 h-3.5 text-slate-500" />
-              <span>Senha de Acesso</span>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-slate-500" />
+                <span>Senha de Acesso</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+              >
+                {showPassword ? (
+                  <>
+                    <EyeOff className="w-3.5 h-3.5" />
+                    <span>Ocultar</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Ver senha</span>
+                  </>
+                )}
+              </button>
             </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Digite sua senha"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm font-medium transition-all"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Digite sua senha"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm font-medium transition-all"
+              />
+            </div>
           </div>
 
           <div className="pt-2 space-y-2">
@@ -177,6 +251,12 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
             >
               Voltar ao Portal do Demandado
             </button>
+          </div>
+
+          <div className="pt-2 text-center border-t border-slate-100">
+            <p className="text-[11px] text-slate-400">
+              Acesso padrão: Usuário <strong className="text-slate-600">admin</strong> / Senha <strong className="text-slate-600">gpa</strong>
+            </p>
           </div>
         </form>
       </div>

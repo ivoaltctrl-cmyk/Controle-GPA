@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { BrandConfig, Employee, Contract, TrabalhistaEnvio, AreaResponsavel } from '../types/index.ts';
 import { getStoredAdminCredentials, saveStoredAdminCredentials } from '../utils/storage.ts';
+import { saveAdminCredentialsToServer } from '../services/backendSyncService.ts';
 
 interface SettingsModuleProps {
   onOpenSheetsSync: () => void;
@@ -203,37 +204,82 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
   // --------------------------------------------------------------------------
   // CREDENCIAIS DE ADM
   // --------------------------------------------------------------------------
-  const handleUpdateCredentials = (e: React.FormEvent) => {
+  const [isSavingCreds, setIsSavingCreds] = useState(false);
+  const [showCredsPass, setShowCredsPass] = useState(false);
+
+  const handleUpdateCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError('');
     setPasswordSuccess('');
 
-    if (currentPassword !== currentCreds.password) {
-      setPasswordError('A senha atual informada está incorreta.');
+    const latestCreds = getStoredAdminCredentials();
+    const cleanUser = username.trim() || 'admin';
+    const cleanCurrent = currentPassword.trim();
+    const cleanNew = newPassword.trim();
+    const cleanConfirm = confirmPassword.trim();
+
+    // Aceita a senha atual salva OU a master 'gpa'
+    const isCurrentValid =
+      cleanCurrent === latestCreds.password ||
+      cleanCurrent === 'gpa';
+
+    if (!isCurrentValid) {
+      setPasswordError('A senha atual informada está incorreta. Se você esqueceu, use "gpa" ou redefina para o padrão abaixo.');
       return;
     }
 
-    if (!newPassword || newPassword.length < 3) {
+    if (!cleanNew || cleanNew.length < 3) {
       setPasswordError('A nova senha deve possuir pelo menos 3 caracteres.');
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (cleanNew !== cleanConfirm) {
       setPasswordError('A confirmação da nova senha não confere.');
       return;
     }
 
-    if (onSaveAdminCredentials) {
-      onSaveAdminCredentials(username, newPassword);
-    } else {
-      saveStoredAdminCredentials(username, newPassword);
-    }
+    setIsSavingCreds(true);
+    try {
+      saveStoredAdminCredentials(cleanUser, cleanNew);
+      if (onSaveAdminCredentials) {
+        await onSaveAdminCredentials(cleanUser, cleanNew);
+      } else {
+        await saveAdminCredentialsToServer(cleanUser, cleanNew);
+      }
 
-    setPasswordSuccess('Credenciais de Administrador salvas e sincronizadas em todos os dispositivos com sucesso!');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setTimeout(() => setPasswordSuccess(''), 4000);
+      setPasswordSuccess('Credenciais de Administrador salvas e sincronizadas em todos os dispositivos com sucesso!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(''), 5000);
+    } catch (err: any) {
+      setPasswordError('Erro ao sincronizar com o servidor. As credenciais foram salvas localmente.');
+    } finally {
+      setIsSavingCreds(false);
+    }
+  };
+
+  const handleResetCredsDefault = async () => {
+    setPasswordError('');
+    setIsSavingCreds(true);
+    try {
+      setUsername('admin');
+      saveStoredAdminCredentials('admin', 'gpa');
+      if (onSaveAdminCredentials) {
+        await onSaveAdminCredentials('admin', 'gpa');
+      } else {
+        await saveAdminCredentialsToServer('admin', 'gpa');
+      }
+      setPasswordSuccess('Credenciais redefinidas para o padrão: Usuário "admin" e Senha "gpa" sincronizadas com sucesso!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(''), 5000);
+    } catch {
+      setPasswordSuccess('Credenciais redefinidas localmente para admin / gpa.');
+    } finally {
+      setIsSavingCreds(false);
+    }
   };
 
   return (
@@ -282,28 +328,46 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
         <div className="lg:col-span-5 space-y-6">
           {/* Gestão de Credenciais do Administrador */}
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-slate-100 text-slate-800">
-                <Lock className="w-4 h-4 text-slate-700" />
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-slate-100 text-slate-800">
+                  <Lock className="w-4 h-4 text-slate-700" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Segurança & Troca de Senha do ADM</h3>
+                  <p className="text-[11px] text-slate-500">
+                    Sincronizada automaticamente em todos os computadores
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-sm font-black text-slate-900">Segurança & Troca de Senha do ADM</h3>
-                <p className="text-[11px] text-slate-500">
-                  Ao trocar a senha aqui, ela é sincronizada automaticamente em todos os navegadores e computadores
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowCredsPass(!showCredsPass)}
+                className="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+              >
+                {showCredsPass ? 'Ocultar' : 'Ver senhas'}
+              </button>
             </div>
 
             <form onSubmit={handleUpdateCredentials} className="space-y-3.5 text-xs">
               {passwordError && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center gap-2 text-xs">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>{passwordError}</span>
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-2 text-xs">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <span>{passwordError}</span>
+                    <button
+                      type="button"
+                      onClick={handleResetCredsDefault}
+                      className="block mt-1 text-[11px] font-bold text-rose-900 underline hover:text-rose-700 cursor-pointer"
+                    >
+                      Restaurar para padrão (admin / gpa)
+                    </button>
+                  </div>
                 </div>
               )}
 
               {passwordSuccess && (
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs">
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-semibold animate-in fade-in duration-200">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>{passwordSuccess}</span>
                 </div>
@@ -329,11 +393,11 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
                   <span>Senha Atual</span>
                 </label>
                 <input
-                  type="password"
+                  type={showCredsPass ? 'text' : 'password'}
                   required
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Digite sua senha atual"
+                  placeholder="Digite sua senha atual (ou 'gpa')"
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-800 text-xs font-semibold"
                 />
               </div>
@@ -342,7 +406,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Nova Senha</label>
                   <input
-                    type="password"
+                    type={showCredsPass ? 'text' : 'password'}
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
@@ -353,7 +417,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Confirmar Senha</label>
                   <input
-                    type="password"
+                    type={showCredsPass ? 'text' : 'password'}
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -363,14 +427,36 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
                 </div>
               </div>
 
-              <button
-                type="submit"
-                style={{ backgroundColor: primaryColor }}
-                className="w-full py-2.5 rounded-xl text-white font-bold text-xs shadow-xs hover:opacity-90 transition-all cursor-pointer flex items-center justify-center gap-2 mt-2"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Salvar Novas Credenciais (Sincronizar em Todos os PCs)</span>
-              </button>
+              <div className="pt-1 flex flex-col gap-2">
+                <button
+                  type="submit"
+                  disabled={isSavingCreds}
+                  style={{ backgroundColor: primaryColor }}
+                  className="w-full py-2.5 rounded-xl text-white font-bold text-xs shadow-xs hover:opacity-90 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {isSavingCreds ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sincronizando com Servidor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Salvar Novas Credenciais (Sincronizar em Todos os PCs)</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResetCredsDefault}
+                  disabled={isSavingCreds}
+                  className="w-full py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-[11px] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <RefreshCw className="w-3 h-3 text-slate-500" />
+                  <span>Redefinir para padrão de fábrica (admin / gpa)</span>
+                </button>
+              </div>
             </form>
           </div>
 

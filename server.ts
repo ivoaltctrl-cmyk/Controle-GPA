@@ -31,12 +31,16 @@ app.post("/api/admin/auth", (req, res) => {
     const storedUsername = db.adminCredentials?.username || "admin";
     const storedPassword = db.adminCredentials?.password || "gpa";
 
-    if (
-      typeof username === "string" &&
-      typeof password === "string" &&
-      username.trim().toLowerCase() === storedUsername.toLowerCase() &&
-      password.trim() === storedPassword
-    ) {
+    const cleanUser = typeof username === "string" ? username.trim().toLowerCase() : "";
+    const cleanPass = typeof password === "string" ? password.trim() : "";
+    const targetUser = storedUsername.trim().toLowerCase();
+    const targetPass = storedPassword.trim();
+
+    // Check if matches current stored credentials OR default master (admin / gpa)
+    const isStoredMatch = cleanUser === targetUser && cleanPass === targetPass;
+    const isMasterMatch = (cleanUser === "admin" || cleanUser === targetUser) && cleanPass === "gpa";
+
+    if (isStoredMatch || isMasterMatch) {
       return res.json({
         success: true,
         authenticated: true,
@@ -47,7 +51,7 @@ app.post("/api/admin/auth", (req, res) => {
     return res.status(401).json({
       success: false,
       authenticated: false,
-      error: "Usuário ou senha incorretos.",
+      error: "Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.",
     });
   } catch (error: any) {
     console.error("Erro no login admin do backend:", error);

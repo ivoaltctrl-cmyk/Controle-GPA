@@ -97,7 +97,11 @@ export function readDb(): AppDatabase {
         trabalhistas: Array.isArray(parsed.trabalhistas) ? parsed.trabalhistas : [],
         demandLogs: Array.isArray(parsed.demandLogs) ? parsed.demandLogs : [],
         brandConfig: parsed.brandConfig || null,
-        adminCredentials: parsed.adminCredentials || null,
+        adminCredentials: parsed.adminCredentials || {
+          username: "admin",
+          password: "gpa",
+          lastUpdated: new Date().toISOString(),
+        },
         resumoConfig: parsed.resumoConfig || null,
         lastUpdated: parsed.lastUpdated || new Date().toISOString(),
       };
@@ -112,7 +116,11 @@ export function readDb(): AppDatabase {
     trabalhistas: [],
     demandLogs: [],
     brandConfig: null,
-    adminCredentials: null,
+    adminCredentials: {
+      username: "admin",
+      password: "gpa",
+      lastUpdated: new Date().toISOString(),
+    },
     resumoConfig: null,
     lastUpdated: new Date().toISOString(),
   };

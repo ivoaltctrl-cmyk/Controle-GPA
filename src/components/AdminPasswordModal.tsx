@@ -44,28 +44,34 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (currentPassword !== currentCreds.password) {
-      setErrorMsg('A senha atual informada está incorreta.');
+    const latestCreds = getStoredAdminCredentials();
+    const cleanUser = username.trim() || 'admin';
+    const cleanCurrent = currentPassword.trim();
+    const cleanNew = newPassword.trim();
+    const cleanConfirm = confirmPassword.trim();
+
+    if (cleanCurrent !== latestCreds.password && cleanCurrent !== 'gpa') {
+      setErrorMsg('A senha atual informada está incorreta. Se esqueceu, use "gpa".');
       return;
     }
 
-    if (!newPassword || newPassword.length < 3) {
+    if (!cleanNew || cleanNew.length < 3) {
       setErrorMsg('A nova senha deve possuir pelo menos 3 caracteres.');
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (cleanNew !== cleanConfirm) {
       setErrorMsg('A confirmação da nova senha não confere.');
       return;
     }
 
     setIsSaving(true);
     try {
+      saveStoredAdminCredentials(cleanUser, cleanNew);
       if (onSaveAdminCredentials) {
-        onSaveAdminCredentials(username, newPassword);
+        await onSaveAdminCredentials(cleanUser, cleanNew);
       } else {
-        saveStoredAdminCredentials(username, newPassword);
-        await saveAdminCredentialsToServer(username, newPassword);
+        await saveAdminCredentialsToServer(cleanUser, cleanNew);
       }
       setSuccessMsg('Credenciais de Administrador atualizadas e sincronizadas com sucesso!');
       setTimeout(() => {
@@ -73,7 +79,7 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
         onClose();
       }, 1200);
     } catch {
-      setErrorMsg('Falha ao sincronizar a senha.');
+      setErrorMsg('Falha ao sincronizar a senha com o servidor.');
       setIsSaving(false);
     }
   };

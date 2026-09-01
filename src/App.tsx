@@ -276,6 +276,10 @@ export default function App() {
             serverData.adminCredentials.username || 'admin',
             serverData.adminCredentials.password
           );
+        } else {
+          // Se o servidor não tiver credenciais ainda, sincroniza as locais para o servidor
+          const localCreds = getStoredAdminCredentials();
+          saveAdminCredentialsToServer(localCreds.username, localCreds.password).catch(() => {});
         }
       }
 
@@ -293,7 +297,7 @@ export default function App() {
 
     initData();
 
-    // Sincronização periódica entre múltiplos computadores (polling suave a cada 20 segundos)
+    // Sincronização periódica entre múltiplos computadores (polling a cada 10 segundos para paridade rápida)
     const syncInterval = setInterval(async () => {
       const liveData = await fetchAllDataFromServer();
       if (liveData) {
@@ -318,7 +322,7 @@ export default function App() {
           }
         }
       }
-    }, 20000);
+    }, 10000);
 
     return () => clearInterval(syncInterval);
   }, []);
