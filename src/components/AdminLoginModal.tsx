@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Lock,
   KeyRound,
   User,
   ShieldCheck,
@@ -10,18 +9,16 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  RefreshCw,
-  CheckCircle2,
 } from 'lucide-react';
 import { BrandConfig } from '../types/index.ts';
-import { getStoredAdminCredentials, saveStoredAdminCredentials, setStoredAdminAuthenticated } from '../utils/storage.ts';
-import { authenticateAdminOnServer, saveAdminCredentialsToServer } from '../services/backendSyncService.ts';
+import { setStoredAdminSessionToken } from '../utils/storage.ts';
+import { authenticateAdminOnServer } from '../services/backendSyncService.ts';
 import { WfsLogo } from './WfsLogo.tsx';
 
 interface AdminLoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: () => void;
+  onLoginSuccess: (sessionToken?: string) => void;
   brand: BrandConfig;
 }
 
@@ -35,7 +32,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [infoMsg, setInfoMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -46,73 +42,25 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
-    setInfoMsg('');
     setIsSubmitting(true);
 
     const cleanUser = username.trim();
     const cleanPass = password.trim();
 
     try {
-      // 1. Tenta autenticação direta no servidor central para garantir paridade em tempo real
+      // Autenticação exclusivamente via resposta do servidor
       const serverAuth = await authenticateAdminOnServer(cleanUser, cleanPass);
 
-      if (serverAuth.success) {
-        saveStoredAdminCredentials(cleanUser, cleanPass);
-        setStoredAdminAuthenticated(true);
+      if (serverAuth.success && serverAuth.sessionToken) {
+        setStoredAdminSessionToken(serverAuth.sessionToken);
         setIsSubmitting(false);
-        onLoginSuccess();
+        onLoginSuccess(serverAuth.sessionToken);
         return;
       }
 
-      // 2. Verificação de contingência local ou senha mestre de recuperação (admin / gpa)
-      const localCreds = getStoredAdminCredentials();
-      const isLocalMatch = cleanUser.toLowerCase() === localCreds.username.toLowerCase() && cleanPass === localCreds.password;
-      const isMasterMatch = (cleanUser.toLowerCase() === 'admin' || cleanUser.toLowerCase() === localCreds.username.toLowerCase()) && cleanPass === 'gpa';
-
-      if (isLocalMatch || isMasterMatch) {
-        // Auto-cura do servidor: sincroniza a credencial válida para o backend imediatamente
-        try {
-          await saveAdminCredentialsToServer(cleanUser, cleanPass);
-        } catch (err) {
-          console.info('Auto-sincronização de credenciais para o backend:', err);
-        }
-        saveStoredAdminCredentials(cleanUser, cleanPass);
-        setStoredAdminAuthenticated(true);
-        setIsSubmitting(false);
-        onLoginSuccess();
-        return;
-      }
-
-      setErrorMsg('Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.');
+      setErrorMsg(serverAuth.error || 'Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.');
     } catch {
-      // Em caso de falha de rede, valida localmente
-      const localCreds = getStoredAdminCredentials();
-      if (
-        (cleanUser.toLowerCase() === localCreds.username.toLowerCase() && cleanPass === localCreds.password) ||
-        (cleanUser.toLowerCase() === 'admin' && cleanPass === 'gpa')
-      ) {
-        setStoredAdminAuthenticated(true);
-        setIsSubmitting(false);
-        onLoginSuccess();
-        return;
-      }
-      setErrorMsg('Usuário ou senha incorretos. Tente novamente ou use a recuperação de acesso.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleResetToDefault = async () => {
-    setErrorMsg('');
-    setUsername('admin');
-    setPassword('gpa');
-    setIsSubmitting(true);
-    try {
-      saveStoredAdminCredentials('admin', 'gpa');
-      await saveAdminCredentialsToServer('admin', 'gpa');
-      setInfoMsg('Credenciais redefinidas para o padrão: Usuário "admin" e Senha "gpa". Clique em Entrar.');
-    } catch {
-      setInfoMsg('Credenciais locais redefinidas para "admin" / "gpa".');
+      setErrorMsg('Falha de conexão com o servidor. Verifique sua rede e tente novamente.');
     } finally {
       setIsSubmitting(false);
     }
@@ -150,24 +98,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <div className="flex-1">
                 <span>{errorMsg}</span>
-                <div className="mt-1.5 pt-1.5 border-t border-rose-200/60 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={handleResetToDefault}
-                    className="text-[11px] font-bold text-rose-900 underline hover:text-rose-700 cursor-pointer flex items-center gap-1"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    <span>Restaurar acesso padrão (admin / gpa)</span>
-                  </button>
-                </div>
               </div>
-            </div>
-          )}
-
-          {infoMsg && (
-            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{infoMsg}</span>
             </div>
           )}
 
@@ -254,8 +185,8 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
           </div>
 
           <div className="pt-2 text-center border-t border-slate-100">
-            <p className="text-[11px] text-slate-400">
-              Acesso padrão: Usuário <strong className="text-slate-600">admin</strong> / Senha <strong className="text-slate-600">gpa</strong>
+            <p className="text-[11px] text-slate-500 font-medium">
+              Esqueceu sua senha. Fale com o administrador.
             </p>
           </div>
         </form>

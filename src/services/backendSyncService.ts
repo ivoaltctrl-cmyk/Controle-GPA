@@ -91,7 +91,7 @@ export async function syncCollectionToBackend(collectionName: string, data: any)
   }
 }
 
-export async function authenticateAdminOnServer(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+export async function authenticateAdminOnServer(username: string, password: string): Promise<{ success: boolean; sessionToken?: string; username?: string; error?: string }> {
   try {
     const res = await fetch('/api/admin/auth', {
       method: 'POST',
@@ -101,8 +101,8 @@ export async function authenticateAdminOnServer(username: string, password: stri
       body: JSON.stringify({ username, password }),
     });
     const data = await res.json();
-    if (res.ok && data.success) {
-      return { success: true };
+    if (res.ok && data.success && data.sessionToken) {
+      return { success: true, sessionToken: data.sessionToken, username: data.username };
     }
     return { success: false, error: data.error || 'Usuário ou senha incorretos.' };
   } catch (e: any) {
@@ -111,14 +111,59 @@ export async function authenticateAdminOnServer(username: string, password: stri
   }
 }
 
-export async function saveAdminCredentialsToServer(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+export async function verifyAdminSessionOnServer(token: string): Promise<{ success: boolean; valid: boolean; username?: string }> {
+  if (!token || typeof token !== 'string') {
+    return { success: false, valid: false };
+  }
   try {
-    const res = await fetch('/api/admin/credentials', {
+    const res = await fetch('/api/admin/verify-session', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ token }),
+    });
+    if (!res.ok) {
+      return { success: false, valid: false };
+    }
+    const data = await res.json();
+    return { success: true, valid: !!data.valid, username: data.username };
+  } catch (e) {
+    console.warn('Falha ao verificar sessão de admin no servidor:', e);
+    return { success: false, valid: false };
+  }
+}
+
+export async function logoutAdminOnServer(token?: string): Promise<void> {
+  if (!token) return;
+  try {
+    await fetch('/api/admin/logout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ token }),
+    });
+  } catch (e) {
+    console.warn('Erro ao encerrar sessão no servidor:', e);
+  }
+}
+
+export async function saveAdminCredentialsToServer(username: string, password: string, sessionToken?: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken}`;
+    }
+
+    const res = await fetch('/api/admin/credentials', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ username, password, token: sessionToken }),
     });
     const data = await res.json();
     if (res.ok && data.success) {
@@ -127,6 +172,31 @@ export async function saveAdminCredentialsToServer(username: string, password: s
     return { success: false, error: data.error || 'Erro ao salvar credenciais no servidor.' };
   } catch (e: any) {
     console.warn('Erro ao atualizar credenciais no servidor:', e);
+    return { success: false, error: 'Falha de conexão com o servidor.' };
+  }
+}
+
+export async function resetProductionOnServer(sessionToken?: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken}`;
+    }
+
+    const res = await fetch('/api/admin/reset', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ mode: 'production_blank', token: sessionToken }),
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      return { success: true };
+    }
+    return { success: false, error: data.error || 'Erro ao zerar ambiente no servidor.' };
+  } catch (e: any) {
+    console.warn('Erro ao resetar ambiente no servidor:', e);
     return { success: false, error: 'Falha de conexão com o servidor.' };
   }
 }

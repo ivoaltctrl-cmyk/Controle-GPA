@@ -1,20 +1,24 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Painel de Pendências CADIM & Contratos (GPA / WFS)
 
-# Run and deploy your AI Studio app
+Aplicação corporativa para consulta, gestão e regularização de pendências documentais (CADIM/SST, Obrigações Trabalhistas e Contratos) com atualização e sincronização em tempo real.
 
-This contains everything you need to run your app locally.
+## Funcionalidades Principais
 
-View your app in AI Studio: https://ai.studio/apps/383b2c53-f10f-495b-94b9-9d450c86dc81
+- **Portal de Pendências & Conformidade**: Visão detalhada com filtros dinâmicos por categoria (CADIM, Trabalhista, Demais), status de conformidade, busca em tempo real e saneamento de pendências.
+- **Aba de Resumo (Áreas & Gestores)**: Visão consolidada por áreas operacionais com indicadores gráficos e percentuais de conformidade.
+- **Gestão & Auditoria**: Painel com autenticação para controle de contratos, auditoria de envios e disparos de notificações.
+- **Integração Google Sheets**: Sincronização direta e bidirecional de dados com a planilha mestre GPA_BD.
 
-## Run Locally
+## Instalação e Execução
 
-**Prerequisites:**  Node.js
+1. Instale as dependências:
+   ```bash
+   npm install
+   ```
 
+2. Configure as variáveis de ambiente necessárias (como `GEMINI_API_KEY`) no arquivo `.env` a partir do `.env.example`.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+3. Inicie o servidor de desenvolvimento:
+   ```bash
+   npm run dev
+   ```

@@ -27,8 +27,7 @@ const DEMAND_LOGS_KEY = 'sst_pendencias_demand_logs_v1';
 const TRABALHISTA_ENVIOS_KEY = 'sst_pendencias_trabalhista_envios_v1';
 const BRAND_CONFIG_KEY = 'sst_pendencias_brand_config_v1';
 const IS_PRODUCTION_KEY = 'sst_pendencias_is_production_v1';
-const ADMIN_AUTH_KEY = 'sst_gpa_admin_auth_status_v1';
-const ADMIN_CREDENTIALS_KEY = 'sst_gpa_admin_credentials_v1';
+const ADMIN_SESSION_TOKEN_KEY = 'sst_gpa_admin_session_token_v1';
 const BLINKING_ALERTS_KEY = 'sst_gpa_blinking_alerts_v1';
 
 export function getStoredBlinkingAlerts(): boolean {
@@ -49,53 +48,44 @@ export function saveStoredBlinkingAlerts(enabled: boolean) {
   }
 }
 
-export interface AdminCredentials {
-  username: string;
-  passwordHash: string;
-}
-
-export function getStoredAdminCredentials(): { username: string; password: string } {
+export function getStoredAdminSessionToken(): string | null {
   try {
-    const raw = localStorage.getItem(ADMIN_CREDENTIALS_KEY);
-    if (!raw) {
-      const def = { username: 'admin', password: 'gpa' };
-      localStorage.setItem(ADMIN_CREDENTIALS_KEY, JSON.stringify(def));
-      return def;
+    const token = localStorage.getItem(ADMIN_SESSION_TOKEN_KEY);
+    if (!token || typeof token !== 'string') return null;
+    const clean = token.trim();
+    // Rejeita strings genéricas ou booleanas forjadas como 'true'
+    if (clean.length < 20 || clean === 'true' || clean === 'false') {
+      return null;
     }
-    const parsed = JSON.parse(raw);
-    return {
-      username: parsed.username || 'admin',
-      password: parsed.password || 'gpa',
-    };
+    return clean;
   } catch {
-    return { username: 'admin', password: 'gpa' };
+    return null;
   }
 }
 
-export function saveStoredAdminCredentials(username: string, password: string) {
+export function setStoredAdminSessionToken(token: string | null) {
   try {
-    localStorage.setItem(
-      ADMIN_CREDENTIALS_KEY,
-      JSON.stringify({ username: username.trim(), password: password.trim() })
-    );
+    if (token && typeof token === 'string' && token.trim().length >= 20) {
+      localStorage.setItem(ADMIN_SESSION_TOKEN_KEY, token.trim());
+    } else {
+      localStorage.removeItem(ADMIN_SESSION_TOKEN_KEY);
+    }
+    // Remove chaves legadas de credenciais e status booleanos
+    localStorage.removeItem('sst_gpa_admin_auth_status_v1');
+    localStorage.removeItem('admin_auth_status');
+    localStorage.removeItem('sst_gpa_admin_credentials_v1');
   } catch (e) {
-    console.error('Erro ao salvar credenciais do admin:', e);
+    console.error('Erro ao gerenciar token de sessão:', e);
   }
 }
 
 export function isStoredAdminAuthenticated(): boolean {
-  try {
-    return localStorage.getItem(ADMIN_AUTH_KEY) === 'true';
-  } catch {
-    return false;
-  }
+  return getStoredAdminSessionToken() !== null;
 }
 
 export function setStoredAdminAuthenticated(isAuth: boolean) {
-  try {
-    localStorage.setItem(ADMIN_AUTH_KEY, isAuth ? 'true' : 'false');
-  } catch (e) {
-    console.error('Erro ao salvar estado de autenticação:', e);
+  if (!isAuth) {
+    setStoredAdminSessionToken(null);
   }
 }
 
@@ -460,30 +450,63 @@ export function updateEmployeeCalculatedFields(emp: Employee): Employee {
   };
 }
 
-export function calculateSystemStats(employees: Employee[]): SystemStats {
+export function calculateSystemStats(
+  employees: Employee[],
+  trabalhistas: TrabalhistaEnvio[] = [],
+  contracts: Contract[] = [],
+  incluirDesligados: boolean = false
+): SystemStats & {
+  sstDocs: {
+    totalDocs: number;
+    validados: number;
+    aVencer: number;
+    pendentes: number;
+    vencidos: number;
+    taxa: number;
+    os: { total: number; validados: number; taxa: number };
+    aso: { total: number; validados: number; taxa: number };
+    epi: { total: number; validados: number; taxa: number };
+    outros: { total: number; validados: number; taxa: number };
+  };
+  totalAtivos: number;
+  totalDesligados: number;
+  trabalhistaStats: {
+    totalDocs: number;
+    validados: number;
+    emAnalise: number;
+    reprovados: number;
+    totalMeses: number;
+    mesesValidados: number;
+    taxa: number;
+  };
+  demaisStats: {
+    totalDocs: number;
+    validados: number;
+    emAnalise: number;
+    reprovados: number;
+    taxa: number;
+    totalContratos: number;
+    contratosAtivos: number;
+  };
+} {
   const total = employees.length;
-  if (total === 0) {
-    return {
-      totalFuncionarios: 0,
-      totalEmDia: 0,
-      totalComPendencia: 0,
-      totalAVencer30Dias: 0,
-      totalCriticos: 0,
-      totalBloqueados: 0,
-      taxaConformidadeGeral: 0,
-      ordemServico: { total: 0, emDia: 0, aVencer: 0, pendente: 0, vencido: 0, taxa: 0 },
-      aso: { total: 0, emDia: 0, aVencer: 0, pendente: 0, vencido: 0, taxa: 0 },
-      fichaEpi: { total: 0, emDia: 0, aVencer: 0, pendente: 0, vencido: 0, taxa: 0 },
-      radioprotecao: { total: 0, emDia: 0, aVencer: 0, pendente: 0, vencido: 0, taxa: 0 },
-    };
-  }
 
   let totalEmDia = 0;
   let totalCriticos = 0;
   let totalBloqueados = 0;
   let totalComPendencia = 0;
   let totalAVencer30Dias = 0;
+  let totalAtivos = 0;
+  let totalDesligados = 0;
   let sumIndicators = 0;
+  let activeEmployeesCount = 0;
+
+  // Document-level metrics for SST
+  let sstTotalDocs = 0;
+  let sstValidados = 0;
+  let sstAVencer = 0;
+  let sstPendentes = 0;
+  let sstVencidos = 0;
 
   const osStats = { total: 0, emDia: 0, aVencer: 0, pendente: 0, vencido: 0 };
   const asoStats = { total: 0, emDia: 0, aVencer: 0, pendente: 0, vencido: 0 };
@@ -491,6 +514,22 @@ export function calculateSystemStats(employees: Employee[]): SystemStats {
   const radioStats = { total: 0, emDia: 0, aVencer: 0, pendente: 0, vencido: 0 };
 
   for (const emp of employees) {
+    const isDesligado =
+      (emp.resumoGeral && (emp.resumoGeral.includes('Desligado') || emp.resumoGeral.includes('Cancelado'))) ||
+      emp.statusGeral === 'BLOQUEADO';
+
+    if (isDesligado) {
+      totalDesligados++;
+    } else {
+      totalAtivos++;
+    }
+
+    // Se não incluir desligados, ignoramos colaboradores desligados/bloqueados do cálculo de conformidade e pendências ativas
+    if (!incluirDesligados && isDesligado) {
+      continue;
+    }
+
+    activeEmployeesCount++;
     sumIndicators += emp.indicadorPercentual || 0;
 
     if (emp.statusGeral === 'EM_DIA') totalEmDia++;
@@ -504,44 +543,54 @@ export function calculateSystemStats(employees: Employee[]): SystemStats {
     let empHasAVencer = false;
 
     for (const p of emp.pendencias || []) {
-      if (p.status === 'A_VENCER') {
+      if (p.status === 'NAO_APLICAVEL') continue;
+      sstTotalDocs++;
+
+      const isOk = p.status === 'EM_DIA';
+      const isAv = p.status === 'A_VENCER';
+      const isPd = p.status === 'PENDENTE' || p.status === 'EM_ANALISE';
+      const isVc = p.status === 'VENCIDO';
+
+      if (isOk || isAv) sstValidados++;
+      if (isAv) {
+        sstAVencer++;
         empHasAVencer = true;
       }
+      if (isPd) sstPendentes++;
+      if (isVc) sstVencidos++;
 
       if (p.tipo === 'ORDEM_DE_SERVICO') {
         osStats.total++;
-        if (p.status === 'EM_DIA') osStats.emDia++;
-        else if (p.status === 'A_VENCER') {
+        if (isOk) osStats.emDia++;
+        else if (isAv) {
           osStats.aVencer++;
           osStats.emDia++;
-        } else if (p.status === 'VENCIDO') osStats.vencido++;
-        else if (p.status === 'PENDENTE' || p.status === 'EM_ANALISE') osStats.pendente++;
+        } else if (isVc) osStats.vencido++;
+        else if (isPd) osStats.pendente++;
       } else if (p.tipo === 'ATESTADO_SAUDE_OCUPACIONAL') {
         asoStats.total++;
-        if (p.status === 'EM_DIA') asoStats.emDia++;
-        else if (p.status === 'A_VENCER') {
+        if (isOk) asoStats.emDia++;
+        else if (isAv) {
           asoStats.aVencer++;
           asoStats.emDia++;
-        } else if (p.status === 'VENCIDO') asoStats.vencido++;
-        else if (p.status === 'PENDENTE' || p.status === 'EM_ANALISE') asoStats.pendente++;
+        } else if (isVc) asoStats.vencido++;
+        else if (isPd) asoStats.pendente++;
       } else if (p.tipo === 'FICHA_EPI') {
         epiStats.total++;
-        if (p.status === 'EM_DIA') epiStats.emDia++;
-        else if (p.status === 'A_VENCER') {
+        if (isOk) epiStats.emDia++;
+        else if (isAv) {
           epiStats.aVencer++;
           epiStats.emDia++;
-        } else if (p.status === 'VENCIDO') epiStats.vencido++;
-        else if (p.status === 'PENDENTE' || p.status === 'EM_ANALISE') epiStats.pendente++;
-      } else if (p.tipo === 'TREINAMENTO_RADIOPROTECAO') {
-        if (p.status !== 'NAO_APLICAVEL') {
-          radioStats.total++;
-          if (p.status === 'EM_DIA') radioStats.emDia++;
-          else if (p.status === 'A_VENCER') {
-            radioStats.aVencer++;
-            radioStats.emDia++;
-          } else if (p.status === 'VENCIDO') radioStats.vencido++;
-          else if (p.status === 'PENDENTE' || p.status === 'EM_ANALISE') radioStats.pendente++;
-        }
+        } else if (isVc) epiStats.vencido++;
+        else if (isPd) epiStats.pendente++;
+      } else {
+        radioStats.total++;
+        if (isOk) radioStats.emDia++;
+        else if (isAv) {
+          radioStats.aVencer++;
+          radioStats.emDia++;
+        } else if (isVc) radioStats.vencido++;
+        else if (isPd) radioStats.pendente++;
       }
     }
 
@@ -550,7 +599,48 @@ export function calculateSystemStats(employees: Employee[]): SystemStats {
     }
   }
 
-  const taxaGeral = Math.round(sumIndicators / total);
+  const baseCount = incluirDesligados ? total : activeEmployeesCount;
+  const taxaGeral = baseCount > 0 ? Math.round(sumIndicators / baseCount) : 100;
+  const sstTaxa = sstTotalDocs > 0 ? Math.round((sstValidados / sstTotalDocs) * 100) : 100;
+
+  // Trabalhista calculation
+  const trabTotalEnvios = trabalhistas.length;
+  const trabValidados = trabalhistas.filter((e) => e.status === 'Validado').length;
+  const trabEmAnalise = trabalhistas.filter((e) => e.status === 'Em Análise').length;
+  const trabReprovados = trabalhistas.filter((e) => e.status === 'Reprovado').length;
+  const trabMeses = getTrabalhistaMesesConsolidados(trabalhistas);
+  const trabMesesValidados = trabMeses.filter((m) => m.isValidado).length;
+  const trabTaxa =
+    trabTotalEnvios > 0
+      ? Math.round((trabValidados / trabTotalEnvios) * 100)
+      : trabMeses.length > 0
+      ? Math.round((trabMesesValidados / trabMeses.length) * 100)
+      : 100;
+
+  // Demais (Contracts) calculation
+  let demaisTotalDocs = 0;
+  let demaisValidados = 0;
+  let demaisEmAnalise = 0;
+  let demaisReprovados = 0;
+
+  contracts.forEach((c) => {
+    const docs = c.documentosContrato || [];
+    docs.forEach((d) => {
+      demaisTotalDocs++;
+      if (d.status === 'Validado') demaisValidados++;
+      else if (d.status === 'Em Análise') demaisEmAnalise++;
+      else if (d.status === 'Reprovado') demaisReprovados++;
+    });
+  });
+
+  if (demaisTotalDocs === 0 && contracts.length > 0) {
+    demaisTotalDocs = contracts.length;
+    demaisValidados = contracts.filter((c) => c.status === 'ATIVO' || c.statusDocumentos === 'Validado').length;
+    demaisReprovados = contracts.filter((c) => c.status === 'BLOQUEADO' || c.statusDocumentos === 'Reprovado').length;
+    demaisEmAnalise = demaisTotalDocs - demaisValidados - demaisReprovados;
+  }
+
+  const demaisTaxa = demaisTotalDocs > 0 ? Math.round((demaisValidados / demaisTotalDocs) * 100) : 100;
 
   return {
     totalFuncionarios: total,
@@ -559,6 +649,8 @@ export function calculateSystemStats(employees: Employee[]): SystemStats {
     totalAVencer30Dias,
     totalCriticos,
     totalBloqueados,
+    totalAtivos,
+    totalDesligados,
     taxaConformidadeGeral: taxaGeral,
     ordemServico: {
       ...osStats,
@@ -576,12 +668,67 @@ export function calculateSystemStats(employees: Employee[]): SystemStats {
       ...radioStats,
       taxa: radioStats.total > 0 ? Math.round((radioStats.emDia / radioStats.total) * 100) : 100,
     },
+    sstDocs: {
+      totalDocs: sstTotalDocs,
+      validados: sstValidados,
+      aVencer: sstAVencer,
+      pendentes: sstPendentes,
+      vencidos: sstVencidos,
+      taxa: sstTaxa,
+      os: {
+        total: osStats.total,
+        validados: osStats.emDia,
+        taxa: osStats.total > 0 ? Math.round((osStats.emDia / osStats.total) * 100) : 100,
+      },
+      aso: {
+        total: asoStats.total,
+        validados: asoStats.emDia,
+        taxa: asoStats.total > 0 ? Math.round((asoStats.emDia / asoStats.total) * 100) : 100,
+      },
+      epi: {
+        total: epiStats.total,
+        validados: epiStats.emDia,
+        taxa: epiStats.total > 0 ? Math.round((epiStats.emDia / epiStats.total) * 100) : 100,
+      },
+      outros: {
+        total: radioStats.total,
+        validados: radioStats.emDia,
+        taxa: radioStats.total > 0 ? Math.round((radioStats.emDia / radioStats.total) * 100) : 100,
+      },
+    },
+    trabalhistaStats: {
+      totalDocs: trabTotalEnvios,
+      validados: trabValidados,
+      emAnalise: trabEmAnalise,
+      reprovados: trabReprovados,
+      totalMeses: trabMeses.length,
+      mesesValidados: trabMesesValidados,
+      taxa: trabTaxa,
+    },
+    demaisStats: {
+      totalDocs: demaisTotalDocs,
+      validados: demaisValidados,
+      emAnalise: demaisEmAnalise,
+      reprovados: demaisReprovados,
+      taxa: demaisTaxa,
+      totalContratos: contracts.length,
+      contratosAtivos: contracts.filter((c) => c.status === 'ATIVO').length,
+    },
   };
 }
 
-export function calculateContractMetrics(contractId: string, employees: Employee[]) {
+export function calculateContractMetrics(contractId: string, employees: Employee[], incluirDesligados: boolean = false) {
   const contractEmployees = employees.filter((e) => e.contratoId === contractId);
-  const total = contractEmployees.length;
+  const activeEmployees = contractEmployees.filter(
+    (e) =>
+      !(
+        (e.resumoGeral && (e.resumoGeral.includes('Desligado') || e.resumoGeral.includes('Cancelado'))) ||
+        e.statusGeral === 'BLOQUEADO'
+      )
+  );
+
+  const targetList = incluirDesligados ? contractEmployees : activeEmployees;
+  const total = targetList.length;
 
   if (total === 0) {
     return {
@@ -600,7 +747,7 @@ export function calculateContractMetrics(contractId: string, employees: Employee
   let aVencer30Dias = 0;
   let sumScore = 0;
 
-  for (const emp of contractEmployees) {
+  for (const emp of targetList) {
     sumScore += emp.indicadorPercentual || 0;
     if (emp.statusGeral === 'EM_DIA') emDia++;
     if (emp.statusGeral === 'CRITICO' || emp.statusGeral === 'BLOQUEADO') criticos++;
@@ -621,9 +768,18 @@ export function calculateContractMetrics(contractId: string, employees: Employee
   };
 }
 
-export function calculateAreaMetrics(areaId: string, employees: Employee[]) {
+export function calculateAreaMetrics(areaId: string, employees: Employee[], incluirDesligados: boolean = false) {
   const areaEmployees = employees.filter((e) => e.areaId === areaId);
-  const total = areaEmployees.length;
+  const activeEmployees = areaEmployees.filter(
+    (e) =>
+      !(
+        (e.resumoGeral && (e.resumoGeral.includes('Desligado') || e.resumoGeral.includes('Cancelado'))) ||
+        e.statusGeral === 'BLOQUEADO'
+      )
+  );
+
+  const targetList = incluirDesligados ? areaEmployees : activeEmployees;
+  const total = targetList.length;
 
   if (total === 0) {
     return {
@@ -641,7 +797,7 @@ export function calculateAreaMetrics(areaId: string, employees: Employee[]) {
   let aVencer30Dias = 0;
   let sumScore = 0;
 
-  for (const emp of areaEmployees) {
+  for (const emp of targetList) {
     sumScore += emp.indicadorPercentual || 0;
     if (emp.statusGeral === 'EM_DIA') emDia++;
     if (emp.statusGeral === 'CRITICO' || emp.statusGeral === 'BLOQUEADO') criticos++;

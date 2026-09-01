@@ -22,10 +22,8 @@ import {
   saveStoredBrandConfig,
   getStoredTrabalhistaEnvios,
   saveStoredTrabalhistaEnvios,
-  isStoredAdminAuthenticated,
-  setStoredAdminAuthenticated,
-  getStoredAdminCredentials,
-  saveStoredAdminCredentials,
+  getStoredAdminSessionToken,
+  setStoredAdminSessionToken,
   getStoredBlinkingAlerts,
   saveStoredBlinkingAlerts,
   calculateSystemStats,
@@ -34,7 +32,6 @@ import {
   exportEmployeesToCsv,
 } from './utils/storage.ts';
 import { Navbar, MainPortalMode, AdminTabType } from './components/Navbar.tsx';
-import { DashboardStats } from './components/DashboardStats.tsx';
 import { EmployeeTable } from './components/EmployeeTable.tsx';
 import { DemandadoPortal } from './components/DemandadoPortal.tsx';
 import { TrabalhistaModule } from './components/TrabalhistaModule.tsx';
@@ -64,7 +61,10 @@ import {
 import {
   fetchAllDataFromServer,
   syncCollectionToBackend,
+  verifyAdminSessionOnServer,
+  logoutAdminOnServer,
   saveAdminCredentialsToServer,
+  resetProductionOnServer,
 } from './services/backendSyncService.ts';
 import confetti from 'canvas-confetti';
 import {
@@ -122,6 +122,8 @@ export default function App() {
   const [selectedContractId, setSelectedContractId] = useState<string>('');
   const [selectedAreaId, setSelectedAreaId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [demandadoInitialStatus, setDemandadoInitialStatus] = useState<'TODOS' | 'ATIVOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA' | 'DESLIGADOS'>('TODOS');
+  const [demandadoInitialCategory, setDemandadoInitialCategory] = useState<'CADIM' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('CADIM');
 
   // Modals
   const [isOfficialGuideOpen, setIsOfficialGuideOpen] = useState(false);
@@ -239,7 +241,18 @@ export default function App() {
       let loadedLogs = getStoredDemandLogs();
       let loadedTrabalhista = getStoredTrabalhistaEnvios();
       let loadedBrand = getStoredBrandConfig();
-      const isAuth = isStoredAdminAuthenticated();
+
+      // Validação de sessão do admin no servidor
+      const existingToken = getStoredAdminSessionToken();
+      let isAuth = false;
+      if (existingToken) {
+        const sessionCheck = await verifyAdminSessionOnServer(existingToken);
+        if (sessionCheck.valid) {
+          isAuth = true;
+        } else {
+          setStoredAdminSessionToken(null);
+        }
+      }
 
       // Check if backend server has centralized data stored
       const serverData = await fetchAllDataFromServer();
@@ -271,16 +284,6 @@ export default function App() {
         if (serverData.resumoConfig) {
           setResumoConfig(serverData.resumoConfig);
         }
-        if (serverData.adminCredentials?.password) {
-          saveStoredAdminCredentials(
-            serverData.adminCredentials.username || 'admin',
-            serverData.adminCredentials.password
-          );
-        } else {
-          // Se o servidor não tiver credenciais ainda, sincroniza as locais para o servidor
-          const localCreds = getStoredAdminCredentials();
-          saveAdminCredentialsToServer(localCreds.username, localCreds.password).catch(() => {});
-        }
       }
 
       setEmployees(loadedEmployees);
@@ -308,18 +311,6 @@ export default function App() {
             }
             return prev;
           });
-        }
-        if (liveData.adminCredentials?.password) {
-          const currentCreds = getStoredAdminCredentials();
-          if (
-            currentCreds.password !== liveData.adminCredentials.password ||
-            currentCreds.username !== liveData.adminCredentials.username
-          ) {
-            saveStoredAdminCredentials(
-              liveData.adminCredentials.username || 'admin',
-              liveData.adminCredentials.password
-            );
-          }
         }
       }
     }, 10000);
@@ -365,17 +356,11 @@ export default function App() {
   };
 
   const handleSaveAdminCredentials = async (username: string, password: string) => {
-    saveStoredAdminCredentials(username, password);
-    try {
-      await saveAdminCredentialsToServer(username, password);
-    } catch (e) {
-      console.warn('Erro ao salvar credenciais diretamente:', e);
+    const token = getStoredAdminSessionToken();
+    const result = await saveAdminCredentialsToServer(username, password, token || undefined);
+    if (!result.success) {
+      throw new Error(result.error || 'Erro ao atualizar credenciais no servidor.');
     }
-    syncCollectionToBackend('adminCredentials', {
-      username,
-      password,
-      lastUpdated: new Date().toISOString(),
-    });
   };
 
   const updateBrand = (newBrand: BrandConfig) => {
@@ -385,9 +370,11 @@ export default function App() {
   };
 
   // Admin Auth Handlers
-  const handleAdminLoginSuccess = () => {
+  const handleAdminLoginSuccess = (token?: string) => {
+    if (token) {
+      setStoredAdminSessionToken(token);
+    }
     setIsAdminLoggedIn(true);
-    setStoredAdminAuthenticated(true);
     setIsAdminLoginOpen(false);
     setPortalMode(targetAdminMode || 'demands');
     try {
@@ -399,9 +386,13 @@ export default function App() {
     } catch {}
   };
 
-  const handleAdminLogout = () => {
+  const handleAdminLogout = async () => {
+    const token = getStoredAdminSessionToken();
+    if (token) {
+      await logoutAdminOnServer(token);
+    }
+    setStoredAdminSessionToken(null);
     setIsAdminLoggedIn(false);
-    setStoredAdminAuthenticated(false);
     if (portalMode === 'demands' || portalMode === 'settings') {
       setPortalMode('pendencias');
     }
@@ -574,12 +565,18 @@ export default function App() {
   };
 
   // Reset entire database to blank state for production
-  const handleExecuteProductionReset = () => {
+  const handleExecuteProductionReset = async () => {
     updateEmployees([]);
     updateContracts([]);
     updateAreas([]);
     updateTrabalhistaEnvios([]);
     updateDemandLogs([]);
+    const token = getStoredAdminSessionToken();
+    try {
+      await resetProductionOnServer(token || undefined);
+    } catch (e) {
+      console.warn('Erro ao chamar rota de reset no servidor:', e);
+    }
     setIsProductionResetOpen(false);
   };
 
@@ -655,6 +652,8 @@ export default function App() {
             contracts={contracts}
             areas={areas}
             brand={brand}
+            initialStatusFilter={demandadoInitialStatus}
+            initialCategory={demandadoInitialCategory}
             onSaveEmployee={handleSaveEmployee}
             onSaveContract={handleSaveContract}
             onDeleteContract={handleDeleteContract}
@@ -688,8 +687,11 @@ export default function App() {
               stats={stats}
               resumoConfig={resumoConfig}
               onSaveResumoConfig={updateResumoConfig}
-              onSaveArea={handleSaveArea}
-              onDeleteArea={handleDeleteArea}
+              onNavigateToDetailed={(filter, category = 'CADIM') => {
+                setDemandadoInitialStatus(filter);
+                setDemandadoInitialCategory(category);
+                setPortalMode('pendencias');
+              }}
               onSelectAreaForDispatch={(area) => {
                 if (!isAdminLoggedIn) {
                   handleOpenAdminLoginForTarget('demands');
@@ -778,6 +780,8 @@ export default function App() {
             contracts={contracts}
             trabalhistas={trabalhistaEnvios}
             areas={areas}
+            onSaveArea={handleSaveArea}
+            onDeleteArea={handleDeleteArea}
             syncStatus={syncStatus}
             onRefreshSheets={() => refreshFromGoogleSheets(false)}
             onGoToDemandado={() => setPortalMode('pendencias')}

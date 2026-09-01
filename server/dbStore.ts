@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 
 export interface AppDatabase {
   employees: any[];
@@ -10,7 +11,8 @@ export interface AppDatabase {
   brandConfig: any;
   adminCredentials?: {
     username: string;
-    password: string;
+    passwordHash: string;
+    salt: string;
     lastUpdated?: string;
   } | null;
   resumoConfig: {
@@ -19,6 +21,24 @@ export interface AppDatabase {
     lastUpdated?: string;
   } | null;
   lastUpdated: string;
+}
+
+export function hashPassword(password: string, salt?: string): { hash: string; salt: string } {
+  const finalSalt = salt || crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(password.trim(), finalSalt, 64).toString("hex");
+  return { hash, salt: finalSalt };
+}
+
+export function verifyPassword(password: string, storedHash: string, salt: string): boolean {
+  try {
+    const key = crypto.scryptSync(password.trim(), salt, 64);
+    const keyBuffer = Buffer.from(key.toString("hex"), "hex");
+    const storedBuffer = Buffer.from(storedHash, "hex");
+    if (keyBuffer.length !== storedBuffer.length) return false;
+    return crypto.timingSafeEqual(keyBuffer, storedBuffer);
+  } catch (err) {
+    return false;
+  }
 }
 
 const DATA_DIR = path.resolve(process.cwd(), "data");
@@ -84,12 +104,39 @@ export function ensureDataDirExists() {
   }
 }
 
+function getDefaultHashedCredentials() {
+  const { hash, salt } = hashPassword("gpa");
+  return {
+    username: "admin",
+    passwordHash: hash,
+    salt,
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
 export function readDb(): AppDatabase {
   ensureDataDirExists();
   try {
     if (fs.existsSync(DB_FILE)) {
       const content = fs.readFileSync(DB_FILE, "utf-8");
       const parsed = JSON.parse(content);
+      
+      let adminCredentials = parsed.adminCredentials;
+      if (adminCredentials) {
+        // If legacy plain password exists, migrate on the fly to hash+salt
+        if (adminCredentials.password && !adminCredentials.passwordHash) {
+          const { hash, salt } = hashPassword(adminCredentials.password);
+          adminCredentials = {
+            username: adminCredentials.username || "admin",
+            passwordHash: hash,
+            salt,
+            lastUpdated: adminCredentials.lastUpdated || new Date().toISOString(),
+          };
+        }
+      } else {
+        adminCredentials = getDefaultHashedCredentials();
+      }
+
       return {
         employees: Array.isArray(parsed.employees) ? parsed.employees : [],
         contracts: Array.isArray(parsed.contracts) ? parsed.contracts : [],
@@ -97,11 +144,7 @@ export function readDb(): AppDatabase {
         trabalhistas: Array.isArray(parsed.trabalhistas) ? parsed.trabalhistas : [],
         demandLogs: Array.isArray(parsed.demandLogs) ? parsed.demandLogs : [],
         brandConfig: parsed.brandConfig || null,
-        adminCredentials: parsed.adminCredentials || {
-          username: "admin",
-          password: "gpa",
-          lastUpdated: new Date().toISOString(),
-        },
+        adminCredentials,
         resumoConfig: parsed.resumoConfig || null,
         lastUpdated: parsed.lastUpdated || new Date().toISOString(),
       };
@@ -116,11 +159,7 @@ export function readDb(): AppDatabase {
     trabalhistas: [],
     demandLogs: [],
     brandConfig: null,
-    adminCredentials: {
-      username: "admin",
-      password: "gpa",
-      lastUpdated: new Date().toISOString(),
-    },
+    adminCredentials: getDefaultHashedCredentials(),
     resumoConfig: null,
     lastUpdated: new Date().toISOString(),
   };

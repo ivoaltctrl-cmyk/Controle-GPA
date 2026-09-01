@@ -49,6 +49,8 @@ interface DemandadoPortalProps {
   contracts: Contract[];
   areas: AreaResponsavel[];
   brand: BrandConfig;
+  initialStatusFilter?: 'TODOS' | 'ATIVOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA' | 'DESLIGADOS';
+  initialCategory?: 'CADIM' | 'SST' | 'TRABALHISTA' | 'DEMAIS';
   onSaveEmployee: (employee: Employee) => void;
   onSaveContract?: (contract: Contract) => void;
   onDeleteContract?: (contractId: string) => void;
@@ -74,6 +76,8 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   contracts,
   areas,
   brand,
+  initialStatusFilter = 'TODOS',
+  initialCategory = 'CADIM',
   onSaveEmployee,
   onSaveContract,
   onDeleteContract,
@@ -93,8 +97,8 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContractId, setSelectedContractId] = useState('');
   const [selectedAreaId, setSelectedAreaId] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<'CADIM' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>('CADIM');
-  const [filterStatus, setFilterStatus] = useState<'TODOS' | 'ATIVOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA' | 'DESLIGADOS'>('TODOS');
+  const [selectedCategory, setSelectedCategory] = useState<'CADIM' | 'SST' | 'TRABALHISTA' | 'DEMAIS'>(initialCategory);
+  const [filterStatus, setFilterStatus] = useState<'TODOS' | 'ATIVOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA' | 'DESLIGADOS'>(initialStatusFilter);
   
   // Selection for bulk actions
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -780,113 +784,6 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
         </div>
       ) : (
         <>
-      {/* KPI Cards Rápidos Compactos com Alertas Piscantes */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div
-          onClick={() => {
-            setFilterStatus('TODOS');
-            setCurrentPage(1);
-          }}
-          className={`p-3.5 rounded-xl bg-white border cursor-pointer transition-all shadow-2xs ${
-            filterStatus === 'TODOS' ? 'border-[#E21B23] ring-2 ring-[#E21B23]/15' : 'border-slate-200 hover:border-slate-300'
-          }`}
-        >
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Total Base</span>
-            <User className="w-4 h-4 text-slate-400" />
-          </div>
-          <div className="text-xl font-black text-slate-900">{totalDemandados.toLocaleString('pt-BR')}</div>
-          <span className="text-[10px] text-slate-500">{totalAtivos.toLocaleString('pt-BR')} ativos na base</span>
-        </div>
-
-        <div
-          onClick={() => {
-            setFilterStatus('EM_DIA');
-            setCurrentPage(1);
-          }}
-          className={`p-3.5 rounded-xl bg-white border cursor-pointer transition-all shadow-2xs ${
-            filterStatus === 'EM_DIA' ? 'border-emerald-600 ring-2 ring-emerald-600/15 bg-emerald-50/20' : 'border-slate-200 hover:border-emerald-200'
-          }`}
-        >
-          <div className="flex items-center justify-between text-emerald-700 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider">100% Em Dia</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="text-xl font-black text-emerald-700">{totalEmDia.toLocaleString('pt-BR')}</div>
-          <span className="text-[10px] text-emerald-600">Acesso liberado GPA</span>
-        </div>
-
-        {/* Card A Vencer com Alerta Piscante */}
-        <div
-          onClick={() => {
-            setFilterStatus('A_VENCER');
-            setCurrentPage(1);
-          }}
-          className={`p-3.5 rounded-xl bg-white border cursor-pointer transition-all shadow-2xs ${
-            filterStatus === 'A_VENCER' ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/20' : 'border-slate-200 hover:border-amber-200'
-          }`}
-        >
-          <div className="flex items-center justify-between text-amber-800 mb-1">
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                {blinkingAlerts && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                )}
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 animate-pulse" />
-              </span>
-              <span className="text-[11px] font-bold uppercase tracking-wider">A Vencer (≤ 30d)</span>
-            </div>
-            <Clock className="w-4 h-4 text-amber-600" />
-          </div>
-          <div className="text-xl font-black text-amber-800">{totalAVencer.toLocaleString('pt-BR')}</div>
-          <span className="text-[10px] text-amber-700">Renovação preventiva</span>
-        </div>
-
-        {/* Card Pendentes/Vencidos com Alerta Vermelho Piscante */}
-        <div
-          onClick={() => {
-            setFilterStatus('PENDENTES');
-            setCurrentPage(1);
-          }}
-          className={`p-3.5 rounded-xl bg-white border cursor-pointer transition-all shadow-2xs ${
-            filterStatus === 'PENDENTES' ? 'border-[#E21B23] ring-2 ring-[#E21B23]/20 bg-rose-50/20' : 'border-slate-200 hover:border-rose-200'
-          }`}
-        >
-          <div className="flex items-center justify-between text-[#E21B23] mb-1">
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                {blinkingAlerts && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                )}
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#E21B23] animate-pulse" />
-              </span>
-              <span className="text-[11px] font-bold uppercase tracking-wider">Pendentes / Vencidos</span>
-            </div>
-            <AlertTriangle className="w-4 h-4 text-[#E21B23] animate-pulse" />
-          </div>
-          <div className="text-xl font-black text-[#E21B23]">{totalCriticos.toLocaleString('pt-BR')}</div>
-          <span className="text-[10px] text-rose-600">Requer saneamento</span>
-        </div>
-
-        {/* Card Desligados / Inativos */}
-        <div
-          onClick={() => {
-            setFilterStatus('DESLIGADOS');
-            setCurrentPage(1);
-          }}
-          className={`p-3.5 rounded-xl bg-white border cursor-pointer transition-all shadow-2xs ${
-            filterStatus === 'DESLIGADOS' ? 'border-slate-500 ring-2 ring-slate-400/20 bg-slate-100' : 'border-slate-200 hover:border-slate-300'
-          }`}
-        >
-          <div className="flex items-center justify-between text-slate-600 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Desligados</span>
-            <UserX className="w-4 h-4 text-slate-500" />
-          </div>
-          <div className="text-xl font-black text-slate-700">{totalDesligados.toLocaleString('pt-BR')}</div>
-          <span className="text-[10px] text-slate-500">Inativos no GPA</span>
-        </div>
-      </div>
-
       {/* Barra de Filtros, Busca & Paginação */}
       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-3">

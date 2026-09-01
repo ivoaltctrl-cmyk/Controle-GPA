@@ -28,10 +28,16 @@ import {
   Building2,
   Building,
   TrendingUp,
+  Plus,
+  Edit2,
+  X,
+  Mail,
+  Phone,
+  UserCheck,
 } from 'lucide-react';
 import { BrandConfig, Employee, Contract, TrabalhistaEnvio, AreaResponsavel } from '../types/index.ts';
-import { getStoredAdminCredentials, saveStoredAdminCredentials } from '../utils/storage.ts';
-import { saveAdminCredentialsToServer } from '../services/backendSyncService.ts';
+import { getStoredAdminSessionToken } from '../utils/storage.ts';
+import { authenticateAdminOnServer, saveAdminCredentialsToServer } from '../services/backendSyncService.ts';
 
 interface SettingsModuleProps {
   onOpenSheetsSync: () => void;
@@ -45,6 +51,8 @@ interface SettingsModuleProps {
   contracts: Contract[];
   trabalhistas: TrabalhistaEnvio[];
   areas: AreaResponsavel[];
+  onSaveArea?: (area: AreaResponsavel) => void;
+  onDeleteArea?: (id: string) => void;
   syncStatus?: {
     status: 'idle' | 'syncing' | 'synced' | 'error';
     lastSynced?: string;
@@ -58,7 +66,7 @@ interface SettingsModuleProps {
     lastUpdated?: string;
   } | null;
   onSaveResumoConfig?: (newConfig: { validos: number; pendentes: number }) => void;
-  onSaveAdminCredentials?: (username: string, password: string) => void;
+  onSaveAdminCredentials?: (username: string, password: string) => Promise<void>;
 }
 
 const LOCAL_STORAGE_CUSTOM_RESUMO = 'sgp_custom_resumo_v1';
@@ -75,6 +83,8 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
   contracts,
   trabalhistas,
   areas,
+  onSaveArea,
+  onDeleteArea,
   syncStatus,
   onRefreshSheets,
   onGoToDemandado,
@@ -82,13 +92,77 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
   onSaveResumoConfig,
   onSaveAdminCredentials,
 }) => {
-  const currentCreds = getStoredAdminCredentials();
-  const [username, setUsername] = useState(currentCreds.username);
+  const [username, setUsername] = useState('admin');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  // --------------------------------------------------------------------------
+  // CADASTRO / EDIÇÃO DE ÁREAS & GESTORES (CRUD)
+  // --------------------------------------------------------------------------
+  const [isAreaModalOpen, setIsAreaModalOpen] = useState(false);
+  const [editingArea, setEditingArea] = useState<AreaResponsavel | null>(null);
+  const [areaSearchTerm, setAreaSearchTerm] = useState('');
+  const [areaFormData, setAreaFormData] = useState<Partial<AreaResponsavel>>({
+    nome: '',
+    responsavelNome: '',
+    responsavelCargo: '',
+    responsavelEmail: '',
+    responsavelTelefone: '',
+    unidadeOuLoja: '',
+    observacoes: '',
+  });
+
+  const handleOpenNewArea = () => {
+    setEditingArea(null);
+    setAreaFormData({
+      id: `area-${Date.now()}`,
+      nome: '',
+      responsavelNome: '',
+      responsavelCargo: '',
+      responsavelEmail: '',
+      responsavelTelefone: '',
+      unidadeOuLoja: '',
+      observacoes: '',
+    });
+    setIsAreaModalOpen(true);
+  };
+
+  const handleOpenEditArea = (area: AreaResponsavel) => {
+    setEditingArea(area);
+    setAreaFormData({ ...area });
+    setIsAreaModalOpen(true);
+  };
+
+  const handleAreaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!areaFormData.nome || !areaFormData.responsavelNome) return;
+
+    const areaToSave: AreaResponsavel = {
+      id: areaFormData.id || `area-${Date.now()}`,
+      nome: areaFormData.nome,
+      responsavelNome: areaFormData.responsavelNome,
+      responsavelCargo: areaFormData.responsavelCargo || 'Responsável de Área',
+      responsavelEmail: areaFormData.responsavelEmail || '',
+      responsavelTelefone: areaFormData.responsavelTelefone || '',
+      unidadeOuLoja: areaFormData.unidadeOuLoja || '',
+      observacoes: areaFormData.observacoes || '',
+    };
+
+    onSaveArea?.(areaToSave);
+    setIsAreaModalOpen(false);
+  };
+
+  const filteredAreasList = areas.filter((a) => {
+    const term = areaSearchTerm.toLowerCase();
+    return (
+      a.nome.toLowerCase().includes(term) ||
+      a.responsavelNome.toLowerCase().includes(term) ||
+      (a.unidadeOuLoja && a.unidadeOuLoja.toLowerCase().includes(term))
+    );
+  });
 
   const primaryColor = brand?.primaryColor || '#E21B23';
   const companyName = brand?.companyName || 'GPA';
@@ -212,19 +286,13 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
     setPasswordError('');
     setPasswordSuccess('');
 
-    const latestCreds = getStoredAdminCredentials();
     const cleanUser = username.trim() || 'admin';
     const cleanCurrent = currentPassword.trim();
     const cleanNew = newPassword.trim();
     const cleanConfirm = confirmPassword.trim();
 
-    // Aceita a senha atual salva OU a master 'gpa'
-    const isCurrentValid =
-      cleanCurrent === latestCreds.password ||
-      cleanCurrent === 'gpa';
-
-    if (!isCurrentValid) {
-      setPasswordError('A senha atual informada está incorreta. Se você esqueceu, use "gpa" ou redefina para o padrão abaixo.');
+    if (!cleanCurrent) {
+      setPasswordError('Informe a senha atual.');
       return;
     }
 
@@ -240,11 +308,25 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
 
     setIsSavingCreds(true);
     try {
-      saveStoredAdminCredentials(cleanUser, cleanNew);
+      // Validação estrita via servidor
+      const verifyCurrent = await authenticateAdminOnServer(cleanUser, cleanCurrent);
+      if (!verifyCurrent.success) {
+        setPasswordError('A senha atual informada está incorreta.');
+        setIsSavingCreds(false);
+        return;
+      }
+
+      const sessionToken = getStoredAdminSessionToken() || verifyCurrent.sessionToken;
+
       if (onSaveAdminCredentials) {
         await onSaveAdminCredentials(cleanUser, cleanNew);
       } else {
-        await saveAdminCredentialsToServer(cleanUser, cleanNew);
+        const res = await saveAdminCredentialsToServer(cleanUser, cleanNew, sessionToken || undefined);
+        if (!res.success) {
+          setPasswordError(res.error || 'Erro ao sincronizar com o servidor.');
+          setIsSavingCreds(false);
+          return;
+        }
       }
 
       setPasswordSuccess('Credenciais de Administrador salvas e sincronizadas em todos os dispositivos com sucesso!');
@@ -253,30 +335,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
       setConfirmPassword('');
       setTimeout(() => setPasswordSuccess(''), 5000);
     } catch (err: any) {
-      setPasswordError('Erro ao sincronizar com o servidor. As credenciais foram salvas localmente.');
-    } finally {
-      setIsSavingCreds(false);
-    }
-  };
-
-  const handleResetCredsDefault = async () => {
-    setPasswordError('');
-    setIsSavingCreds(true);
-    try {
-      setUsername('admin');
-      saveStoredAdminCredentials('admin', 'gpa');
-      if (onSaveAdminCredentials) {
-        await onSaveAdminCredentials('admin', 'gpa');
-      } else {
-        await saveAdminCredentialsToServer('admin', 'gpa');
-      }
-      setPasswordSuccess('Credenciais redefinidas para o padrão: Usuário "admin" e Senha "gpa" sincronizadas com sucesso!');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setTimeout(() => setPasswordSuccess(''), 5000);
-    } catch {
-      setPasswordSuccess('Credenciais redefinidas localmente para admin / gpa.');
+      setPasswordError('Erro ao sincronizar com o servidor.');
     } finally {
       setIsSavingCreds(false);
     }
@@ -355,13 +414,6 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
                   <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <span>{passwordError}</span>
-                    <button
-                      type="button"
-                      onClick={handleResetCredsDefault}
-                      className="block mt-1 text-[11px] font-bold text-rose-900 underline hover:text-rose-700 cursor-pointer"
-                    >
-                      Restaurar para padrão (admin / gpa)
-                    </button>
                   </div>
                 </div>
               )}
@@ -397,7 +449,7 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
                   required
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Digite sua senha atual (ou 'gpa')"
+                  placeholder="Digite sua senha atual"
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-800 text-xs font-semibold"
                 />
               </div>
@@ -445,16 +497,6 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
                       <span>Salvar Novas Credenciais (Sincronizar em Todos os PCs)</span>
                     </>
                   )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleResetCredsDefault}
-                  disabled={isSavingCreds}
-                  className="w-full py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-[11px] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <RefreshCw className="w-3 h-3 text-slate-500" />
-                  <span>Redefinir para padrão de fábrica (admin / gpa)</span>
                 </button>
               </div>
             </form>
@@ -801,7 +843,128 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
             </button>
           </div>
 
-          {/* 6. Zerar Planilha / Iniciar Produção */}
+          {/* 6. Gestão de Áreas & Gestores (CRUD) */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
+                  <Building className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-slate-900 uppercase">
+                      Cadastro de Áreas & Gestores
+                    </h3>
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                      {areas.length} cadastradas
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Cadastre e gerencie as áreas da empresa, unidades e seus respectivos gestores operacionais.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenNewArea}
+                  style={{ backgroundColor: primaryColor }}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-95 transition-opacity flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Cadastrar Área</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Busca Rápida de Áreas */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Buscar área, gestor ou unidade cadastrada..."
+                value={areaSearchTerm}
+                onChange={(e) => setAreaSearchTerm(e.target.value)}
+                className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900 bg-slate-50/50"
+              />
+            </div>
+
+            {/* Lista das Áreas com Botões de Editar e Excluir */}
+            {filteredAreasList.length === 0 ? (
+              <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-200">
+                <Building className="w-8 h-8 text-slate-300 mx-auto mb-1.5" />
+                <h4 className="text-xs font-bold text-slate-700">Nenhuma Área Cadastrada</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Clique no botão acima para adicionar a primeira área operacional.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {filteredAreasList.map((area) => (
+                  <div
+                    key={area.id}
+                    className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 transition-all space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                          {area.unidadeOuLoja || 'Área Operacional'}
+                        </span>
+                        <h4 className="text-xs font-bold text-slate-900">{area.nome}</h4>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditArea(area)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                          title="Editar Área"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Deseja excluir a área "${area.nome}"?`)) {
+                              onDeleteArea?.(area.id);
+                            }
+                          }}
+                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="Excluir Área"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 border-t border-slate-200/60">
+                      <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                        <UserCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>{area.responsavelNome}</span>
+                        {area.responsavelCargo && (
+                          <span className="text-[10px] font-normal text-slate-500">({area.responsavelCargo})</span>
+                        )}
+                      </div>
+                      {area.responsavelEmail && (
+                        <div className="flex items-center gap-1.5 text-slate-500 pl-5">
+                          <Mail className="w-3 h-3 text-slate-400" />
+                          <span>{area.responsavelEmail}</span>
+                        </div>
+                      )}
+                      {area.responsavelTelefone && (
+                        <div className="flex items-center gap-1.5 text-slate-500 pl-5">
+                          <Phone className="w-3 h-3 text-slate-400" />
+                          <span>{area.responsavelTelefone}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 7. Zerar Planilha / Iniciar Produção */}
           <div className="bg-rose-50/50 border border-rose-200 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <div className="w-11 h-11 rounded-2xl bg-rose-100 text-rose-700 border border-rose-300 flex items-center justify-center shrink-0">
@@ -830,6 +993,167 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal de Criação / Edição de Área */}
+      {isAreaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <div
+                  style={{ backgroundColor: primaryColor }}
+                  className="p-2 rounded-xl text-white"
+                >
+                  <Building className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {editingArea ? 'Editar Área & Gestor' : 'Nova Área / Setor'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Defina o nome da área e os contatos do gestor responsável
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAreaModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAreaSubmit} className="p-6 space-y-4 text-sm">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nome da Área / Setor *:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={areaFormData.nome || ''}
+                  onChange={(e) => setAreaFormData({ ...areaFormData, nome: e.target.value })}
+                  placeholder="Ex: Logística & CD, Manutenção, Obras..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Nome do Gestor *:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={areaFormData.responsavelNome || ''}
+                    onChange={(e) =>
+                      setAreaFormData({ ...areaFormData, responsavelNome: e.target.value })
+                    }
+                    placeholder="Ex: Carlos Silva"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Cargo / Função:
+                  </label>
+                  <input
+                    type="text"
+                    value={areaFormData.responsavelCargo || ''}
+                    onChange={(e) =>
+                      setAreaFormData({ ...areaFormData, responsavelCargo: e.target.value })
+                    }
+                    placeholder="Ex: Gerente de Operações"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    E-mail do Gestor:
+                  </label>
+                  <input
+                    type="email"
+                    value={areaFormData.responsavelEmail || ''}
+                    onChange={(e) =>
+                      setAreaFormData({ ...areaFormData, responsavelEmail: e.target.value })
+                    }
+                    placeholder="gestor@empresa.com.br"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    WhatsApp / Telefone:
+                  </label>
+                  <input
+                    type="tel"
+                    value={areaFormData.responsavelTelefone || ''}
+                    onChange={(e) =>
+                      setAreaFormData({ ...areaFormData, responsavelTelefone: e.target.value })
+                    }
+                    placeholder="(11) 99999-9999"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Unidade / Loja (Opcional):
+                </label>
+                <input
+                  type="text"
+                  value={areaFormData.unidadeOuLoja || ''}
+                  onChange={(e) =>
+                    setAreaFormData({ ...areaFormData, unidadeOuLoja: e.target.value })
+                  }
+                  placeholder="Ex: CD São Paulo, Loja 102 - Morumbi"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Observações Internas:
+                </label>
+                <textarea
+                  rows={2}
+                  value={areaFormData.observacoes || ''}
+                  onChange={(e) =>
+                    setAreaFormData({ ...areaFormData, observacoes: e.target.value })
+                  }
+                  placeholder="Notas adicionais sobre a área..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-xs"
+                />
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAreaModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{ backgroundColor: primaryColor }}
+                  className="px-4 py-2 rounded-xl text-white font-bold text-xs shadow-xs hover:opacity-95 cursor-pointer"
+                >
+                  {editingArea ? 'Salvar Alterações' : 'Cadastrar Área'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

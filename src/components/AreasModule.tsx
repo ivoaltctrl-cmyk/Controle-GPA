@@ -1,30 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Building,
-  Plus,
-  Edit2,
-  Trash2,
   Mail,
   Phone,
   UserCheck,
   AlertTriangle,
   CheckCircle2,
-  XCircle,
-  Clock,
   Users,
   Search,
-  Check,
-  X,
   Send,
-  Sparkles,
   FileText,
   ShieldCheck,
   Layers,
   RefreshCw,
-  SlidersHorizontal,
   ChevronRight,
   TrendingUp,
-  Info,
 } from 'lucide-react';
 import {
   AreaResponsavel,
@@ -34,7 +24,7 @@ import {
   BrandConfig,
   SystemStats,
 } from '../types/index.ts';
-import { calculateAreaMetrics, getTrabalhistaMesesConsolidados } from '../utils/storage.ts';
+import { calculateAreaMetrics, calculateSystemStats } from '../utils/storage.ts';
 
 interface AreasModuleProps {
   areas: AreaResponsavel[];
@@ -48,9 +38,8 @@ interface AreasModuleProps {
     lastUpdated?: string;
   } | null;
   onSaveResumoConfig?: (config: { validos: number; pendentes: number }) => void;
-  onSaveArea: (area: AreaResponsavel) => void;
-  onDeleteArea: (id: string) => void;
-  onSelectAreaForDispatch: (area: AreaResponsavel) => void;
+  onSelectAreaForDispatch?: (area: AreaResponsavel) => void;
+  onNavigateToDetailed?: (filterStatus: 'TODOS' | 'ATIVOS' | 'PENDENTES' | 'A_VENCER' | 'EM_DIA' | 'DESLIGADOS', category?: 'CADIM' | 'TRABALHISTA' | 'DEMAIS') => void;
   brand: BrandConfig;
 }
 
@@ -61,161 +50,36 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
   employees,
   contracts = [],
   trabalhistaEnvios = [],
-  stats,
   resumoConfig,
   onSaveResumoConfig,
-  onSaveArea,
-  onDeleteArea,
   onSelectAreaForDispatch,
+  onNavigateToDetailed,
   brand,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingArea, setEditingArea] = useState<AreaResponsavel | null>(null);
 
   const primaryColor = brand?.primaryColor || '#006837';
   const accentColor = brand?.accentColor || '#f59e0b';
 
   // --------------------------------------------------------------------------
-  // 1. CÁLCULO SEÇÃO 1: DOCUMENTOS DE SST (CADIM)
+  // CÁLCULO UNIFICADO COM CALCULATESYSTEMSTATS (Storage Compartilhado)
   // --------------------------------------------------------------------------
-  const sstSectionStats = useMemo(() => {
-    let totalDocs = 0;
-    let validados = 0;
-    let aVencer = 0;
-    let pendentes = 0;
-    let vencidos = 0;
+  const calculatedStats = useMemo(() => {
+    return calculateSystemStats(employees, trabalhistaEnvios, contracts);
+  }, [employees, trabalhistaEnvios, contracts]);
 
-    let osTotal = 0;
-    let osValidados = 0;
-    let asoTotal = 0;
-    let asoValidados = 0;
-    let epiTotal = 0;
-    let epiValidados = 0;
-    let radioTotal = 0;
-    let radioValidados = 0;
-
-    employees.forEach((emp) => {
-      (emp.pendencias || []).forEach((p) => {
-        if (p.status === 'NAO_APLICAVEL') return;
-        totalDocs++;
-
-        const isOk = p.status === 'EM_DIA';
-        const isAv = p.status === 'A_VENCER';
-        const isPd = p.status === 'PENDENTE' || p.status === 'EM_ANALISE';
-        const isVc = p.status === 'VENCIDO';
-
-        if (isOk || isAv) validados++;
-        if (isAv) aVencer++;
-        if (isPd) pendentes++;
-        if (isVc) vencidos++;
-
-        if (p.tipo === 'ORDEM_DE_SERVICO') {
-          osTotal++;
-          if (isOk || isAv) osValidados++;
-        } else if (p.tipo === 'ATESTADO_SAUDE_OCUPACIONAL') {
-          asoTotal++;
-          if (isOk || isAv) asoValidados++;
-        } else if (p.tipo === 'FICHA_EPI') {
-          epiTotal++;
-          if (isOk || isAv) epiValidados++;
-        } else {
-          radioTotal++;
-          if (isOk || isAv) radioValidados++;
-        }
-      });
-    });
-
-    const taxa = totalDocs > 0 ? Math.round((validados / totalDocs) * 100) : 100;
-
-    return {
-      totalDocs,
-      validados,
-      aVencer,
-      pendentes,
-      vencidos,
-      taxa,
-      os: { total: osTotal, validados: osValidados, taxa: osTotal > 0 ? Math.round((osValidados / osTotal) * 100) : 100 },
-      aso: { total: asoTotal, validados: asoValidados, taxa: asoTotal > 0 ? Math.round((asoValidados / asoTotal) * 100) : 100 },
-      epi: { total: epiTotal, validados: epiValidados, taxa: epiTotal > 0 ? Math.round((epiValidados / epiTotal) * 100) : 100 },
-      outros: { total: radioTotal, validados: radioValidados, taxa: radioTotal > 0 ? Math.round((radioValidados / radioTotal) * 100) : 100 },
-    };
-  }, [employees]);
+  const sstSectionStats = calculatedStats.sstDocs;
+  const trabalhistaSectionStats = calculatedStats.trabalhistaStats;
+  const demaisSectionStats = calculatedStats.demaisStats;
 
   // --------------------------------------------------------------------------
-  // 2. CÁLCULO SEÇÃO 2: DOCUMENTOS TRABALHISTAS
+  // RESULTADO GERAL: INDICADOR EM FORMATO DE DONUT COM 2 CAMPOS (VÁLIDOS E PENDENTES)
   // --------------------------------------------------------------------------
-  const trabalhistaSectionStats = useMemo(() => {
-    const totalEnvios = trabalhistaEnvios.length;
-    const validados = trabalhistaEnvios.filter((e) => e.status === 'Validado').length;
-    const emAnalise = trabalhistaEnvios.filter((e) => e.status === 'Em Análise').length;
-    const reprovados = trabalhistaEnvios.filter((e) => e.status === 'Reprovado').length;
-
-    const meses = getTrabalhistaMesesConsolidados(trabalhistaEnvios);
-    const mesesValidados = meses.filter((m) => m.isValidado).length;
-
-    const taxa = totalEnvios > 0 ? Math.round((validados / totalEnvios) * 100) : (meses.length > 0 ? Math.round((mesesValidados / meses.length) * 100) : 100);
-
-    return {
-      totalDocs: totalEnvios,
-      validados,
-      emAnalise,
-      reprovados,
-      totalMeses: meses.length,
-      mesesValidados,
-      taxa,
-    };
-  }, [trabalhistaEnvios]);
-
-  // --------------------------------------------------------------------------
-  // 3. CÁLCULO SEÇÃO 3: DEMAIS DOCUMENTOS (CONTRATUAIS & REGULATÓRIOS)
-  // --------------------------------------------------------------------------
-  const demaisSectionStats = useMemo(() => {
-    let totalDocs = 0;
-    let validados = 0;
-    let emAnalise = 0;
-    let reprovados = 0;
-
-    contracts.forEach((c) => {
-      const docs = c.documentosContrato || [];
-      docs.forEach((d) => {
-        totalDocs++;
-        if (d.status === 'Validado') validados++;
-        else if (d.status === 'Em Análise') emAnalise++;
-        else if (d.status === 'Reprovado') reprovados++;
-      });
-    });
-
-    // Se contratos não tiverem docs individuais cadastrados ainda, conta o status do contrato
-    if (totalDocs === 0 && contracts.length > 0) {
-      totalDocs = contracts.length;
-      validados = contracts.filter((c) => c.status === 'ATIVO' || c.statusDocumentos === 'Validado').length;
-      reprovados = contracts.filter((c) => c.status === 'BLOQUEADO' || c.statusDocumentos === 'Reprovado').length;
-      emAnalise = totalDocs - validados - reprovados;
-    }
-
-    const taxa = totalDocs > 0 ? Math.round((validados / totalDocs) * 100) : 100;
-
-    return {
-      totalDocs,
-      validados,
-      emAnalise,
-      reprovados,
-      taxa,
-      totalContratos: contracts.length,
-      contratosAtivos: contracts.filter((c) => c.status === 'ATIVO').length,
-    };
-  }, [contracts]);
-
-  // --------------------------------------------------------------------------
-  // 4. RESULTADO GERAL: INDICADOR EM FORMATO DE DONUT COM 2 CAMPOS (VÁLIDOS E PENDENTES)
-  // --------------------------------------------------------------------------
-  // Soma real do sistema:
   const sistemaTotalAuditados = sstSectionStats.totalDocs + trabalhistaSectionStats.totalDocs + demaisSectionStats.totalDocs;
   const sistemaTotalValidados = sstSectionStats.validados + trabalhistaSectionStats.validados + demaisSectionStats.validados;
   const sistemaTotalPendentes = Math.max(0, sistemaTotalAuditados - sistemaTotalValidados);
 
-  // Estados dos dois campos solicitados pelo usuário (Válidos e Pendentes)
+  // Estados dos dois campos (Válidos e Pendentes)
   const [validos, setValidos] = useState<number>(() => {
     if (resumoConfig && typeof resumoConfig.validos === 'number') {
       return resumoConfig.validos;
@@ -259,31 +123,6 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
     }
   }, [resumoConfig?.validos, resumoConfig?.pendentes, resumoConfig?.lastUpdated]);
 
-  // Salva alterações nos 2 campos no localStorage, no backend central e atualiza imediatamente
-  const handleUpdateValidos = (val: number) => {
-    const safeVal = Math.max(0, isNaN(val) ? 0 : val);
-    setValidos(safeVal);
-    try {
-      localStorage.setItem(
-        LOCAL_STORAGE_CUSTOM_RESUMO,
-        JSON.stringify({ validos: safeVal, pendentes })
-      );
-    } catch (e) {}
-    onSaveResumoConfig?.({ validos: safeVal, pendentes });
-  };
-
-  const handleUpdatePendentes = (val: number) => {
-    const safeVal = Math.max(0, isNaN(val) ? 0 : val);
-    setPendentes(safeVal);
-    try {
-      localStorage.setItem(
-        LOCAL_STORAGE_CUSTOM_RESUMO,
-        JSON.stringify({ validos, pendentes: safeVal })
-      );
-    } catch (e) {}
-    onSaveResumoConfig?.({ validos, pendentes: safeVal });
-  };
-
   const handleAutoFillFromSystem = () => {
     const v = sistemaTotalValidados > 0 ? sistemaTotalValidados : 0;
     const p = Math.max(0, sistemaTotalAuditados - sistemaTotalValidados);
@@ -306,7 +145,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
     return Math.max(0, Math.min(100, pct));
   }, [validos, totalGeral]);
 
-  // Dimensões do SVG Donut Chart com alta nitidez, proporções harmônicas e espaçamento perfeito
+  // Dimensões do SVG Donut Chart
   const chartSize = 220;
   const strokeWidth = 20;
   const chartCenter = chartSize / 2;
@@ -314,17 +153,6 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
   const innerRingRadius = chartRadius - strokeWidth / 2 - 2;
   const circumference = 2 * Math.PI * chartRadius;
   const strokeDashoffset = circumference - (percentualGeral / 100) * circumference;
-
-  // Form de Área
-  const [formData, setFormData] = useState<Partial<AreaResponsavel>>({
-    nome: '',
-    responsavelNome: '',
-    responsavelCargo: '',
-    responsavelEmail: '',
-    responsavelTelefone: '',
-    unidadeOuLoja: '',
-    observacoes: '',
-  });
 
   const filteredAreas = areas.filter((a) => {
     const term = searchTerm.toLowerCase();
@@ -334,46 +162,6 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
       (a.unidadeOuLoja && a.unidadeOuLoja.toLowerCase().includes(term))
     );
   });
-
-  const handleOpenNew = () => {
-    setEditingArea(null);
-    setFormData({
-      id: `area-${Date.now()}`,
-      nome: '',
-      responsavelNome: '',
-      responsavelCargo: '',
-      responsavelEmail: '',
-      responsavelTelefone: '',
-      unidadeOuLoja: '',
-      observacoes: '',
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEdit = (area: AreaResponsavel) => {
-    setEditingArea(area);
-    setFormData({ ...area });
-    setIsModalOpen(true);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.nome || !formData.responsavelNome) return;
-
-    const areaToSave: AreaResponsavel = {
-      id: formData.id || `area-${Date.now()}`,
-      nome: formData.nome,
-      responsavelNome: formData.responsavelNome,
-      responsavelCargo: formData.responsavelCargo || 'Responsável de Área',
-      responsavelEmail: formData.responsavelEmail || '',
-      responsavelTelefone: formData.responsavelTelefone || '',
-      unidadeOuLoja: formData.unidadeOuLoja || '',
-      observacoes: formData.observacoes || '',
-    };
-
-    onSaveArea(areaToSave);
-    setIsModalOpen(false);
-  };
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-200">
@@ -442,7 +230,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                 viewBox={`0 0 ${chartSize} ${chartSize}`}
                 className="transform -rotate-90 origin-center filter drop-shadow-xs"
               >
-                {/* Background Ring (Trilha de Fundo / Pendentes em Vermelho quando houver pendências) */}
+                {/* Background Ring */}
                 <circle
                   cx={chartCenter}
                   cy={chartCenter}
@@ -452,7 +240,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                   strokeWidth={strokeWidth}
                 />
 
-                {/* Progress Ring (Arco dos Válidos em Verde Vibrante e Nítido) */}
+                {/* Progress Ring */}
                 {validos > 0 && (
                   <circle
                     cx={chartCenter}
@@ -468,7 +256,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                   />
                 )}
 
-                {/* Anel interno concêntrico branco com borda verde refinada */}
+                {/* Anel interno concêntrico */}
                 <circle
                   cx={chartCenter}
                   cy={chartCenter}
@@ -480,7 +268,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                 />
               </svg>
 
-              {/* Conteúdo Central com Tipografia Espaçada e Nítida (Zero Sobreposição) */}
+              {/* Conteúdo Central */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none p-3">
                 <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   Validados
@@ -506,52 +294,73 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
             </div>
           </div>
 
-          {/* Lado Direito: Painel Executivo Consolidado de Conformidade */}
+          {/* Lado Direito: Painel Executivo Consolidado com Clique para Navegação */}
           <div className="lg:col-span-7 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Card 1: Documentos Validados */}
-              <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-xl p-3.5 space-y-1">
+              {/* Card 1: Documentos Validados (Navega para EM_DIA) */}
+              <div
+                onClick={() => onNavigateToDetailed?.('EM_DIA', 'CADIM')}
+                className="bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-200/80 rounded-xl p-3.5 space-y-1 cursor-pointer transition-all hover:scale-[1.01] hover:shadow-sm"
+                title="Clique para ver colaboradores com documentação 100% Em Dia"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-emerald-900 uppercase tracking-wide flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Válidos & Conformes</span>
                   </span>
-                  <span className="text-[10px] font-black text-emerald-800 bg-white px-1.5 py-0.2 rounded border border-emerald-200 shadow-2xs">
-                    {percentualGeral}%
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-black text-emerald-800 bg-white px-1.5 py-0.2 rounded border border-emerald-200 shadow-2xs">
+                      {percentualGeral}%
+                    </span>
+                    <ChevronRight className="w-3 h-3 text-emerald-600" />
+                  </div>
                 </div>
                 <div className="text-xl sm:text-2xl font-black text-emerald-800">
                   {validos.toLocaleString('pt-BR')}
                 </div>
                 <p className="text-[10px] text-emerald-700/80 font-medium">
-                  Documentações aprovadas e em dia no sistema.
+                  Clique para visualizar no detalhado.
                 </p>
               </div>
 
-              {/* Card 2: Pendências em Aberto */}
-              <div className="bg-rose-50/50 border border-rose-200/80 rounded-xl p-3.5 space-y-1">
+              {/* Card 2: Pendências em Aberto (Navega para PENDENTES) */}
+              <div
+                onClick={() => onNavigateToDetailed?.('PENDENTES', 'CADIM')}
+                className="bg-rose-50/50 hover:bg-rose-50 border border-rose-200/80 rounded-xl p-3.5 space-y-1 cursor-pointer transition-all hover:scale-[1.01] hover:shadow-sm"
+                title="Clique para ver colaboradores com pendências"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-rose-900 uppercase tracking-wide flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
                     <span>Pendências em Aberto</span>
                   </span>
-                  <span className="text-[10px] font-black text-rose-800 bg-white px-1.5 py-0.2 rounded border border-rose-200 shadow-2xs">
-                    {totalGeral > 0 ? Math.round((pendentes / totalGeral) * 100) : 0}%
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-black text-rose-800 bg-white px-1.5 py-0.2 rounded border border-rose-200 shadow-2xs">
+                      {totalGeral > 0 ? Math.round((pendentes / totalGeral) * 100) : 0}%
+                    </span>
+                    <ChevronRight className="w-3 h-3 text-rose-600" />
+                  </div>
                 </div>
                 <div className="text-xl sm:text-2xl font-black text-rose-800">
                   {pendentes.toLocaleString('pt-BR')}
                 </div>
                 <p className="text-[10px] text-rose-700/80 font-medium">
-                  Itens com pendência documental a sanar.
+                  Clique para visualizar no detalhado.
                 </p>
               </div>
 
-              {/* Card 3: Total Geral no Escopo */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                  Total de Docs Auditados
-                </span>
+              {/* Card 3: Total Geral no Escopo (Navega para TODOS) */}
+              <div
+                onClick={() => onNavigateToDetailed?.('TODOS', 'CADIM')}
+                className="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl p-3.5 space-y-1 cursor-pointer transition-all hover:scale-[1.01] hover:shadow-sm"
+                title="Clique para ver a lista completa de terceiros"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wide block">
+                    Total de Docs Auditados
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                </div>
                 <div className="text-xl sm:text-2xl font-black text-slate-900">
                   {totalGeral.toLocaleString('pt-BR')}
                 </div>
@@ -636,15 +445,27 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
             {/* Métricas da Seção SST */}
             <div className="p-3.5 sm:p-4 bg-slate-50/50 space-y-3">
               <div className="grid grid-cols-3 gap-1.5 text-center">
-                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                <div
+                  onClick={() => onNavigateToDetailed?.('TODOS', 'CADIM')}
+                  className="p-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 cursor-pointer transition-colors"
+                  title="Ver todos no CADIM"
+                >
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Total</span>
                   <span className="text-xs sm:text-sm font-black text-slate-900">{sstSectionStats.totalDocs}</span>
                 </div>
-                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                <div
+                  onClick={() => onNavigateToDetailed?.('EM_DIA', 'CADIM')}
+                  className="p-2 rounded-lg bg-white hover:bg-emerald-50 border border-slate-200 cursor-pointer transition-colors"
+                  title="Ver validados no CADIM"
+                >
                   <span className="text-[9px] font-bold text-emerald-600 block uppercase">Validados</span>
                   <span className="text-xs sm:text-sm font-black text-emerald-700">{sstSectionStats.validados}</span>
                 </div>
-                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                <div
+                  onClick={() => onNavigateToDetailed?.('PENDENTES', 'CADIM')}
+                  className="p-2 rounded-lg bg-white hover:bg-rose-50 border border-slate-200 cursor-pointer transition-colors"
+                  title="Ver pendentes no CADIM"
+                >
                   <span className="text-[9px] font-bold text-rose-600 block uppercase">Pendentes</span>
                   <span className="text-xs sm:text-sm font-black text-rose-700">{sstSectionStats.pendentes + sstSectionStats.vencidos}</span>
                 </div>
@@ -714,15 +535,27 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
             {/* Métricas da Seção Trabalhista */}
             <div className="p-3.5 sm:p-4 bg-slate-50/50 space-y-3">
               <div className="grid grid-cols-3 gap-1.5 text-center">
-                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                <div
+                  onClick={() => onNavigateToDetailed?.('TODOS', 'TRABALHISTA')}
+                  className="p-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 cursor-pointer transition-colors"
+                  title="Ver todos no Trabalhista"
+                >
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Envios</span>
                   <span className="text-xs sm:text-sm font-black text-slate-900">{trabalhistaSectionStats.totalDocs}</span>
                 </div>
-                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                <div
+                  onClick={() => onNavigateToDetailed?.('EM_DIA', 'TRABALHISTA')}
+                  className="p-2 rounded-lg bg-white hover:bg-blue-50 border border-slate-200 cursor-pointer transition-colors"
+                  title="Ver validados no Trabalhista"
+                >
                   <span className="text-[9px] font-bold text-blue-600 block uppercase">Validados</span>
                   <span className="text-xs sm:text-sm font-black text-blue-700">{trabalhistaSectionStats.validados}</span>
                 </div>
-                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                <div
+                  onClick={() => onNavigateToDetailed?.('PENDENTES', 'TRABALHISTA')}
+                  className="p-2 rounded-lg bg-white hover:bg-rose-50 border border-slate-200 cursor-pointer transition-colors"
+                  title="Ver pendentes no Trabalhista"
+                >
                   <span className="text-[9px] font-bold text-rose-600 block uppercase">Pendentes</span>
                   <span className="text-xs sm:text-sm font-black text-rose-700">{trabalhistaSectionStats.reprovados + trabalhistaSectionStats.emAnalise}</span>
                 </div>
@@ -792,15 +625,27 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
             {/* Métricas da Seção Demais Documentos */}
             <div className="p-3.5 sm:p-4 bg-slate-50/50 space-y-3">
               <div className="grid grid-cols-3 gap-1.5 text-center">
-                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                <div
+                  onClick={() => onNavigateToDetailed?.('TODOS', 'DEMAIS')}
+                  className="p-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 cursor-pointer transition-colors"
+                  title="Ver todos nos Contratos"
+                >
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Docs</span>
                   <span className="text-xs sm:text-sm font-black text-slate-900">{demaisSectionStats.totalDocs}</span>
                 </div>
-                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                <div
+                  onClick={() => onNavigateToDetailed?.('EM_DIA', 'DEMAIS')}
+                  className="p-2 rounded-lg bg-white hover:bg-purple-50 border border-slate-200 cursor-pointer transition-colors"
+                  title="Ver validados nos Contratos"
+                >
                   <span className="text-[9px] font-bold text-purple-600 block uppercase">Validados</span>
                   <span className="text-xs sm:text-sm font-black text-purple-700">{demaisSectionStats.validados}</span>
                 </div>
-                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                <div
+                  onClick={() => onNavigateToDetailed?.('PENDENTES', 'DEMAIS')}
+                  className="p-2 rounded-lg bg-white hover:bg-rose-50 border border-slate-200 cursor-pointer transition-colors"
+                  title="Ver pendentes nos Contratos"
+                >
                   <span className="text-[9px] font-bold text-rose-600 block uppercase">Pendentes</span>
                   <span className="text-xs sm:text-sm font-black text-rose-700">{demaisSectionStats.reprovados + demaisSectionStats.emAnalise}</span>
                 </div>
@@ -841,7 +686,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
       </section>
 
       {/* ========================================================================= */}
-      {/* 3. RESUMO DE ÁREAS & GESTORES (MATRIZ OPERACIONAL)                         */}
+      {/* 3. RESUMO DE ÁREAS & GESTORES (MATRIZ OPERACIONAL - SOMENTE VISUALIZAÇÃO)   */}
       {/* ========================================================================= */}
       <section className="space-y-3.5 sm:space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs">
@@ -863,7 +708,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="relative flex-1 sm:w-60">
+            <div className="relative flex-1 sm:w-72">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -873,15 +718,6 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                 className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900 bg-slate-50/50"
               />
             </div>
-
-            <button
-              onClick={handleOpenNew}
-              style={{ backgroundColor: primaryColor }}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-95 transition-opacity flex items-center gap-1.5 cursor-pointer shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Cadastrar Área</span>
-            </button>
           </div>
         </div>
 
@@ -890,16 +726,9 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
           <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
             <Building className="w-10 h-10 text-slate-300 mx-auto mb-2" />
             <h3 className="text-sm font-bold text-slate-800">Nenhuma Área Encontrada</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-3">
-              Cadastre as áreas da empresa (ex: Logística, Manutenção, Obras, Facilities, Segurança) e atrele os responsáveis para envio de pendências.
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+              As áreas cadastradas no sistema serão exibidas aqui com seus indicadores operacionais.
             </p>
-            <button
-              onClick={handleOpenNew}
-              style={{ backgroundColor: primaryColor }}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white cursor-pointer"
-            >
-              Cadastrar Primeira Área
-            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
@@ -921,27 +750,6 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                         <h3 className="text-sm font-bold text-slate-900 leading-snug">
                           {area.nome}
                         </h3>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleOpenEdit(area)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                          title="Editar Área"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Deseja excluir a área "${area.nome}"?`)) {
-                              onDeleteArea(area.id);
-                            }
-                          }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                          title="Excluir Área"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
                       </div>
                     </div>
 
@@ -980,9 +788,13 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                   </div>
 
                   {/* Metrics Breakdown */}
-                  <div className="p-5 bg-slate-50/50 space-y-3">
+                  <div className="p-4 sm:p-5 bg-slate-50/50 space-y-3">
                     <div className="grid grid-cols-4 gap-2 text-center">
-                      <div className="p-2 rounded-lg bg-white border border-slate-200">
+                      <div
+                        onClick={() => onNavigateToDetailed?.('TODOS', 'CADIM')}
+                        className="p-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 cursor-pointer transition-colors"
+                        title="Ver terceiros da área"
+                      >
                         <span className="text-[10px] font-bold text-slate-400 block uppercase">
                           Colabs
                         </span>
@@ -991,7 +803,11 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                         </span>
                       </div>
 
-                      <div className="p-2 rounded-lg bg-white border border-slate-200">
+                      <div
+                        onClick={() => onNavigateToDetailed?.('EM_DIA', 'CADIM')}
+                        className="p-2 rounded-lg bg-white hover:bg-emerald-50 border border-slate-200 cursor-pointer transition-colors"
+                        title="Ver colaboradores em dia"
+                      >
                         <span className="text-[10px] font-bold text-slate-400 block uppercase">
                           Em Dia
                         </span>
@@ -1000,7 +816,11 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                         </span>
                       </div>
 
-                      <div className="p-2 rounded-lg bg-white border border-slate-200">
+                      <div
+                        onClick={() => onNavigateToDetailed?.('A_VENCER', 'CADIM')}
+                        className="p-2 rounded-lg bg-white hover:bg-amber-50 border border-slate-200 cursor-pointer transition-colors"
+                        title="Ver colaboradores a vencer"
+                      >
                         <span className="text-[10px] font-bold text-slate-400 block uppercase">
                           Vencendo
                         </span>
@@ -1009,7 +829,11 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                         </span>
                       </div>
 
-                      <div className="p-2 rounded-lg bg-white border border-slate-200">
+                      <div
+                        onClick={() => onNavigateToDetailed?.('PENDENTES', 'CADIM')}
+                        className="p-2 rounded-lg bg-white hover:bg-rose-50 border border-slate-200 cursor-pointer transition-colors"
+                        title="Ver colaboradores críticos/pendentes"
+                      >
                         <span className="text-[10px] font-bold text-slate-400 block uppercase">
                           Críticos
                         </span>
@@ -1046,15 +870,17 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                     </div>
 
                     {/* Dispatch Button for this Area */}
-                    <button
-                      type="button"
-                      onClick={() => onSelectAreaForDispatch(area)}
-                      style={{ backgroundColor: primaryColor }}
-                      className="w-full py-2 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-95 transition-opacity flex items-center justify-center gap-1.5 cursor-pointer mt-2"
-                    >
-                      <Send className="w-3.5 h-3.5" style={{ color: accentColor }} />
-                      <span>Disparar Cobrança para {area.responsavelNome.split(' ')[0]}</span>
-                    </button>
+                    {onSelectAreaForDispatch && (
+                      <button
+                        type="button"
+                        onClick={() => onSelectAreaForDispatch(area)}
+                        style={{ backgroundColor: primaryColor }}
+                        className="w-full py-2 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-95 transition-opacity flex items-center justify-center gap-1.5 cursor-pointer mt-2"
+                      >
+                        <Send className="w-3.5 h-3.5" style={{ color: accentColor }} />
+                        <span>Disparar Cobrança para {area.responsavelNome.split(' ')[0]}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -1062,167 +888,6 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
           </div>
         )}
       </section>
-
-      {/* Modal de Criação / Edição de Área */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
-              <div className="flex items-center gap-2.5">
-                <div
-                  style={{ backgroundColor: primaryColor }}
-                  className="p-2 rounded-xl text-white"
-                >
-                  <Building className="w-5 h-5" style={{ color: accentColor }} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    {editingArea ? 'Editar Área & Responsável' : 'Nova Área / Setor'}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Defina o nome da área e os contatos do gestor responsável
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 text-sm">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nome da Área / Setor *:
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Logística & CDs, Manutenção, Obras, Facilities"
-                  value={formData.nome || ''}
-                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Nome do Gestor Responsável *:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Ricardo Fontes"
-                    value={formData.responsavelNome || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, responsavelNome: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Cargo / Função:
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Gerente de Operações"
-                    value={formData.responsavelCargo || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, responsavelCargo: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    E-mail Corporativo:
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="gestor@gpa.com.br"
-                    value={formData.responsavelEmail || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, responsavelEmail: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    WhatsApp / Telefone:
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="(11) 98765-4321"
-                    value={formData.responsavelTelefone || ''}
-                    onChange={(e) =>
-                      setFormData({ ...formData, responsavelTelefone: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Unidade / Regional / Loja:
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: CD Osasco, Regional SP, Matriz GPA"
-                  value={formData.unidadeOuLoja || ''}
-                  onChange={(e) =>
-                    setFormData({ ...formData, unidadeOuLoja: e.target.value })
-                  }
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Observações / Regras da Área:
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Observações pertinentes à área..."
-                  value={formData.observacoes || ''}
-                  onChange={(e) =>
-                    setFormData({ ...formData, observacoes: e.target.value })
-                  }
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  style={{ backgroundColor: primaryColor }}
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-95 flex items-center gap-1.5"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>Salvar Área</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -10,14 +10,14 @@ import {
   Loader2,
 } from 'lucide-react';
 import { BrandConfig } from '../types/index.ts';
-import { getStoredAdminCredentials, saveStoredAdminCredentials } from '../utils/storage.ts';
-import { saveAdminCredentialsToServer } from '../services/backendSyncService.ts';
+import { getStoredAdminSessionToken } from '../utils/storage.ts';
+import { authenticateAdminOnServer, saveAdminCredentialsToServer } from '../services/backendSyncService.ts';
 
 interface AdminPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
   brand: BrandConfig;
-  onSaveAdminCredentials?: (username: string, newPass: string) => void;
+  onSaveAdminCredentials?: (username: string, newPass: string) => Promise<void>;
 }
 
 export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
@@ -26,8 +26,7 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
   brand,
   onSaveAdminCredentials,
 }) => {
-  const currentCreds = getStoredAdminCredentials();
-  const [username, setUsername] = useState(currentCreds.username);
+  const [username, setUsername] = useState('admin');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -44,14 +43,13 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
     setErrorMsg('');
     setSuccessMsg('');
 
-    const latestCreds = getStoredAdminCredentials();
     const cleanUser = username.trim() || 'admin';
     const cleanCurrent = currentPassword.trim();
     const cleanNew = newPassword.trim();
     const cleanConfirm = confirmPassword.trim();
 
-    if (cleanCurrent !== latestCreds.password && cleanCurrent !== 'gpa') {
-      setErrorMsg('A senha atual informada está incorreta. Se esqueceu, use "gpa".');
+    if (!cleanCurrent) {
+      setErrorMsg('Informe a senha atual.');
       return;
     }
 
@@ -67,12 +65,27 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
 
     setIsSaving(true);
     try {
-      saveStoredAdminCredentials(cleanUser, cleanNew);
+      // Valida se a senha atual confere no servidor
+      const verifyCurrent = await authenticateAdminOnServer(cleanUser, cleanCurrent);
+      if (!verifyCurrent.success) {
+        setErrorMsg('A senha atual informada está incorreta.');
+        setIsSaving(false);
+        return;
+      }
+
+      const sessionToken = getStoredAdminSessionToken() || verifyCurrent.sessionToken;
+
       if (onSaveAdminCredentials) {
         await onSaveAdminCredentials(cleanUser, cleanNew);
       } else {
-        await saveAdminCredentialsToServer(cleanUser, cleanNew);
+        const res = await saveAdminCredentialsToServer(cleanUser, cleanNew, sessionToken || undefined);
+        if (!res.success) {
+          setErrorMsg(res.error || 'Falha ao atualizar credenciais no servidor.');
+          setIsSaving(false);
+          return;
+        }
       }
+
       setSuccessMsg('Credenciais de Administrador atualizadas e sincronizadas com sucesso!');
       setTimeout(() => {
         setIsSaving(false);
