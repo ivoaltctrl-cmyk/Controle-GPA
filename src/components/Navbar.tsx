@@ -116,39 +116,39 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200/90 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Main Navbar Tier */}
-        <div className="flex items-center justify-between h-18 sm:h-20">
+        <div className="flex items-center justify-between h-15 sm:h-16">
           {/* Left: Logo & Brand */}
-          <div className="flex items-center space-x-3.5 sm:space-x-4 shrink-0">
-            <div className="flex items-center py-1">
+          <div className="flex items-center space-x-3 sm:space-x-3.5 shrink-0">
+            <div className="flex items-center py-0.5">
               <WfsLogo
                 brand={brand}
-                size="lg"
+                size="md"
                 className="transition-transform hover:scale-105"
               />
             </div>
-            <div className="hidden md:block border-l border-slate-200 pl-3.5">
+            <div className="hidden md:block border-l border-slate-200 pl-3">
               <div className="flex items-center gap-1.5">
                 <span
                   style={{
                     backgroundColor: primaryColor,
                     color: '#ffffff',
                   }}
-                  className="text-[10px] sm:text-[11px] font-black tracking-widest uppercase px-2 py-0.5 rounded shadow-2xs"
+                  className="text-[10px] font-black tracking-widest uppercase px-1.5 py-0.5 rounded shadow-2xs"
                 >
                   {companyName}
                 </span>
-                <span className="text-xs sm:text-[13px] font-black text-slate-800 tracking-tight">
+                <span className="text-xs font-black text-slate-800 tracking-tight">
                   GESTÃO & AUDITORIA DE TERCEIROS
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium">
+              <p className="text-[10px] text-slate-500 font-medium">
                 Consulta de Pendências & Conformidade
               </p>
             </div>
           </div>
 
           {/* Center Navigation Tabs (Unificado e Profissional) */}
-          <nav className="flex items-center bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 shadow-inner overflow-x-auto shrink-0 gap-1">
+          <nav className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 shadow-inner overflow-x-auto shrink-0 gap-1">
             {/* 1. Resumo Geral (Primeira tela padrão) */}
             <button
               id="nav-tab-resumo"
@@ -158,13 +158,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? { backgroundColor: '#ffffff', color: primaryColor }
                   : {}
               }
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                 currentMode === 'areas'
                   ? 'shadow-xs font-black ring-1 ring-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
             >
-              <Building2 className="w-4 h-4" />
+              <Building2 className="w-3.5 h-3.5" />
               <span>Resumo Geral</span>
             </button>
 
@@ -177,17 +177,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? { backgroundColor: primaryColor, color: '#ffffff' }
                   : {}
               }
-              className={`flex items-center gap-2 px-4.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                 currentMode === 'pendencias'
-                  ? 'shadow-md ring-2 ring-rose-300'
+                  ? 'shadow-md ring-1 ring-rose-300'
                   : 'text-slate-700 bg-white/70 hover:bg-white hover:text-slate-900 shadow-2xs border border-slate-200/80'
               }`}
             >
-              <ShieldCheck className={`w-4 h-4 ${currentMode === 'pendencias' ? 'text-white' : 'text-[#E21B23]'}`} />
+              <ShieldCheck className={`w-3.5 h-3.5 ${currentMode === 'pendencias' ? 'text-white' : 'text-[#E21B23]'}`} />
               <span>Painel de Pendências</span>
               {totalPending > 0 && (
                 <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
                     blinkingAlerts ? 'animate-pulse' : ''
                   } ${
                     currentMode === 'pendencias'
@@ -215,20 +215,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? { backgroundColor: '#ffffff', color: primaryColor }
                   : {}
               }
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 currentMode === 'demands'
                   ? 'shadow-xs font-black ring-1 ring-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
               {isAdminLoggedIn ? (
-                <Send className="w-4 h-4 text-slate-700" />
+                <Send className="w-3.5 h-3.5 text-slate-700" />
               ) : (
-                <Lock className="w-3.5 h-3.5 text-amber-500" />
+                <Lock className="w-3 h-3 text-amber-500" />
               )}
               <span>Gestão GRU</span>
               {!isAdminLoggedIn && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 uppercase font-black tracking-wider hidden lg:inline">
+                <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-900 uppercase font-black tracking-wider hidden lg:inline">
                   Senha
                 </span>
               )}
@@ -249,20 +249,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? { backgroundColor: '#ffffff', color: '#0f172a' }
                   : {}
               }
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 currentMode === 'settings'
                   ? 'shadow-xs font-black ring-1 ring-slate-200 text-slate-900'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
               {isAdminLoggedIn ? (
-                <Settings className="w-4 h-4 text-slate-700" />
+                <Settings className="w-3.5 h-3.5 text-slate-700" />
               ) : (
-                <Lock className="w-3.5 h-3.5 text-amber-500" />
+                <Lock className="w-3 h-3 text-amber-500" />
               )}
               <span>Configuração</span>
               {!isAdminLoggedIn && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 uppercase font-black tracking-wider hidden lg:inline">
+                <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-900 uppercase font-black tracking-wider hidden lg:inline">
                   Senha
                 </span>
               )}

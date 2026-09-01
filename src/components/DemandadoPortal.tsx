@@ -618,13 +618,13 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
       )}
 
       {/* Header - Portal Unificado de Pendências e Conformidade GPA */}
-      <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200 border-l-4 border-l-[#E21B23] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md text-[11px] font-black bg-[#E21B23]/10 text-[#E21B23] uppercase tracking-wider border border-[#E21B23]/20">
-            <span className="w-2 h-2 rounded-full bg-[#E21B23]" />
+      <div className="bg-white rounded-2xl p-4 sm:p-4.5 shadow-xs border border-slate-200 border-l-4 border-l-[#E21B23] flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-black bg-[#E21B23]/10 text-[#E21B23] uppercase tracking-wider border border-[#E21B23]/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#E21B23]" />
             <span>PORTAL DE PENDÊNCIAS & CONFORMIDADE • GPA</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
             Consulta & Regularização de Pendências
           </h2>
           <p className="text-xs text-slate-600 font-medium max-w-2xl">
@@ -637,13 +637,13 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
           <button
             onClick={handleQuickSync}
             disabled={isSyncingDirect}
-            className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs flex items-center gap-2 cursor-pointer transition-all disabled:opacity-60"
+            className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-60"
             title="Sincronizar dados em tempo real com o Google Sheets GPA_BD"
           >
             {isSyncingDirect ? (
-              <RefreshCw className="w-4 h-4 text-emerald-100 animate-spin" />
+              <RefreshCw className="w-3.5 h-3.5 text-emerald-100 animate-spin" />
             ) : (
-              <RefreshCw className="w-4 h-4 text-emerald-100" />
+              <RefreshCw className="w-3.5 h-3.5 text-emerald-100" />
             )}
             <span>{isSyncingDirect ? 'Sincronizando...' : 'Sincronizar GPA_BD'}</span>
           </button>
@@ -682,22 +682,22 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
       </div>
 
       {/* Seletor de Categorias de Pendências com Máximo Destaque e Contadores Nítidos */}
-      <div className="bg-slate-900 p-2 rounded-2xl border border-slate-800 flex flex-wrap items-center gap-2.5 shadow-sm">
+      <div className="bg-slate-900 p-1.5 rounded-2xl border border-slate-800 flex flex-wrap items-center gap-2 shadow-sm">
         <button
           onClick={() => {
             setSelectedCategory('CADIM');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[240px] px-4 py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
+          className={`flex-1 min-w-[200px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2 ${
             selectedCategory === 'CADIM' || selectedCategory === 'SST'
               ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400/40'
               : 'bg-slate-800 text-slate-300 hover:bg-slate-750 hover:text-white border border-slate-700/60'
           }`}
         >
-          <ShieldCheck className={`w-4 h-4 ${selectedCategory === 'CADIM' || selectedCategory === 'SST' ? 'text-white' : 'text-emerald-400'}`} />
+          <ShieldCheck className={`w-3.5 h-3.5 ${selectedCategory === 'CADIM' || selectedCategory === 'SST' ? 'text-white' : 'text-emerald-400'}`} />
           <span className="tracking-tight uppercase">Pendências de CADIM</span>
           {cadimPendingCount > 0 && (
-            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-black ${
+            <span className={`text-[10px] px-2 py-0.2 rounded-full font-black ${
               selectedCategory === 'CADIM' || selectedCategory === 'SST'
                 ? 'bg-white text-emerald-800'
                 : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
@@ -712,16 +712,16 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setSelectedCategory('TRABALHISTA');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[240px] px-4 py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
+          className={`flex-1 min-w-[200px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2 ${
             selectedCategory === 'TRABALHISTA'
               ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400/40'
               : 'bg-slate-800 text-slate-300 hover:bg-slate-750 hover:text-white border border-slate-700/60'
           }`}
         >
-          <FileText className={`w-4 h-4 ${selectedCategory === 'TRABALHISTA' ? 'text-white' : 'text-blue-400'}`} />
+          <FileText className={`w-3.5 h-3.5 ${selectedCategory === 'TRABALHISTA' ? 'text-white' : 'text-blue-400'}`} />
           <span className="tracking-tight uppercase">Pendências Trabalhistas</span>
           {trabalhistaPendingCount > 0 && (
-            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-black ${
+            <span className={`text-[10px] px-2 py-0.2 rounded-full font-black ${
               selectedCategory === 'TRABALHISTA'
                 ? 'bg-white text-blue-800'
                 : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
@@ -736,16 +736,16 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
             setSelectedCategory('DEMAIS');
             setCurrentPage(1);
           }}
-          className={`flex-1 min-w-[240px] px-4 py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2.5 ${
+          className={`flex-1 min-w-[200px] px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center flex items-center justify-center gap-2 ${
             selectedCategory === 'DEMAIS'
               ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-400/40'
               : 'bg-slate-800 text-slate-300 hover:bg-slate-750 hover:text-white border border-slate-700/60'
           }`}
         >
-          <Layers className={`w-4 h-4 ${selectedCategory === 'DEMAIS' ? 'text-white' : 'text-purple-400'}`} />
+          <Layers className={`w-3.5 h-3.5 ${selectedCategory === 'DEMAIS' ? 'text-white' : 'text-purple-400'}`} />
           <span className="tracking-tight uppercase">Demais Pendências</span>
           {demaisPendingCount > 0 && (
-            <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-black ${
+            <span className={`text-[10px] px-2 py-0.2 rounded-full font-black ${
               selectedCategory === 'DEMAIS'
                 ? 'bg-white text-purple-800'
                 : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'

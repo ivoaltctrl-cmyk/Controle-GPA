@@ -307,10 +307,10 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
   }, [validos, totalGeral]);
 
   // Dimensões do SVG Donut Chart com alta nitidez, proporções harmônicas e espaçamento perfeito
-  const chartSize = 280;
-  const strokeWidth = 26;
+  const chartSize = 220;
+  const strokeWidth = 20;
   const chartCenter = chartSize / 2;
-  const chartRadius = 108;
+  const chartRadius = 86;
   const innerRingRadius = chartRadius - strokeWidth / 2 - 2;
   const circumference = 2 * Math.PI * chartRadius;
   const strokeDashoffset = circumference - (percentualGeral / 100) * circumference;
@@ -376,33 +376,33 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-200">
+    <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-200">
       {/* ========================================================================= */}
       {/* 1. CARD PRINCIPAL: RESULTADO DE SST (DESTAQUE MÁXIMO DO PAINEL)           */}
       {/* ========================================================================= */}
       <section
         id="secao-resultado-sst"
-        className="bg-white rounded-3xl border-2 border-emerald-500/80 shadow-lg overflow-hidden ring-4 ring-emerald-50/70"
+        className="bg-white rounded-2xl sm:rounded-3xl border-2 border-emerald-500/80 shadow-md overflow-hidden ring-2 ring-emerald-50/70"
       >
         {/* Header do Card com Destaque de Segurança SST */}
-        <div className="px-6 py-4.5 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/90 via-slate-50 to-white flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        <div className="px-4 sm:px-6 py-3 sm:py-3.5 border-b border-emerald-100 bg-gradient-to-r from-emerald-50/90 via-slate-50 to-white flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
             <div
               style={{ backgroundColor: primaryColor }}
-              className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-md ring-2 ring-emerald-300/60"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-white shadow-sm ring-1 ring-emerald-300/60"
             >
-              <TrendingUp className="w-5 h-5" />
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">
+                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
                   RESULTADO DE SST
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-700 text-white shadow-xs tracking-wider">
+                <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase bg-emerald-700 text-white shadow-xs tracking-wider">
                   Destaque Principal
                 </span>
               </div>
-              <p className="text-xs text-slate-600 font-medium mt-0.5">
+              <p className="text-[11px] text-slate-600 font-medium">
                 Indicador consolidado de conformidade e segurança e saúde no trabalho (SST)
               </p>
             </div>
@@ -411,14 +411,14 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handleAutoFillFromSystem}
-              className="px-3.5 py-2 rounded-xl bg-white border border-emerald-200 text-xs font-bold text-emerald-900 hover:bg-emerald-50 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-white border border-emerald-200 text-xs font-bold text-emerald-900 hover:bg-emerald-50 transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
               title="Carregar a soma exata dos dados do sistema (SST + Trabalhistas + Demais)"
             >
               <RefreshCw className="w-3.5 h-3.5 text-emerald-700" />
               <span>Sincronizar com o Sistema</span>
             </button>
             <span
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider shadow-2xs ${
+              className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider shadow-2xs ${
                 percentualGeral >= 85
                   ? 'bg-emerald-600 text-white border border-emerald-700'
                   : percentualGeral >= 60
@@ -432,10 +432,10 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
         </div>
 
         {/* Corpo do Resultado de SST: Donut Chart à Esquerda e Indicadores Analíticos à Direita */}
-        <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-gradient-to-b from-white to-slate-50/40">
+        <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center bg-gradient-to-b from-white to-slate-50/40">
           {/* Lado Esquerdo: Donut Chart Elegante e Nítido */}
           <div className="lg:col-span-5 flex flex-col items-center justify-center">
-            <div className="relative flex items-center justify-center p-6 bg-slate-50/70 rounded-3xl border border-slate-200/80 w-full max-w-[320px] shadow-2xs">
+            <div className="relative flex items-center justify-center p-3.5 bg-slate-50/70 rounded-2xl border border-slate-200/80 w-full max-w-[240px] sm:max-w-[260px] shadow-2xs">
               <svg
                 width={chartSize}
                 height={chartSize}
@@ -475,26 +475,26 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                   r={innerRingRadius}
                   fill="#ffffff"
                   stroke="#16a34a"
-                  strokeWidth="2.5"
+                  strokeWidth="2"
                   className="transition-all duration-300"
                 />
               </svg>
 
               {/* Conteúdo Central com Tipografia Espaçada e Nítida (Zero Sobreposição) */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none p-4">
-                <span className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Documentos Validados
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none p-3">
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Validados
                 </span>
-                <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight my-0.5">
+                <span className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight my-0.5">
                   {percentualGeral}%
                 </span>
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
                   {validos} de {totalGeral} docs
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 text-xs font-semibold text-slate-600 mt-3.5">
+            <div className="flex items-center gap-3.5 text-xs font-semibold text-slate-600 mt-2.5">
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
                 <span>Válidos: <strong>{validos}</strong></span>
@@ -507,79 +507,79 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
           </div>
 
           {/* Lado Direito: Painel Executivo Consolidado de Conformidade */}
-          <div className="lg:col-span-7 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="lg:col-span-7 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Card 1: Documentos Validados */}
-              <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-2xl p-4.5 space-y-1.5">
+              <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-xl p-3.5 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-emerald-900 uppercase tracking-wide flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Válidos & Conformes</span>
                   </span>
-                  <span className="text-[11px] font-black text-emerald-800 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs">
+                  <span className="text-[10px] font-black text-emerald-800 bg-white px-1.5 py-0.2 rounded border border-emerald-200 shadow-2xs">
                     {percentualGeral}%
                   </span>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-emerald-800">
+                <div className="text-xl sm:text-2xl font-black text-emerald-800">
                   {validos.toLocaleString('pt-BR')}
                 </div>
-                <p className="text-[11px] text-emerald-700/80 font-medium">
+                <p className="text-[10px] text-emerald-700/80 font-medium">
                   Documentações aprovadas e em dia no sistema.
                 </p>
               </div>
 
               {/* Card 2: Pendências em Aberto */}
-              <div className="bg-rose-50/50 border border-rose-200/80 rounded-2xl p-4.5 space-y-1.5">
+              <div className="bg-rose-50/50 border border-rose-200/80 rounded-xl p-3.5 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-rose-900 uppercase tracking-wide flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 text-rose-600" />
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
                     <span>Pendências em Aberto</span>
                   </span>
-                  <span className="text-[11px] font-black text-rose-800 bg-white px-2 py-0.5 rounded-md border border-rose-200 shadow-2xs">
+                  <span className="text-[10px] font-black text-rose-800 bg-white px-1.5 py-0.2 rounded border border-rose-200 shadow-2xs">
                     {totalGeral > 0 ? Math.round((pendentes / totalGeral) * 100) : 0}%
                   </span>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-rose-800">
+                <div className="text-xl sm:text-2xl font-black text-rose-800">
                   {pendentes.toLocaleString('pt-BR')}
                 </div>
-                <p className="text-[11px] text-rose-700/80 font-medium">
+                <p className="text-[10px] text-rose-700/80 font-medium">
                   Itens com pendência documental a sanar.
                 </p>
               </div>
 
               {/* Card 3: Total Geral no Escopo */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4.5 space-y-1.5">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                  Total de Documentos Auditados
+                  Total de Docs Auditados
                 </span>
-                <div className="text-2xl sm:text-3xl font-black text-slate-900">
+                <div className="text-xl sm:text-2xl font-black text-slate-900">
                   {totalGeral.toLocaleString('pt-BR')}
                 </div>
-                <p className="text-[11px] text-slate-500 font-medium">
-                  Soma de todas as auditorias CADIM, Trabalhistas e Demais.
+                <p className="text-[10px] text-slate-500 font-medium">
+                  Soma de CADIM, Trabalhistas e Demais.
                 </p>
               </div>
 
               {/* Card 4: Status do Ecossistema */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4.5 space-y-2 flex flex-col justify-between">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
                     Status Operacional
                   </span>
-                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                  <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${
                     percentualGeral >= 85 ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'
                   }`}>
                     {percentualGeral >= 85 ? 'Excelente' : 'Monitoramento'}
                   </span>
                 </div>
                 <div>
-                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-emerald-600 rounded-full transition-all duration-500"
                       style={{ width: `${percentualGeral}%` }}
                     />
                   </div>
-                  <span className="text-[11px] text-slate-500 font-semibold mt-1.5 block">
+                  <span className="text-[10px] text-slate-500 font-semibold mt-1 block">
                     Taxa global de conformidade: <strong>{percentualGeral}%</strong>
                   </span>
                 </div>
@@ -603,55 +603,55 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
           {/* SEÇÃO 1: DOCUMENTOS DE SST (CADIM) */}
           <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden">
             {/* Header da Seção SST */}
-            <div className="p-5 border-b border-slate-100 space-y-3">
+            <div className="p-3.5 sm:p-4 border-b border-slate-100 space-y-2">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-5 h-5" />
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider block">
+                    <span className="text-[9px] font-black uppercase text-emerald-700 tracking-wider block">
                       SEÇÃO 01
                     </span>
-                    <h3 className="text-sm font-black text-slate-900 leading-snug">
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug">
                       DOCUMENTOS DE SST (CADIM)
                     </h3>
                   </div>
                 </div>
 
-                <span className="text-lg font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 shrink-0">
+                <span className="text-base font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 shrink-0">
                   {sstSectionStats.taxa}%
                 </span>
               </div>
 
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500">
                 Ordens de Serviço (NR-01), Atestados de Saúde Ocupacional (NR-07), Fichas de EPI e Treinamentos.
               </p>
             </div>
 
             {/* Métricas da Seção SST */}
-            <div className="p-5 bg-slate-50/50 space-y-4">
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Total</span>
-                  <span className="text-sm font-black text-slate-900">{sstSectionStats.totalDocs}</span>
+            <div className="p-3.5 sm:p-4 bg-slate-50/50 space-y-3">
+              <div className="grid grid-cols-3 gap-1.5 text-center">
+                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Total</span>
+                  <span className="text-xs sm:text-sm font-black text-slate-900">{sstSectionStats.totalDocs}</span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[10px] font-bold text-emerald-600 block uppercase">Validados</span>
-                  <span className="text-sm font-black text-emerald-700">{sstSectionStats.validados}</span>
+                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                  <span className="text-[9px] font-bold text-emerald-600 block uppercase">Validados</span>
+                  <span className="text-xs sm:text-sm font-black text-emerald-700">{sstSectionStats.validados}</span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[10px] font-bold text-rose-600 block uppercase">Pendentes</span>
-                  <span className="text-sm font-black text-rose-700">{sstSectionStats.pendentes + sstSectionStats.vencidos}</span>
+                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                  <span className="text-[9px] font-bold text-rose-600 block uppercase">Pendentes</span>
+                  <span className="text-xs sm:text-sm font-black text-rose-700">{sstSectionStats.pendentes + sstSectionStats.vencidos}</span>
                 </div>
               </div>
 
               {/* Breakdown dos 4 Pilares de SST */}
-              <div className="space-y-2 pt-1 border-t border-slate-200/70 text-xs">
+              <div className="space-y-1.5 pt-1 border-t border-slate-200/70 text-xs">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="font-semibold text-slate-700">OS (NR-01):</span>
                   <span className="font-bold text-slate-900">{sstSectionStats.os.validados}/{sstSectionStats.os.total} ({sstSectionStats.os.taxa}%)</span>
@@ -672,7 +672,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
 
               {/* Barra de Progresso */}
               <div>
-                <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-emerald-600 transition-all duration-500"
                     style={{ width: `${sstSectionStats.taxa}%` }}
@@ -685,51 +685,51 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
           {/* SEÇÃO 2: DOCUMENTOS TRABALHISTAS */}
           <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden">
             {/* Header da Seção Trabalhista */}
-            <div className="p-5 border-b border-slate-100 space-y-3">
+            <div className="p-3.5 sm:p-4 border-b border-slate-100 space-y-2">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center shrink-0">
-                    <FileText className="w-5 h-5" />
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-black uppercase text-blue-700 tracking-wider block">
+                    <span className="text-[9px] font-black uppercase text-blue-700 tracking-wider block">
                       SEÇÃO 02
                     </span>
-                    <h3 className="text-sm font-black text-slate-900 leading-snug">
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug">
                       DOCUMENTOS TRABALHISTAS
                     </h3>
                   </div>
                 </div>
 
-                <span className="text-lg font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-xl border border-blue-200 shrink-0">
+                <span className="text-base font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200 shrink-0">
                   {trabalhistaSectionStats.taxa}%
                 </span>
               </div>
 
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500">
                 Folha de Pagamento, Guias de Recolhimento do FGTS (GFIP), GPS e Certidão CNDT.
               </p>
             </div>
 
             {/* Métricas da Seção Trabalhista */}
-            <div className="p-5 bg-slate-50/50 space-y-4">
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Envios</span>
-                  <span className="text-sm font-black text-slate-900">{trabalhistaSectionStats.totalDocs}</span>
+            <div className="p-3.5 sm:p-4 bg-slate-50/50 space-y-3">
+              <div className="grid grid-cols-3 gap-1.5 text-center">
+                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Envios</span>
+                  <span className="text-xs sm:text-sm font-black text-slate-900">{trabalhistaSectionStats.totalDocs}</span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[10px] font-bold text-blue-600 block uppercase">Validados</span>
-                  <span className="text-sm font-black text-blue-700">{trabalhistaSectionStats.validados}</span>
+                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                  <span className="text-[9px] font-bold text-blue-600 block uppercase">Validados</span>
+                  <span className="text-xs sm:text-sm font-black text-blue-700">{trabalhistaSectionStats.validados}</span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[10px] font-bold text-rose-600 block uppercase">Pendentes</span>
-                  <span className="text-sm font-black text-rose-700">{trabalhistaSectionStats.reprovados + trabalhistaSectionStats.emAnalise}</span>
+                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                  <span className="text-[9px] font-bold text-rose-600 block uppercase">Pendentes</span>
+                  <span className="text-xs sm:text-sm font-black text-rose-700">{trabalhistaSectionStats.reprovados + trabalhistaSectionStats.emAnalise}</span>
                 </div>
               </div>
 
               {/* Breakdown de Competências Trabalhistas */}
-              <div className="space-y-2 pt-1 border-t border-slate-200/70 text-xs">
+              <div className="space-y-1.5 pt-1 border-t border-slate-200/70 text-xs">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="font-semibold text-slate-700">Meses Auditados:</span>
                   <span className="font-bold text-slate-900">{trabalhistaSectionStats.totalMeses} competências</span>
@@ -750,7 +750,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
 
               {/* Barra de Progresso */}
               <div>
-                <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-blue-600 transition-all duration-500"
                     style={{ width: `${trabalhistaSectionStats.taxa}%` }}
@@ -763,51 +763,51 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
           {/* SEÇÃO 3: DEMAIS DOCUMENTOS */}
           <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden">
             {/* Header da Seção Demais Documentos */}
-            <div className="p-5 border-b border-slate-100 space-y-3">
+            <div className="p-3.5 sm:p-4 border-b border-slate-100 space-y-2">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center shrink-0">
-                    <Layers className="w-5 h-5" />
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center shrink-0">
+                    <Layers className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-black uppercase text-purple-700 tracking-wider block">
+                    <span className="text-[9px] font-black uppercase text-purple-700 tracking-wider block">
                       SEÇÃO 03
                     </span>
-                    <h3 className="text-sm font-black text-slate-900 leading-snug">
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug">
                       DEMAIS DOCUMENTOS
                     </h3>
                   </div>
                 </div>
 
-                <span className="text-lg font-black text-purple-700 bg-purple-50 px-2.5 py-1 rounded-xl border border-purple-200 shrink-0">
+                <span className="text-base font-black text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200 shrink-0">
                   {demaisSectionStats.taxa}%
                 </span>
               </div>
 
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500">
                 Contratos Sociais, Seguros de Responsabilidade Civil, PGR/PCMSO de Contrato, Homologações e CNDs.
               </p>
             </div>
 
             {/* Métricas da Seção Demais Documentos */}
-            <div className="p-5 bg-slate-50/50 space-y-4">
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Docs</span>
-                  <span className="text-sm font-black text-slate-900">{demaisSectionStats.totalDocs}</span>
+            <div className="p-3.5 sm:p-4 bg-slate-50/50 space-y-3">
+              <div className="grid grid-cols-3 gap-1.5 text-center">
+                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Docs</span>
+                  <span className="text-xs sm:text-sm font-black text-slate-900">{demaisSectionStats.totalDocs}</span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[10px] font-bold text-purple-600 block uppercase">Validados</span>
-                  <span className="text-sm font-black text-purple-700">{demaisSectionStats.validados}</span>
+                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                  <span className="text-[9px] font-bold text-purple-600 block uppercase">Validados</span>
+                  <span className="text-xs sm:text-sm font-black text-purple-700">{demaisSectionStats.validados}</span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                  <span className="text-[10px] font-bold text-rose-600 block uppercase">Pendentes</span>
-                  <span className="text-sm font-black text-rose-700">{demaisSectionStats.reprovados + demaisSectionStats.emAnalise}</span>
+                <div className="p-2 rounded-lg bg-white border border-slate-200">
+                  <span className="text-[9px] font-bold text-rose-600 block uppercase">Pendentes</span>
+                  <span className="text-xs sm:text-sm font-black text-rose-700">{demaisSectionStats.reprovados + demaisSectionStats.emAnalise}</span>
                 </div>
               </div>
 
               {/* Breakdown de Contratos */}
-              <div className="space-y-2 pt-1 border-t border-slate-200/70 text-xs">
+              <div className="space-y-1.5 pt-1 border-t border-slate-200/70 text-xs">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="font-semibold text-slate-700">Contratos Auditados:</span>
                   <span className="font-bold text-slate-900">{demaisSectionStats.totalContratos} prestadores</span>
@@ -828,7 +828,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
 
               {/* Barra de Progresso */}
               <div>
-                <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-purple-600 transition-all duration-500"
                     style={{ width: `${demaisSectionStats.taxa}%` }}
@@ -843,43 +843,43 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
       {/* ========================================================================= */}
       {/* 3. RESUMO DE ÁREAS & GESTORES (MATRIZ OPERACIONAL)                         */}
       {/* ========================================================================= */}
-      <section className="space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+      <section className="space-y-3.5 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-black text-slate-900 tracking-tight uppercase">
+              <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight uppercase">
                 RESUMO DE ÁREAS & GESTORES
               </h2>
               <span
                 style={{ backgroundColor: `${accentColor}20`, color: primaryColor }}
-                className="px-2 py-0.5 rounded-md text-xs font-black uppercase"
+                className="px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-black uppercase"
               >
                 {areas.length} Áreas
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               Gestores responsáveis e taxa de conformidade por departamento operacional
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 sm:w-64">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="flex items-center gap-2.5">
+            <div className="relative flex-1 sm:w-60">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Buscar área, gestor ou unidade..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900 bg-slate-50/50"
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900 bg-slate-50/50"
               />
             </div>
 
             <button
               onClick={handleOpenNew}
               style={{ backgroundColor: primaryColor }}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-95 transition-opacity flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white shadow-xs hover:opacity-95 transition-opacity flex items-center gap-1.5 cursor-pointer shrink-0"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               <span>Cadastrar Área</span>
             </button>
           </div>
@@ -887,22 +887,22 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
 
         {/* Grid de Áreas */}
         {filteredAreas.length === 0 ? (
-          <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
-            <Building className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-slate-800">Nenhuma Área Encontrada</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
+          <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
+            <Building className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <h3 className="text-sm font-bold text-slate-800">Nenhuma Área Encontrada</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-3">
               Cadastre as áreas da empresa (ex: Logística, Manutenção, Obras, Facilities, Segurança) e atrele os responsáveis para envio de pendências.
             </p>
             <button
               onClick={handleOpenNew}
               style={{ backgroundColor: primaryColor }}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-white cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white cursor-pointer"
             >
               Cadastrar Primeira Área
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
             {filteredAreas.map((area) => {
               const metrics = calculateAreaMetrics(area.id, employees);
 
@@ -912,13 +912,13 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                   className="bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden group"
                 >
                   {/* Area Card Header */}
-                  <div className="p-5 border-b border-slate-100 space-y-3">
+                  <div className="p-3.5 sm:p-4 border-b border-slate-100 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
                           {area.unidadeOuLoja || 'Área Operacional'}
                         </span>
-                        <h3 className="text-base font-bold text-slate-900 leading-snug">
+                        <h3 className="text-sm font-bold text-slate-900 leading-snug">
                           {area.nome}
                         </h3>
                       </div>
@@ -946,7 +946,7 @@ export const AreasModule: React.FC<AreasModuleProps> = ({
                     </div>
 
                     {/* Manager Contact Box */}
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
                       <div className="flex items-center gap-2">
                         <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                         <span className="text-xs font-bold text-slate-800">
