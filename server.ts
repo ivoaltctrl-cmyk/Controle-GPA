@@ -274,9 +274,167 @@ app.get("/api/health", (_req, res) => {
       areas: db.areas.length,
       trabalhistas: db.trabalhistas.length,
       demandLogs: db.demandLogs.length,
+      adjustmentLogs: (db.adjustmentLogs || []).length,
     },
     lastUpdated: db.lastUpdated,
   });
+});
+
+// Endpoint para gravação de ajuste manual com registro no log de auditoria
+app.post("/api/adjust-pending", (req, res) => {
+  try {
+    const {
+      employeeId,
+      cpf,
+      nome,
+      docType,
+      nomeDocumento,
+      newValidity,
+      newStatus,
+      linkImagem,
+      nomeArquivo,
+      gestorName,
+      linhaPlanilha,
+    } = req.body;
+
+    if (!employeeId && !cpf) {
+      return res.status(400).json({ error: "Identificador do colaborador (ID ou CPF) é obrigatório." });
+    }
+    if (!docType || !newValidity) {
+      return res.status(400).json({ error: "Tipo de pendência e nova data de validade são obrigatórios." });
+    }
+
+    const db = readDb();
+    const cleanCpf = cpf ? cpf.replace(/\D/g, "") : "";
+    const employees = [...db.employees];
+    const targetIdx = employees.findIndex((e) => {
+      const empCpf = (e.cpf || "").replace(/\D/g, "");
+      return (e.id === employeeId) || (cleanCpf && empCpf === cleanCpf);
+    });
+
+    let updatedEmployee = null;
+    if (targetIdx >= 0) {
+      const currentEmp = employees[targetIdx];
+      const pendencias = (currentEmp.pendencias || []).map((p: any) => {
+        if (p.tipo === docType) {
+          return {
+            ...p,
+            status: newStatus || "EM_DIA",
+            dataVencimento: newValidity,
+            ultimaAtualizacao: new Date().toISOString().split("T")[0],
+          };
+        }
+        return p;
+      });
+
+      // Recalcula status geral e percentual
+      const hasVencido = pendencias.some((p: any) => p.status === "VENCIDO");
+      const hasPendente = pendencias.some((p: any) => p.status === "PENDENTE");
+      const hasAVencer = pendencias.some((p: any) => p.status === "A_VENCER");
+      const validDocs = pendencias.filter((p: any) => p.status === "EM_DIA" || p.status === "NAO_APLICAVEL").length;
+      const indicadorPercentual = pendencias.length > 0 ? Math.round((validDocs / pendencias.length) * 100) : 100;
+
+      let statusGeral = "EM_DIA";
+      let resumoGeral = "100% em conformidade com as normas";
+
+      if (hasVencido) {
+        statusGeral = indicadorPercentual < 50 ? "BLOQUEADO" : "CRITICO";
+        resumoGeral = "Possui documentos vencidos";
+      } else if (hasPendente) {
+        statusGeral = "PENDENTE";
+        resumoGeral = "Possui documentos pendentes de regularização";
+      } else if (hasAVencer) {
+        statusGeral = "PENDENTE";
+        resumoGeral = "Documentos a vencer nos próximos 30 dias";
+      }
+
+      updatedEmployee = {
+        ...currentEmp,
+        pendencias,
+        indicadorPercentual,
+        statusGeral,
+        resumoGeral,
+        dataUltimaLeitura: new Date().toLocaleDateString("pt-BR"),
+      };
+
+      employees[targetIdx] = updatedEmployee;
+    }
+
+    // Criar entrada no Log de Auditoria
+    const now = new Date();
+    const dataStr = now.toISOString().split("T")[0];
+    const horaStr = now.toTimeString().split(" ")[0];
+    const logEntry = {
+      id: `adj_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      nomeGestor: gestorName || "Gestor GPA",
+      data: dataStr,
+      hora: horaStr,
+      linha: linhaPlanilha || (targetIdx >= 0 ? targetIdx + 2 : "N/D"),
+      documento: cpf || (updatedEmployee?.cpf) || (updatedEmployee?.matricula) || "—",
+      funcionarioNome: nome || updatedEmployee?.nome || "Colaborador",
+      tipoPendencia: nomeDocumento || docType,
+      novaValidade: newValidity,
+      novoStatus: newStatus || "EM_DIA",
+      linkImagem: linkImagem || "",
+      nomeArquivo: nomeArquivo || "",
+      dataCriacao: now.toISOString(),
+    };
+
+    const adjustmentLogs = [logEntry, ...(db.adjustmentLogs || [])];
+
+    saveDb({
+      employees,
+      adjustmentLogs,
+    });
+
+    return res.json({
+      success: true,
+      message: "Ajuste manual gravado com sucesso!",
+      employee: updatedEmployee,
+      log: logEntry,
+    });
+  } catch (error: any) {
+    console.error("Erro no ajuste manual:", error);
+    res.status(500).json({ error: error.message || "Erro ao gravar ajuste manual." });
+  }
+});
+
+// Endpoint para Upload de Comprovante de Ajuste
+app.post("/api/upload-adjustment-proof", (req, res) => {
+  try {
+    const { imageBase64, documento, tipoPendencia } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: "Comprovante/Imagem em base64 é obrigatório." });
+    }
+
+    const now = new Date();
+    const dataStr = now.toISOString().split("T")[0];
+    const horaStr = now.toTimeString().split(" ")[0].replace(/:/g, "-");
+    const cleanDoc = (documento || "DOC").replace(/\D/g, "") || "DOC";
+    const cleanTipo = (tipoPendencia || "PENDENCIA")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]/g, "_")
+      .toUpperCase();
+
+    // Nome padronizado: {DOCUMENTO}_{TIPO_PENDENCIA}_{DATA}_{HORA}.png
+    const fileName = `${cleanDoc}_${cleanTipo}_${dataStr}_${horaStr}.png`;
+    
+    // Pasta do Google Drive / Sistema dedicada
+    const driveFolder = "Comprovantes_Ajustes_SST_GPA";
+    const fileUrl = `https://drive.google.com/drive/folders/${driveFolder}?file=${encodeURIComponent(fileName)}`;
+
+    return res.json({
+      success: true,
+      fileName,
+      folder: driveFolder,
+      fileUrl,
+      preview: imageBase64.startsWith("data:") ? imageBase64 : `data:image/png;base64,${imageBase64}`,
+    });
+  } catch (error: any) {
+    console.error("Erro no upload de comprovante de ajuste:", error);
+    res.status(500).json({ error: error.message || "Erro ao processar comprovante." });
+  }
 });
 
 // AI OCR Scanning via Gemini
@@ -303,6 +461,49 @@ app.post("/api/generate-demand-message", async (req, res) => {
   } catch (error: any) {
     console.error("Erro ao gerar mensagem de cobrança:", error);
     res.status(500).json({ error: error.message || "Erro ao gerar cobrança" });
+  }
+});
+
+// Proxy for Google Sheets CSV / GViz to avoid browser CORS / Failed to fetch restrictions
+app.get("/api/sheets-proxy", async (req, res) => {
+  try {
+    const { spreadsheetId, sheet } = req.query;
+    if (!spreadsheetId || typeof spreadsheetId !== "string") {
+      return res.status(400).json({ error: "spreadsheetId é obrigatório" });
+    }
+    const cleanId = spreadsheetId.replace(/^.*\/spreadsheets\/d\/([a-zA-Z0-9-_]+).*$/, "$1").trim();
+    const encodedTab = encodeURIComponent(String(sheet || ""));
+    const timestamp = Date.now();
+    const randomBust = Math.floor(Math.random() * 1000000);
+
+    const urls = [
+      `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:csv&sheet=${encodedTab}&t=${timestamp}&_=${randomBust}`,
+      `https://docs.google.com/spreadsheets/d/${cleanId}/export?format=csv&sheet=${encodedTab}&t=${timestamp}&_=${randomBust}`,
+    ];
+
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, {
+          headers: {
+            "Accept": "text/csv,text/plain,*/*",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+          },
+        });
+        if (response.ok) {
+          const csvText = await response.text();
+          if (csvText && !csvText.includes("<!DOCTYPE html>") && !csvText.includes("<html")) {
+            res.setHeader("Content-Type", "text/plain; charset=utf-8");
+            return res.send(csvText);
+          }
+        }
+      } catch (innerErr) {
+        // try next
+      }
+    }
+
+    return res.status(404).json({ error: "Aba não encontrada ou planilha sem acesso público." });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Erro ao consultar Google Sheets via proxy." });
   }
 });
 

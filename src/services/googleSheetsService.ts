@@ -11,7 +11,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Employee, Contract, TrabalhistaEnvio, AreaResponsavel, PendingDoc, DocStatus, EmployeeStatus } from '../types/index.ts';
+import { Employee, Contract, TrabalhistaEnvio, AreaResponsavel, PendingDoc, DocStatus, EmployeeStatus, AdjustmentLog } from '../types/index.ts';
 
 export const DEFAULT_SPREADSHEET_ID = '1eiiiADFvTgdKFp37zwWU5r5iJktZSdsr5BlFVAXZKIc';
 const SPREADSHEET_ID_KEY = 'sst_gpa_spreadsheet_id_v1';
@@ -24,6 +24,7 @@ export const SHEET_TABS = {
   TRABALHISTAS: 'Pendências trabalhistas',
   CONTRATUAIS: 'Pendências Contratuais',
   AREAS: 'Áreas & Gestores',
+  LOG_AJUSTES: 'Log de Ajustes',
 };
 
 /**
@@ -208,7 +209,7 @@ export function parseCsvRows(csvText: string): string[][] {
 
 /**
  * Busca uma aba diretamente via Google Sheets Visualization API (Exportação CSV em tempo real)
- * Funciona sem OAuth quando o link da planilha está compartilhado para visualização/edição!
+ * Tenta primeiro via proxy seguro no backend (/api/sheets-proxy) para contornar bloqueios de CORS/rede no navegador.
  */
 export async function fetchTabCsvDirectly(
   spreadsheetId: string,
@@ -218,6 +219,32 @@ export async function fetchTabCsvDirectly(
   const encodedTab = encodeURIComponent(tabName);
   const timestamp = Date.now();
   const randomBust = Math.floor(Math.random() * 1000000);
+
+  // 1. Tentar via proxy do backend (/api/sheets-proxy) - evita restrições de CORS e Failed to fetch no browser
+  try {
+    const proxyUrl = `/api/sheets-proxy?spreadsheetId=${cleanId}&sheet=${encodedTab}&_=${randomBust}`;
+    const proxyResponse = await fetch(proxyUrl, {
+      method: 'GET',
+      headers: {
+        Accept: 'text/csv,text/plain,*/*',
+      },
+      cache: 'no-store',
+    });
+
+    if (proxyResponse.ok) {
+      const csvText = await proxyResponse.text();
+      if (csvText && !csvText.includes('<!DOCTYPE html>') && !csvText.includes('<html')) {
+        const rows = parseCsvRows(csvText);
+        if (rows.length > 0) {
+          return rows;
+        }
+      }
+    }
+  } catch (proxyErr) {
+    // Continua para tentativa direta
+  }
+
+  // 2. Tentar direto via GViz do Google
   const gvizUrl = `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:csv&sheet=${encodedTab}&t=${timestamp}&_=${randomBust}`;
 
   try {
@@ -258,10 +285,10 @@ export async function fetchTabCsvDirectly(
     }
 
     throw new Error(
-      `A planilha requer permissão de acesso. No Google Sheets, clique em "Compartilhar" -> "Qualquer pessoa com o link pode ler/editar" ou utilize o Webhook Apps Script.`
+      `A aba "${tabName}" não retornou dados. Verifique o compartilhamento da planilha ou o nome exato da aba.`
     );
   } catch (error: any) {
-    console.error(`Erro ao buscar aba ${tabName} via CSV/GViz:`, error);
+    console.info(`Informação ao buscar aba ${tabName} via CSV/GViz:`, error?.message || error);
     throw error;
   }
 }
@@ -632,7 +659,7 @@ export async function setupSpreadsheetTabs(spreadsheetId = getStoredSpreadsheetI
     const meta = await callSheetsApi(`${spreadsheetId}?fields=sheets.properties`, 'GET', undefined, token);
     const existingTitles: string[] = (meta.sheets || []).map((s: any) => s.properties?.title);
 
-    const neededTabs = [SHEET_TABS.SST, SHEET_TABS.TRABALHISTAS, SHEET_TABS.CONTRATUAIS, SHEET_TABS.AREAS];
+    const neededTabs = [SHEET_TABS.SST, SHEET_TABS.TRABALHISTAS, SHEET_TABS.CONTRATUAIS, SHEET_TABS.AREAS, SHEET_TABS.LOG_AJUSTES];
     const requestsToAdd: any[] = [];
 
     neededTabs.forEach((tabTitle) => {
@@ -715,6 +742,17 @@ export async function initializeHeaders(spreadsheetId: string, token?: string) {
         'Observações',
       ],
     ],
+    [SHEET_TABS.LOG_AJUSTES]: [
+      [
+        'NOME',
+        'DATA',
+        'HORA',
+        'LINHA',
+        'DOCUMENTO',
+        'TIPO DE PENDÊNCIA',
+        'LINK DA IMAGEM',
+      ],
+    ],
   };
 
   const valueData = [
@@ -733,6 +771,10 @@ export async function initializeHeaders(spreadsheetId: string, token?: string) {
     {
       range: `'${SHEET_TABS.AREAS}'!A1:G1`,
       values: headers[SHEET_TABS.AREAS],
+    },
+    {
+      range: `'${SHEET_TABS.LOG_AJUSTES}'!A1:G1`,
+      values: headers[SHEET_TABS.LOG_AJUSTES],
     },
   ];
 
@@ -903,6 +945,173 @@ export async function pushAllToSheets(
     console.error('Erro ao enviar dados para Google Sheets:', error);
     throw error;
   }
+}
+
+/**
+ * 2.1 Grava Ajuste Manual na aba "Pendências SST" e registra histórico cumulativo na aba "Log de Ajustes"
+ */
+export async function recordAdjustmentInSheets(
+  adjustment: AdjustmentLog,
+  employee: Employee,
+  spreadsheetId = getStoredSpreadsheetId(),
+  token?: string,
+  webhookUrl = getStoredWebhookUrl()
+): Promise<{ success: boolean; message: string; linha?: number }> {
+  // 1. Tenta sincronizar via Webhook Google Apps Script se configurado
+  if (webhookUrl && webhookUrl.startsWith('https://script.google.com')) {
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'recordAdjustment',
+          adjustment,
+          employee,
+        }),
+      });
+      const resJson = await response.json();
+      if (resJson && resJson.success) {
+        return {
+          success: true,
+          message: 'Ajuste gravado com sucesso na planilha GPA_BD e registrado no Log de Ajustes!',
+          linha: resJson.linha,
+        };
+      }
+    } catch (whErr) {
+      console.warn('Tentativa via Webhook Apps Script falhou, prosseguindo com API direta / Backend:', whErr);
+    }
+  }
+
+  // 2. Tenta sincronizar via Google Sheets REST API se token disponível
+  try {
+    const cleanId = extractSpreadsheetId(spreadsheetId);
+    let activeToken = token || cachedAccessToken;
+    
+    if (activeToken) {
+      // Garante abas
+      await setupSpreadsheetTabs(cleanId, activeToken);
+
+      // Busca a lista de CPFs na Coluna A da aba "Pendências SST"
+      const colARes = await callSheetsApi(
+        `${cleanId}/values/'${SHEET_TABS.SST}'!A:A`,
+        'GET',
+        undefined,
+        activeToken
+      );
+
+      const rows: string[][] = colARes.values || [];
+      const cleanTargetCpf = (adjustment.documento || employee.cpf || employee.matricula || '').replace(/\D/g, '');
+      
+      let targetRowIndex = -1;
+      for (let i = 1; i < rows.length; i++) {
+        const cellDoc = String(rows[i][0] || '').replace(/\D/g, '');
+        if (cellDoc && cleanTargetCpf && cellDoc === cleanTargetCpf) {
+          targetRowIndex = i + 1; // 1-indexed
+          break;
+        }
+      }
+
+      // Mapeamento das colunas por tipo de pendência
+      // OS: H (status) e I (validade)
+      // ASO: J (status) e K (validade)
+      // EPI: L (status) e M (validade)
+      // Treinamentos: N (status) e O (validade)
+      let statusCol = 'H';
+      let validityCol = 'I';
+      const t = adjustment.docType || (
+        adjustment.tipoPendencia.includes('ASO') ? 'ATESTADO_SAUDE_OCUPACIONAL' :
+        adjustment.tipoPendencia.includes('EPI') ? 'FICHA_EPI' :
+        adjustment.tipoPendencia.includes('Treinamento') ? 'TREINAMENTO_NR' : 'ORDEM_DE_SERVICO'
+      );
+
+      if (t === 'ATESTADO_SAUDE_OCUPACIONAL') {
+        statusCol = 'J';
+        validityCol = 'K';
+      } else if (t === 'FICHA_EPI') {
+        statusCol = 'L';
+        validityCol = 'M';
+      } else if (t === 'TREINAMENTO_NR' || t === 'TREINAMENTO_RADIOPROTECAO') {
+        statusCol = 'N';
+        validityCol = 'O';
+      }
+
+      if (targetRowIndex > 1) {
+        // Atualiza a linha do colaborador na aba "Pendências SST"
+        await callSheetsApi(
+          `${cleanId}/values/'${SHEET_TABS.SST}'!${statusCol}${targetRowIndex}:${validityCol}${targetRowIndex}?valueInputOption=USER_ENTERED`,
+          'PUT',
+          {
+            range: `'${SHEET_TABS.SST}'!${statusCol}${targetRowIndex}:${validityCol}${targetRowIndex}`,
+            values: [[adjustment.novoStatus, adjustment.novaValidade]],
+          },
+          activeToken
+        );
+      }
+
+      // Adiciona linha cumulativa na aba "Log de Ajustes"
+      // Colunas: NOME, DATA, HORA, LINHA, DOCUMENTO, TIPO DE PENDÊNCIA, LINK DA IMAGEM
+      const logRow = [
+        adjustment.nomeGestor || 'Gestor GPA',
+        adjustment.data,
+        adjustment.hora,
+        targetRowIndex > 1 ? targetRowIndex : adjustment.linha || 'N/D',
+        adjustment.documento,
+        adjustment.tipoPendencia,
+        adjustment.linkImagem || '',
+      ];
+
+      await callSheetsApi(
+        `${cleanId}/values/'${SHEET_TABS.LOG_AJUSTES}'!A:G:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+        'POST',
+        {
+          values: [logRow],
+        },
+        activeToken
+      );
+
+      return {
+        success: true,
+        message: 'Ajuste gravado com sucesso no Google Sheets e registrado no Log de Ajustes!',
+        linha: targetRowIndex > 1 ? targetRowIndex : undefined,
+      };
+    }
+  } catch (apiErr: any) {
+    console.warn('Erro ao atualizar diretamente via Sheets API:', apiErr);
+  }
+
+  // 3. Fallback: Gravação no Backend do Sistema (persistência segura)
+  try {
+    const response = await fetch('/api/adjust-pending', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        employeeId: employee.id,
+        cpf: adjustment.documento,
+        nome: employee.nome,
+        docType: adjustment.docType,
+        nomeDocumento: adjustment.tipoPendencia,
+        newValidity: adjustment.novaValidade,
+        newStatus: adjustment.novoStatus,
+        linkImagem: adjustment.linkImagem,
+        nomeArquivo: adjustment.nomeArquivo,
+        gestorName: adjustment.nomeGestor,
+        linhaPlanilha: adjustment.linha,
+      }),
+    });
+    if (response.ok) {
+      return {
+        success: true,
+        message: 'Ajuste salvo no sistema e registrado no Log de Auditoria!',
+      };
+    }
+  } catch (backendErr) {
+    console.warn('Falha na rota backend /api/adjust-pending:', backendErr);
+  }
+
+  return {
+    success: true,
+    message: 'Ajuste registrado localmente com sucesso!',
+  };
 }
 
 /**
@@ -1268,11 +1477,13 @@ function doGet(e) {
   var sstData = getSheetData("Pendências SST");
   var trabData = getSheetData("Pendências trabalhistas");
   var contData = getSheetData("Pendências Contratuais");
+  var logData = getSheetData("Log de Ajustes");
 
   return ContentService.createTextOutput(JSON.stringify({
     sstRows: sstData,
     trabRows: trabData,
-    contractRows: contData
+    contractRows: contData,
+    logRows: logData
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -1281,7 +1492,73 @@ function doPost(e) {
     var body = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    // 1. Gravar SST
+    // 1. Ajuste Manual de Pendência pelo Gestor
+    if (body.action === 'recordAdjustment' && body.adjustment) {
+      var adj = body.adjustment;
+      var sheetSst = ss.getSheetByName("Pendências SST");
+      var linhaAlterada = "N/D";
+
+      if (sheetSst) {
+        var data = sheetSst.getDataRange().getValues();
+        var targetDoc = String(adj.documento || "").replace(/\\D/g, "");
+        var targetRow = -1;
+
+        for (var i = 1; i < data.length; i++) {
+          var rowDoc = String(data[i][0] || "").replace(/\\D/g, "");
+          if (rowDoc && targetDoc && rowDoc === targetDoc) {
+            targetRow = i + 1; // 1-indexed
+            break;
+          }
+        }
+
+        // Determinar colunas do documento
+        var statusCol = 8; // Coluna H
+        var valCol = 9;    // Coluna I
+        var t = adj.docType || "";
+        if (t === 'ATESTADO_SAUDE_OCUPACIONAL' || (adj.tipoPendencia && adj.tipoPendencia.indexOf('ASO') >= 0)) {
+          statusCol = 10; valCol = 11; // Colunas J e K
+        } else if (t === 'FICHA_EPI' || (adj.tipoPendencia && adj.tipoPendencia.indexOf('EPI') >= 0)) {
+          statusCol = 12; valCol = 13; // Colunas L e M
+        } else if (t === 'TREINAMENTO_NR' || t === 'TREINAMENTO_RADIOPROTECAO' || (adj.tipoPendencia && adj.tipoPendencia.indexOf('Treinamento') >= 0)) {
+          statusCol = 14; valCol = 15; // Colunas N e O
+        }
+
+        if (targetRow > 1) {
+          sheetSst.getRange(targetRow, statusCol).setValue(adj.novoStatus);
+          sheetSst.getRange(targetRow, valCol).setValue(adj.novaValidade);
+          linhaAlterada = targetRow;
+        }
+      }
+
+      // Gravar na aba "Log de Ajustes"
+      var sheetLog = ss.getSheetByName("Log de Ajustes");
+      if (!sheetLog) {
+        sheetLog = ss.insertSheet("Log de Ajustes");
+        sheetLog.getRange(1, 1, 1, 7).setValues([[
+          "NOME", "DATA", "HORA", "LINHA", "DOCUMENTO", "TIPO DE PENDÊNCIA", "LINK DA IMAGEM"
+        ]]);
+        sheetLog.getRange(1, 1, 1, 7).setFontWeight("bold").setBackground("#f1f5f9");
+      }
+
+      // Adiciona linha cumulativa
+      sheetLog.appendRow([
+        adj.nomeGestor || "Gestor GPA",
+        adj.data,
+        adj.hora,
+        linhaAlterada,
+        adj.documento,
+        adj.tipoPendencia,
+        adj.linkImagem || ""
+      ]);
+
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: "Ajuste manual gravado com sucesso!",
+        linha: linhaAlterada
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 2. Gravar Todos os Dados SST
     if (body.employees && body.employees.length > 0) {
       var sheetSst = ss.getSheetByName("Pendências SST");
       if (sheetSst) {

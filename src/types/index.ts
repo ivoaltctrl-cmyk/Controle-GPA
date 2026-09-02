@@ -231,3 +231,22 @@ export interface SystemStats {
     taxa: number;
   };
 }
+
+export interface AdjustmentLog {
+  id: string;
+  nomeGestor: string; // Nome do gestor que fez o ajuste
+  data: string; // Data do ajuste (AAAA-MM-DD)
+  hora: string; // Hora do ajuste (HH:mm:ss)
+  linha: number | string; // Número da linha alterada na aba "Pendências SST"
+  documento: string; // CPF do colaborador (chave de referência)
+  funcionarioNome?: string;
+  tipoPendencia: string; // Ex: "ASO Ocupacional (NR-07)", "Ordem de Serviço (NR-01)", etc.
+  docType?: DocType;
+  novaValidade: string; // AAAA-MM-DD
+  novoStatus: DocStatus; // EM_DIA, VENCIDO, etc.
+  linkImagem?: string; // URL do arquivo no Google Drive
+  nomeArquivo?: string;
+  observacoes?: string;
+  dataCriacao?: string;
+}
+

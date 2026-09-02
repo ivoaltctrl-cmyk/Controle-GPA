@@ -8,6 +8,7 @@ export interface AppDatabase {
   areas: any[];
   trabalhistas: any[];
   demandLogs: any[];
+  adjustmentLogs?: any[];
   brandConfig: any;
   adminCredentials?: {
     username: string;
@@ -143,6 +144,7 @@ export function readDb(): AppDatabase {
         areas: Array.isArray(parsed.areas) && parsed.areas.length > 0 ? parsed.areas : DEFAULT_SEED_AREAS,
         trabalhistas: Array.isArray(parsed.trabalhistas) ? parsed.trabalhistas : [],
         demandLogs: Array.isArray(parsed.demandLogs) ? parsed.demandLogs : [],
+        adjustmentLogs: Array.isArray(parsed.adjustmentLogs) ? parsed.adjustmentLogs : [],
         brandConfig: parsed.brandConfig || null,
         adminCredentials,
         resumoConfig: parsed.resumoConfig || null,
@@ -158,6 +160,7 @@ export function readDb(): AppDatabase {
     areas: DEFAULT_SEED_AREAS,
     trabalhistas: [],
     demandLogs: [],
+    adjustmentLogs: [],
     brandConfig: null,
     adminCredentials: getDefaultHashedCredentials(),
     resumoConfig: null,
@@ -174,6 +177,7 @@ export function saveDb(db: Partial<AppDatabase>): AppDatabase {
     areas: db.areas !== undefined ? db.areas : current.areas,
     trabalhistas: db.trabalhistas !== undefined ? db.trabalhistas : current.trabalhistas,
     demandLogs: db.demandLogs !== undefined ? db.demandLogs : current.demandLogs,
+    adjustmentLogs: db.adjustmentLogs !== undefined ? db.adjustmentLogs : current.adjustmentLogs || [],
     brandConfig: db.brandConfig !== undefined ? db.brandConfig : current.brandConfig,
     adminCredentials: db.adminCredentials !== undefined ? db.adminCredentials : current.adminCredentials,
     resumoConfig: db.resumoConfig !== undefined ? db.resumoConfig : current.resumoConfig,

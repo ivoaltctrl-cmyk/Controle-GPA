@@ -10,6 +10,7 @@ import {
   DocStatus,
   TrabalhistaEnvio,
   TrabalhistaMesConsolidado,
+  AdjustmentLog,
 } from '../types/index.ts';
 import {
   INITIAL_CONTRACTS,
@@ -25,6 +26,7 @@ const CONTRACTS_KEY = 'sst_pendencias_contracts_v1';
 const AREAS_KEY = 'sst_pendencias_areas_v1';
 const DEMAND_LOGS_KEY = 'sst_pendencias_demand_logs_v1';
 const TRABALHISTA_ENVIOS_KEY = 'sst_pendencias_trabalhista_envios_v1';
+const ADJUSTMENT_LOGS_KEY = 'sst_pendencias_adjustment_logs_v1';
 const BRAND_CONFIG_KEY = 'sst_pendencias_brand_config_v1';
 const IS_PRODUCTION_KEY = 'sst_pendencias_is_production_v1';
 const ADMIN_SESSION_TOKEN_KEY = 'sst_gpa_admin_session_token_v1';
@@ -242,6 +244,80 @@ export function saveStoredDemandLogs(logs: DemandLog[]) {
     console.error('Erro ao salvar logs de demanda:', e);
   }
 }
+
+export function getStoredAdjustmentLogs(): AdjustmentLog[] {
+  try {
+    const raw = localStorage.getItem(ADJUSTMENT_LOGS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('Erro ao ler logs de ajustes:', e);
+    return [];
+  }
+}
+
+export function saveStoredAdjustmentLogs(logs: AdjustmentLog[]) {
+  try {
+    localStorage.setItem(ADJUSTMENT_LOGS_KEY, JSON.stringify(logs));
+  } catch (e) {
+    console.error('Erro ao salvar logs de ajustes:', e);
+  }
+}
+
+export function addStoredAdjustmentLog(log: AdjustmentLog) {
+  try {
+    const current = getStoredAdjustmentLogs();
+    const updated = [log, ...current];
+    saveStoredAdjustmentLogs(updated);
+  } catch (e) {
+    console.error('Erro ao adicionar log de ajuste:', e);
+  }
+}
+
+/**
+ * Regra exata e unificada de cálculo de status (EM_DIA / A_VENCER / VENCIDO) a partir da data de validade
+ */
+export function calculateDocStatusFromValidity(validityDate?: string): {
+  status: DocStatus;
+  diasRestantes: number;
+  label: string;
+} {
+  if (!validityDate || !validityDate.trim()) {
+    return { status: 'VENCIDO', diasRestantes: -999, label: 'Sem data de validade (VENCIDO)' };
+  }
+  const cleanDate = validityDate.trim();
+  const targetDate = new Date(cleanDate.includes('T') ? cleanDate : `${cleanDate}T00:00:00`);
+  if (isNaN(targetDate.getTime())) {
+    return { status: 'VENCIDO', diasRestantes: -999, label: 'Data inválida (VENCIDO)' };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffTime = targetDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return {
+      status: 'VENCIDO',
+      diasRestantes: diffDays,
+      label: `Vencido há ${Math.abs(diffDays)} dia(s)`,
+    };
+  } else if (diffDays <= 30) {
+    return {
+      status: 'A_VENCER',
+      diasRestantes: diffDays,
+      label: `A vencer em ${diffDays} dia(s) (Alerta Preventivo)`,
+    };
+  } else {
+    return {
+      status: 'EM_DIA',
+      diasRestantes: diffDays,
+      label: `Em dia (Válido por ${diffDays} dias)`,
+    };
+  }
+}
+
 
 export function getStoredTrabalhistaEnvios(): TrabalhistaEnvio[] {
   try {

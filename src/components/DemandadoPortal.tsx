@@ -36,11 +36,13 @@ import {
   Eye,
   Send,
   Copy,
+  Pencil,
 } from 'lucide-react';
-import { Employee, Contract, AreaResponsavel, DocType, DocStatus, BrandConfig, PendingDoc, TrabalhistaEnvio } from '../types/index.ts';
+import { Employee, Contract, AreaResponsavel, DocType, DocStatus, BrandConfig, PendingDoc, TrabalhistaEnvio, AdjustmentLog } from '../types/index.ts';
 import { updateEmployeeCalculatedFields } from '../utils/storage.ts';
 import { TrabalhistaModule } from './TrabalhistaModule.tsx';
 import { ContractsModule } from './ContractsModule.tsx';
+import { ManualAdjustmentModal } from './ManualAdjustmentModal.tsx';
 import * as XLSX from 'xlsx';
 import confetti from 'canvas-confetti';
 
@@ -114,6 +116,42 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
   // Toast feedback & sync state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSyncingDirect, setIsSyncingDirect] = useState(false);
+
+  // Manual Adjustment Modal State
+  const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
+  const [adjustmentEmployee, setAdjustmentEmployee] = useState<Employee | null>(null);
+  const [adjustmentDoc, setAdjustmentDoc] = useState<PendingDoc | null>(null);
+
+  const handleOpenManualAdjustment = (emp: Employee, docType: DocType, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const doc = getEmpDoc(emp, docType) || {
+      id: `doc_${emp.id}_${docType}`,
+      tipo: docType,
+      nomeDocumento: docType === 'ORDEM_DE_SERVICO' ? 'Ordem de Serviço (NR-01)' :
+            docType === 'ATESTADO_SAUDE_OCUPACIONAL' ? 'ASO Ocupacional (NR-07)' :
+            docType === 'FICHA_EPI' ? 'Ficha de EPI (NR-06)' : 'Treinamento / Certificação',
+      status: 'PENDENTE' as DocStatus,
+      obrigatorio: true,
+      dataVencimento: new Date().toISOString().split('T')[0],
+    };
+    setAdjustmentEmployee(emp);
+    setAdjustmentDoc(doc);
+    setIsAdjustmentModalOpen(true);
+  };
+
+  const handleManualAdjustmentSuccess = (updatedEmp: Employee, log: AdjustmentLog) => {
+    onSaveEmployee(updatedEmp);
+    showToast(`✓ Ajuste gravado na planilha GPA_BD e registrado no Log de Ajustes!`);
+    if (updatedEmp.statusGeral === 'EM_DIA') {
+      try {
+        confetti({
+          particleCount: 60,
+          spread: 55,
+          origin: { y: 0.7 },
+        });
+      } catch {}
+    }
+  };
 
   const handleQuickSync = async () => {
     if (onDirectSync) {
@@ -549,63 +587,90 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
 
     if (doc.status === 'EM_DIA') {
       return (
-        <button
-          onClick={(e) => handleToggleDoc(emp, docType, e)}
-          title="Status: EM DIA. Clique se desejar reabrir a pendência."
-          className="w-full inline-flex items-center justify-center gap-1 px-1.5 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 font-bold text-[10.5px] cursor-pointer transition-all hover:scale-102"
-        >
-          <Check className="w-3 h-3 stroke-[3] text-emerald-600 shrink-0" />
-          <span className="truncate">EM DIA</span>
-        </button>
+        <div className="flex items-center gap-1 w-full justify-between">
+          <button
+            onClick={(e) => handleToggleDoc(emp, docType, e)}
+            title="Status: EM DIA. Clique se desejar reabrir a pendência."
+            className="flex-1 inline-flex items-center justify-center gap-1 px-1.5 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 font-bold text-[10.5px] cursor-pointer transition-all hover:scale-102"
+          >
+            <Check className="w-3 h-3 stroke-[3] text-emerald-600 shrink-0" />
+            <span className="truncate">EM DIA</span>
+          </button>
+          <button
+            onClick={(e) => handleOpenManualAdjustment(emp, docType, e)}
+            title="Ajustar validade e comprovante na planilha GPA_BD"
+            className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors shrink-0"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+        </div>
       );
     }
 
     if (doc.status === 'A_VENCER') {
       const dias = doc.diasRestantes ?? 22;
       return (
-        <button
-          onClick={(e) => handleToggleDoc(emp, docType, e)}
-          title={`Vencendo em ${dias} dias. Clique para registrar renovação (Dar Check)!`}
-          className={`w-full inline-flex items-center justify-center gap-1 px-1.5 py-1 rounded bg-amber-50 text-amber-900 hover:bg-amber-100 border font-bold text-[10.5px] cursor-pointer transition-all hover:scale-102 ${
-            blinkingAlerts ? 'border-amber-400 ring-1 ring-amber-300' : 'border-amber-300'
-          }`}
-        >
-          {/* Pulsing Amber Beacon Indicator */}
-          <span className="relative flex h-1.5 w-1.5 shrink-0">
-            {blinkingAlerts && (
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-            )}
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500 animate-pulse" />
-          </span>
-          <Clock className="w-3 h-3 text-amber-600 shrink-0" />
-          <span className="truncate">{dias}d (Renovar)</span>
-        </button>
+        <div className="flex items-center gap-1 w-full justify-between">
+          <button
+            onClick={(e) => handleToggleDoc(emp, docType, e)}
+            title={`Vencendo em ${dias} dias. Clique para registrar renovação (Dar Check)!`}
+            className={`flex-1 inline-flex items-center justify-center gap-1 px-1.5 py-1 rounded bg-amber-50 text-amber-900 hover:bg-amber-100 border font-bold text-[10.5px] cursor-pointer transition-all hover:scale-102 ${
+              blinkingAlerts ? 'border-amber-400 ring-1 ring-amber-300' : 'border-amber-300'
+            }`}
+          >
+            {/* Pulsing Amber Beacon Indicator */}
+            <span className="relative flex h-1.5 w-1.5 shrink-0">
+              {blinkingAlerts && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+              )}
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500 animate-pulse" />
+            </span>
+            <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+            <span className="truncate">{dias}d (Renovar)</span>
+          </button>
+          <button
+            onClick={(e) => handleOpenManualAdjustment(emp, docType, e)}
+            title="Ajustar validade e comprovante na planilha GPA_BD"
+            className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors shrink-0"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+        </div>
       );
     }
 
-    // VENCIDO or PENDENTE -> Render interactive single-click status with pulsing alert
+    // VENCIDO or PENDENTE -> Render interactive single-click status with pulsing alert and edit icon
     return (
-      <button
-        onClick={(e) => handleToggleDoc(emp, docType, e)}
-        title="Status: VENCIDO. Clique aqui para informar que a pendência foi sanada (Dar Check)!"
-        className={`w-full inline-flex items-center justify-center gap-1 px-1.5 py-1 rounded text-rose-700 hover:text-rose-900 border font-bold text-[10.5px] cursor-pointer transition-all hover:shadow-xs group ${
-          blinkingAlerts
-            ? 'bg-rose-50/90 hover:bg-rose-100 border-rose-400 ring-1 ring-rose-300 animate-pulse'
-            : 'bg-rose-50 hover:bg-rose-100 border-rose-300'
-        }`}
-      >
-        {/* Pulsing Red Radar Beacon */}
-        <span className="relative flex h-2 w-2 shrink-0">
-          {blinkingAlerts && (
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-          )}
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#E21B23]" />
-        </span>
-        <span className="font-black text-rose-800 shrink-0">VENCIDO</span>
-        <span className="text-[10px] text-rose-600 group-hover:text-rose-800 underline truncate">
-          (Sanar)
-        </span>
-      </button>
+      <div className="flex items-center gap-1 w-full justify-between">
+        <button
+          onClick={(e) => handleToggleDoc(emp, docType, e)}
+          title="Status: VENCIDO. Clique aqui para informar que a pendência foi sanada (Dar Check)!"
+          className={`flex-1 inline-flex items-center justify-center gap-1 px-1.5 py-1 rounded text-rose-700 hover:text-rose-900 border font-bold text-[10.5px] cursor-pointer transition-all hover:shadow-xs group ${
+            blinkingAlerts
+              ? 'bg-rose-50/90 hover:bg-rose-100 border-rose-400 ring-1 ring-rose-300 animate-pulse'
+              : 'bg-rose-50 hover:bg-rose-100 border-rose-300'
+          }`}
+        >
+          {/* Pulsing Red Radar Beacon */}
+          <span className="relative flex h-2 w-2 shrink-0">
+            {blinkingAlerts && (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+            )}
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#E21B23]" />
+          </span>
+          <span className="font-black text-rose-800 shrink-0">VENCIDO</span>
+          <span className="text-[10px] text-rose-600 group-hover:text-rose-800 underline truncate">
+            (Sanar)
+          </span>
+        </button>
+        <button
+          onClick={(e) => handleOpenManualAdjustment(emp, docType, e)}
+          title="Ajustar validade e comprovante na planilha GPA_BD"
+          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors shrink-0"
+        >
+          <Pencil className="w-3 h-3" />
+        </button>
+      </div>
     );
   };
 
@@ -1393,6 +1458,22 @@ export const DemandadoPortal: React.FC<DemandadoPortalProps> = ({
           )}
         </div>
       </>
+      )}
+
+      {/* Modal de Ajuste Manual de Pendências SST */}
+      {isAdjustmentModalOpen && adjustmentEmployee && adjustmentDoc && (
+        <ManualAdjustmentModal
+          isOpen={isAdjustmentModalOpen}
+          onClose={() => {
+            setIsAdjustmentModalOpen(false);
+            setAdjustmentEmployee(null);
+            setAdjustmentDoc(null);
+          }}
+          employee={adjustmentEmployee}
+          pendingDoc={adjustmentDoc}
+          onSaveSuccess={handleManualAdjustmentSuccess}
+          currentUser={{ nome: adjustmentEmployee.areaResponsavelNome || 'Gestor GPA' }}
+        />
       )}
     </div>
   );

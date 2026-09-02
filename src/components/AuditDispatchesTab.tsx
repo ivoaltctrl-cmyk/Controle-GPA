@@ -75,9 +75,16 @@ export const AuditDispatchesTab: React.FC<AuditDispatchesTabProps> = ({
   const accentColor = brand?.accentColor || '#f59e0b';
   const companyName = brand?.companyName || 'GPA';
 
-  // Group pending employees by Area
+  // Helper to check if employee is active in scope
+  const isEmployeeActive = (e: Employee) =>
+    !(
+      (e.resumoGeral && (e.resumoGeral.includes('Desligado') || e.resumoGeral.includes('Cancelado'))) ||
+      e.statusGeral === 'BLOQUEADO'
+    );
+
+  // Group pending employees by Area (only active employees in scope)
   const pendingByArea = areas.map((area) => {
-    const areaEmployees = employees.filter((e) => e.areaId === area.id);
+    const areaEmployees = employees.filter((e) => e.areaId === area.id && isEmployeeActive(e));
     const irregularEmployees = areaEmployees.filter((e) => {
       if (filterSeverity === 'vencidos_only') {
         return (e.pendencias || []).some((p) => p.status === 'VENCIDO');
@@ -95,9 +102,9 @@ export const AuditDispatchesTab: React.FC<AuditDispatchesTabProps> = ({
     };
   });
 
-  // Group pending employees by Contract
+  // Group pending employees by Contract (only active employees in scope)
   const pendingByContract = contracts.map((contract) => {
-    const contractEmployees = employees.filter((e) => e.contratoId === contract.id);
+    const contractEmployees = employees.filter((e) => e.contratoId === contract.id && isEmployeeActive(e));
     const irregularEmployees = contractEmployees.filter((e) => {
       if (filterSeverity === 'vencidos_only') {
         return (e.pendencias || []).some((p) => p.status === 'VENCIDO');
@@ -116,6 +123,7 @@ export const AuditDispatchesTab: React.FC<AuditDispatchesTabProps> = ({
   });
 
   const totalIrregularGeneral = employees.filter((e) => {
+    if (!isEmployeeActive(e)) return false;
     if (filterSeverity === 'vencidos_only') {
       return (e.pendencias || []).some((p) => p.status === 'VENCIDO');
     }
